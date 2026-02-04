@@ -52,7 +52,6 @@ const AdminLayout = () => `
         <div style="display:flex; gap:10px; margin-bottom:25px; background: #111; padding: 10px; border-radius: 12px; border: 1px solid #222;">
             <button class="profile-tab ${currentTab === 'users' ? 'active' : ''}" onclick="window.switchAdminTab('users')">👥 Usuarios</button>
             <button class="profile-tab ${currentTab === 'content' ? 'active' : ''}" onclick="window.switchAdminTab('content')">Moderación</button>
-            <button class="profile-tab ${currentTab === 'migrate' ? 'active' : ''}" onclick="window.switchAdminTab('migrate')">♻️ Migración</button>
             <button class="profile-tab ${currentTab === 'logs' ? 'active' : ''}" onclick="window.switchAdminTab('logs')">📜 Actividad</button>
         </div>
 
@@ -114,8 +113,6 @@ const renderAdmin = async () => {
         await renderUsersTab(container);
     } else if (currentTab === 'content') {
         await renderContentTab(container);
-    } else if (currentTab === 'migrate') {
-        renderMigrateTab(container);
     } else if (currentTab === 'logs') {
         await renderLogsTab(container);
     }
@@ -234,24 +231,18 @@ const renderContentTab = async (container) => {
     `;
 };
 
-const renderMigrateTab = (container) => {
-    container.innerHTML = `
-        <div style="background:#222; padding:30px; border-radius:15px; border:1px solid #444; text-align:center">
-            <h3>♻️ Procesador de Migración Cloudinary</h3>
-            <p style="color:#aaa; max-width:500px; margin:0 auto 20px; font-size:0.9rem">
-                Mueve imágenes de la galería desde Supabase hacia Cloudinary para mejorar el rendimiento y optimizar el almacenamiento.
-            </p>
-            <div id="migrateStatus" style="font-size:1.1rem; font-weight:bold; margin-bottom:10px">Listo para iniciar</div>
-            <div id="migrateProgress" style="width:100%; height:12px; background:#444; border-radius:6px; overflow:hidden; margin-bottom:25px; display:none">
-                <div id="migrateBar" style="width:0%; height:100%; background:#4caf50; transition:width 0.3s"></div>
-            </div>
-            <button class="btn" id="btnStartMigrate" onclick="window.startMigration()">▶️ Iniciar Migración</button>
-        </div>
-    `;
-};
 
 const renderLogsTab = async (container) => {
-    const logs = await store.getActivityLogs();
+    container.innerHTML = `<div style="text-align:center; padding:50px; color:#aaa"><div class="loading-spinner" style="margin-bottom:15px"></div>Cargando actividad reciente...</div>`;
+
+    let logs = [];
+    try {
+        logs = await store.getActivityLogs();
+    } catch (e) {
+        console.error("Error loading logs tab:", e);
+        container.innerHTML = `<div style="color:#ff4444; padding:20px; border:1px solid #ff4444; border-radius:8px">❌ Error cargando logs: ${e.message}</div>`;
+        return;
+    }
 
     const renderLogRow = (l) => {
         const date = new Date(l.created_at).toLocaleString();
@@ -298,20 +289,24 @@ const renderLogsTab = async (container) => {
                     </tr>
                 </thead>
                 <tbody id="adminLogsList">
-                    ${logs.length === 0 ? '<tr><td colspan="4" style="text-align:center; padding:20px; color:#666">No hay actividad registrada aún.</td></tr>' : logs.map(l => renderLogRow(l)).join('')}
+                    ${!logs || logs.length === 0 ? '<tr><td colspan="4" style="text-align:center; padding:20px; color:#666">No hay actividad registrada aún.</td></tr>' : logs.map(l => renderLogRow(l)).join('')}
                 </tbody>
             </table>
         </div>
     `;
 
     // Realtime subscription
-    store.subscribeToLogs((newLog) => {
-        const list = document.getElementById('adminLogsList');
-        if (list) {
-            if (list.innerHTML.includes('No hay actividad')) list.innerHTML = '';
-            list.insertAdjacentHTML('afterbegin', renderLogRow(newLog));
-        }
-    });
+    try {
+        store.subscribeToLogs((newLog) => {
+            const list = document.getElementById('adminLogsList');
+            if (list) {
+                if (list.innerHTML.includes('No hay actividad')) list.innerHTML = '';
+                list.insertAdjacentHTML('afterbegin', renderLogRow(newLog));
+            }
+        });
+    } catch (e) {
+        console.warn("Realtime logs error:", e);
+    }
 };
 
 // --- HANDLERS ---
@@ -389,41 +384,6 @@ window.adminDeletePrompt = async (id) => {
     }
 };
 
-window.startMigration = async () => {
-    const btn = document.getElementById('btnStartMigrate');
-    const status = document.getElementById('migrateStatus');
-    const progress = document.getElementById('migrateProgress');
-    const bar = document.getElementById('migrateBar');
-
-    if (!confirm("Esto moverá archivos de Supabase a Cloudinary. ¿Continuar?")) return;
-
-    btn.disabled = true;
-    progress.style.display = 'block';
-    status.innerText = "Calculando imágenes...";
-
-    try {
-        const stats = await store.getMigrationStats();
-        if (stats.total === 0) {
-            status.innerText = "No hay imágenes pendientes de migración.";
-            btn.disabled = false;
-            return;
-        }
-
-        let current = 0;
-        for (const prompt of stats.prompts) {
-            status.innerText = `Migrando: ${prompt.title}...`;
-            await store.migrateOnePrompt(prompt);
-            current++;
-            bar.style.width = `${(current / stats.total) * 100}%`;
-        }
-
-        status.innerText = "¡Migración completada con éxito!";
-    } catch (e) {
-        console.error(e);
-        status.innerText = "❌ Error en migración. Revisa la consola.";
-    }
-    btn.disabled = false;
-};
 
 // --- INIT ---
 renderAdmin();
