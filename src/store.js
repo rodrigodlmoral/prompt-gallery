@@ -84,8 +84,23 @@ export const store = {
             .eq('id', uid)
             .single();
 
+        // Count prompts for level logic
+        const { count: promptsCount } = await supabase
+            .from('prompts')
+            .select('*', { count: 'exact', head: true })
+            .eq('author_id', uid);
+
         if (data) {
-            this.currentUser = this._normalizeProfile(data);
+            let userProfile = this._normalizeProfile({ ...data, prompts_count: promptsCount || 0 });
+
+            // RETROACTIVE CHECK: Verify level on load
+            const { leveledUp, newLevel } = await this.checkLevelUp(uid, userProfile.level);
+            if (leveledUp) {
+                userProfile.level = newLevel; // Update local immediately
+                // We could show a toast here if we wanted: "¡Has subido al Nivel X mientras no estabas!"
+            }
+
+            this.currentUser = userProfile;
         } else {
             console.error("Perfil no encontrado", error);
         }
@@ -105,20 +120,122 @@ export const store = {
         }
     },
 
+    async getTopCreators() {
+        try {
+            // 1. Get all prompts (lightweight) to calculate counts
+            const { data: prompts, error } = await supabase.from('prompts').select('author_id');
+            if (error) throw error;
+
+            // 2. Aggregate counts
+            const counts = {};
+            prompts.forEach(p => { counts[p.author_id] = (counts[p.author_id] || 0) + 1; });
+
+            // 3. Sort and take top 10
+            const sortedIds = Object.keys(counts).sort((a, b) => counts[b] - counts[a]).slice(0, 10);
+
+            if (sortedIds.length === 0) return [];
+
+            // 4. Fetch details for these users
+            const { data: profiles, error: pError } = await supabase.from('profiles').select('*').in('id', sortedIds);
+            if (pError) throw pError;
+
+            // 5. Merge and return
+            return sortedIds.map(id => {
+                const p = profiles.find(prof => prof.id === id);
+                if (!p) return null;
+                return {
+                    ...p,
+                    prompts_count: counts[id]
+                };
+            }).filter(Boolean);
+
+        } catch (err) {
+            console.error("Error fetching top creators:", err);
+            return [];
+        }
+    },
+
+    // --- LEVEL SYSTEM ---
+    async getUserStats(uid) {
+        // Fetch all prompts for user to count totals
+        const { data: prompts, error } = await supabase
+            .from('prompts')
+            .select('copy_count')
+            .eq('author_id', uid);
+
+        if (error || !prompts) return { posts: 0, copies: 0 };
+
+        const posts = prompts.length;
+        const copies = prompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
+        return { posts, copies };
+    },
+
+    async checkLevelUp(uid, currentLevel) {
+        const { posts, copies } = await this.getUserStats(uid);
+
+        const THRESHOLDS = [
+            { level: 5, posts: 250, copies: 50 },
+            { level: 4, posts: 100, copies: 30 },
+            { level: 3, posts: 50, copies: 15 },
+            { level: 2, posts: 25, copies: 0 },
+            { level: 1, posts: 10, copies: 0 }
+        ];
+
+        // Find highest matching level
+        const match = THRESHOLDS.find(t => posts >= t.posts && copies >= t.copies);
+        const newLevel = match ? match.level : 0;
+
+        if (newLevel > currentLevel) {
+            console.log(`🎉 Level Up! ${currentLevel} -> ${newLevel}`);
+
+            // Update DB
+            const { error } = await supabase
+                .from('profiles')
+                .update({ level: newLevel })
+                .eq('id', uid);
+
+            if (!error) {
+                return { leveledUp: true, newLevel };
+            }
+        }
+        return { leveledUp: false, newLevel: currentLevel }; // No change
+    },
+
     _normalizeProfile(data) {
         if (!data) return null;
         const socials = data.socials || {};
+
+        // SECURITY MIRROR PRIORITY: If we have data in socials mirror, compare it with columns
+        // This handles cases where columns exist but fail to update due to schema issues
+        const tokens = Math.max(data.tokens || 0, socials._tokens || 0);
+        const lastCommAt = Math.max(data.last_comment_at || 0, socials._last_comment_at || 0);
+
+        // For daily count, we only use the mirror if the day matches
+        let dailyCount = data.daily_comment_count || 0;
+        let commDay = data.last_comment_day || "";
+
+        if (socials._last_comm_day === commDay && socials._daily_comm_count > dailyCount) {
+            dailyCount = socials._daily_comm_count;
+        } else if (socials._last_comm_day && !commDay) {
+            dailyCount = socials._daily_comm_count;
+            commDay = socials._last_comm_day;
+        }
+
         return {
             ...data,
             role: data.role || 'user',
             avatar: data.avatar_url,
             socials: socials,
+            moderation: data.moderation || { suggestive: 'ON', nsfw: 'BLUR' },
             following: data.following || socials._following || [],
             saved_prompts: data.saved_prompts || socials._saved || [],
             level: data.level || 0,
-            tokens: data.tokens || 0,
+            tokens: tokens,
             prompts_count: data.prompts_count || 0,
-            badges: data.badges || []
+            badges: data.badges || [],
+            daily_comment_count: dailyCount,
+            last_comment_day: commDay,
+            last_comment_at: lastCommAt
         };
     },
 
@@ -202,8 +319,8 @@ export const store = {
         // 1. Update Password (Auth)
         if (data.password) {
             const { error } = await supabase.auth.updateUser({ password: data.password });
-            if (error) alert("Error cambiando contraseña: " + error.message);
-            else alert("Contraseña actualizada correctamente");
+            if (error) window.toast("Error cambiando contraseña: " + error.message, 'error');
+            else window.toast("Contraseña actualizada correctamente", 'success');
         }
 
         // 2. Prepare Profile Update (Public Table)
@@ -223,7 +340,7 @@ export const store = {
 
         if (profileError) {
             console.error("Profile Save Error:", profileError);
-            alert("❌ Error guardando perfil (DB): " + profileError.message);
+            window.toast("❌ Error guardando perfil (DB): " + profileError.message, 'error');
             return;
         }
 
@@ -241,7 +358,7 @@ export const store = {
         // Let's just merge 'data' which has the local keys.
         Object.assign(this.currentUser, data);
 
-        alert("✅ Perfil actualizado correctamente");
+        window.toast("✅ Perfil actualizado correctamente", 'success');
         if (window.render) window.render();
     },
 
@@ -378,7 +495,10 @@ export const store = {
         }
 
         // Recargar perfil del usuario para obtener el token ganado
+        let levelUpData = { leveledUp: false };
         if (this.currentUser && this.currentUser.id) {
+            // Check Level Up specifically after publishing
+            levelUpData = await this.checkLevelUp(this.currentUser.id, this.currentUser.level);
             await this._loadUserProfile(this.currentUser.id);
         }
 
@@ -395,7 +515,7 @@ export const store = {
             setTimeout(() => window.showTokenCelebration(1), 500);
         }
 
-        return { success: true, tokensEarned: 1 };
+        return { success: true, tokensEarned: 1, ...levelUpData };
     },
 
     _dataURLtoFile(dataurl, filename) {
@@ -454,7 +574,6 @@ export const store = {
                 });
             }
 
-            console.log("Prompts cargados:", this.prompts); // Debug
             if (window.render) window.render();
         }
     },
@@ -674,6 +793,19 @@ export const store = {
                 .eq('id', id);
 
             if (error) console.error("Error updating copy count:", error);
+
+            // Check Level Up for the AUTHOR of the prompt (not the copier)
+            if (!error && prompt.authorId) {
+                // Determine author's current level (requires fetching profile if not available, or just blind check)
+                // Since this might happen frequently, blind check inside checkLevelUp is fine (it fetches stats)
+                // We need the current level to know if it CHANGED. 
+                // We'll fetch the user profile briefly to get current level.
+                const { data: user } = await supabase.from('profiles').select('level').eq('id', prompt.authorId).single();
+                if (user) {
+                    await this.checkLevelUp(prompt.authorId, user.level);
+                }
+            }
+
             return true;
         }
         return false;
@@ -724,20 +856,73 @@ export const store = {
         await this._persist(id);   // Also try to save to Prompt (for global view, might fail due to RLS but that's okay)
     },
 
-    addComment(id, text) {
-        if (!this.currentUser) return;
+    async addComment(id, text) {
+        if (!this.currentUser) return { success: false, msg: "Inicia sesión para comentar" };
+
+        // 1. LIMITS CHECK (COOLDOWN & DAILY)
+        const now = Date.now();
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+        // --- Global Cooldown (5 mins) ---
+        const lastCommAt = this.currentUser.last_comment_at || 0;
+        const diffAt = now - lastCommAt;
+        const cooldownMs = 5 * 60 * 1000;
+
+        if (diffAt < cooldownMs) {
+            const remaining = Math.ceil((cooldownMs - diffAt) / 1000 / 60);
+            return {
+                success: false,
+                msg: `Enfriamiento activo: Espera ${remaining} min para comentar de nuevo.`,
+                isCooldown: true
+            };
+        }
+
+        // --- Daily Limit (10/day) ---
+        let dailyCount = this.currentUser.daily_comment_count || 0;
+        const lastDay = this.currentUser.last_comment_day || "";
+
+        if (lastDay !== today) {
+            dailyCount = 0; // Reset for new day
+        }
+
+        if (dailyCount >= 10) {
+            return {
+                success: false,
+                msg: "Límite diario alcanzado: Has llegado al máximo de 10 comentarios por hoy.",
+                isLimit: true
+            };
+        }
+
         const prompt = this.prompts.find(p => p.id === id);
         if (prompt) {
             if (!prompt.comments) prompt.comments = [];
+
+            // 2. REGISTER COMMENT
             prompt.comments.push({
                 id: Date.now(),
                 username: this.currentUser.username,
                 avatar: this.currentUser.avatar,
-                text,
-                timestamp: Date.now()
+                text: text,
+                timestamp: now
             });
+
+            // 3. REWARD & UPDATE COUNTERS
+            this.currentUser.tokens = (this.currentUser.tokens || 0) + 1;
+            this.currentUser.last_comment_at = now;
+            this.currentUser.last_comment_day = today;
+            this.currentUser.daily_comment_count = dailyCount + 1;
+
+            // 4. PERSIST
+            await this._persistUser();
             this._persist(id);
+
+            return {
+                success: true,
+                reward: 1,
+                remainingDaily: 10 - this.currentUser.daily_comment_count
+            };
         }
+        return { success: false, msg: "Post no encontrado" };
     },
 
     removeComment(promptId, commentId) {
@@ -867,14 +1052,22 @@ export const store = {
         const socials = { ...(this.currentUser.socials || {}) };
         socials._following = this.currentUser.following || [];
         socials._saved = this.currentUser.saved_prompts || [];
+        socials._tokens = this.currentUser.tokens || 0;
+        socials._last_comment_at = this.currentUser.last_comment_at || 0;
+        socials._daily_comm_count = this.currentUser.daily_comment_count || 0;
+        socials._last_comm_day = this.currentUser.last_comment_day || "";
 
         const updatePayload = {
             socials: socials,
             moderation: this.currentUser.moderation || {},
-            avatar_url: this.currentUser.avatar
+            avatar_url: this.currentUser.avatar,
+            tokens: this.currentUser.tokens || 0,
+            last_comment_at: this.currentUser.last_comment_at || 0,
+            daily_comment_count: this.currentUser.daily_comment_count || 0,
+            last_comment_day: this.currentUser.last_comment_day || ""
         };
 
-        // If these columns exist, update them too. If not, Supabase ignores them or throws (but we saved to socials anyway)
+        // If these columns exist, update them too.
         if (this.currentUser.following) updatePayload.following = this.currentUser.following;
         if (this.currentUser.saved_prompts) updatePayload.saved_prompts = this.currentUser.saved_prompts;
 
@@ -884,12 +1077,28 @@ export const store = {
             .eq('id', this.currentUser.id);
 
         if (error) {
-            console.error("Error persisting User Profile to Supabase:", error);
-            // Fallback: Try ONLY socials if the whole update failed (likely due to missing columns)
-            if (error.message && (error.message.includes('column') || error.code === '42703')) {
-                console.log("Retrying update with only existing metadata columns...");
-                await supabase.from('profiles').update({ socials }).eq('id', this.currentUser.id);
+            console.error("❌ PERSISTENCE FAILURE:", error);
+            console.log("Current Payload attempted:", updatePayload);
+
+            // GLOBAL FALLBACK: If anything fails (missing columns, wrong types, range errors, etc), 
+            // we ALWAYS try to save the critical data (tokens + mirror) via the safe path.
+            console.warn("⚠️ Error en guardado principal. Reintentando con 'Modo Seguro' (Mirror JSON + Saldo)...");
+
+            const fallbackPayload = {
+                socials,
+                tokens: updatePayload.tokens,
+                avatar_url: updatePayload.avatar_url
+            };
+
+            const partialRes = await supabase.from('profiles').update(fallbackPayload).eq('id', this.currentUser.id);
+
+            if (partialRes.error) {
+                console.error("❌ CRITICAL: El Modo Seguro también falló!", partialRes.error);
+            } else {
+                console.log("✅ Recuperación Exitosa: Tu saldo se ha guardado en Modo Seguro.");
             }
+        } else {
+            console.log("✅ Persistence Success: Profile and Tokens synced.");
         }
     },
 
@@ -960,7 +1169,6 @@ export const store = {
             }
         }
 
-        console.log("📋 Migration Log:", migrationLog);
 
         return {
             count: successCount,

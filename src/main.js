@@ -3,6 +3,17 @@ import { store } from './store.js'
 
 store.init();
 
+// --- SECURITY HELPERS ---
+window.escapeHTML = (str) => {
+    if (!str) return "";
+    return str.toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+};
+
 // --- GLOBAL STATE ---
 let currentView = 'home';
 let profileUser = null;
@@ -12,6 +23,16 @@ let filters = { source: 'community', sort: 'newest', time: 'all', tool: 'all', r
 
 // --- ADMIN SORT STATE ---
 window.adminSort = { col: 'username', dir: 'asc' };
+
+// --- TOP CREATORS STATE ---
+let topCreatorsList = [];
+window.openUserProfile = (username) => {
+    profileUser = username;
+    currentView = 'profile';
+    profileTab = 'creations';
+    window.scrollTo(0, 0);
+    render();
+};
 
 // --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist ---
 setInterval(() => {
@@ -38,6 +59,16 @@ setInterval(() => {
 
 const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.0', 'SDXL', 'Flux', 'Midjourney', 'Huggingface', 'Fooocus', 'ComfyUI', 'Perchance', 'Otro'];
 const RATINGS = ['SFW / Apto', 'Sugestivo', 'NSFW / +18'];
+
+const LEVEL_REQS = [
+    { posts: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
+    { posts: 10, name: 'Iniciado', benefits: ['Publicar Secuencias (Multi-imagen)', 'Acceso a retos semanales'], icon: '🎖️', color: '#4caf50' },
+    { posts: 25, name: 'Principiante', benefits: ['Cambiar foto de perfil', 'Añadir redes sociales al perfil'], icon: '🏅', color: '#2196f3' },
+    { posts: 50, name: 'Contribuidor', benefits: ['Sin cooldown en comentarios', 'Medalla especial de plata'], icon: '🥇', color: '#ff9800' },
+    { posts: 100, name: 'Autor', benefits: ['Destacar tus propios posts (Self-Promo)', 'Panel de estadísticas avanzado'], icon: '💎', color: '#9c27b0' },
+    { posts: 250, name: 'COLABORADOR', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '✨', color: 'gold' }
+];
+
 const app = document.querySelector('#app');
 
 // Exponer render y filters a window para que funcionen con onclick/onchange inline
@@ -109,33 +140,52 @@ const LEGAL_TEXTS = {
     tos: `
         <h2>Términos de Servicio</h2>
         <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
-            <p><strong>1. Aceptación:</strong> Al usar Prompt Gallery, aceptas estos términos en su totalidad.</p>
-            <p><strong>2. Categorización de Contenido (IMPORTANTE):</strong> Todo usuario es responsable de categorizar correctamente su material (SFW, NSFW, Sugestivo, Gore, etc.) al momento de publicarlo. 
-            <br><br><strong>La administración se reserva el derecho de recategorizar, ocultar o eliminar permanentemente cualquier contenido que esté mal etiquetado o que viole nuestras políticas de comunidad, sin previo aviso.</strong></p>
-            <p><strong>3. Contenido Prohibido:</strong> Está estrictamente prohibido subir material ilegal, CSAM (abuso sexual infantil), deepfakes no consentidos de personas reales, violencia extrema real o contenido que promueva el odio.</p>
-            <p><strong>4. Derechos de Autor:</strong> Los usuarios retienen los derechos de sus creaciones pero otorgan a Prompt Gallery una licencia mundial y gratuita para mostrar dicho contenido en la plataforma.</p>
-            <p><strong>5. Terminación:</strong> Podemos suspender tu cuenta si violas estas normas repetidamente.</p>
+            <p><strong>1. Licencia de Uso:</strong> Prompt Gallery es una plataforma para compartir, descubrir y organizar prompts de IA. Al utilizar nuestros servicios, aceptas operar bajo estos términos.</p>
+            <p><strong>2. Propiedad Intelectual:</strong> Tú conservas todos los derechos de autor sobre los prompts y secuencias que creas. Sin embargo, al publicarlos en la plataforma (en modo público), otorgas a Prompt Gallery y a sus usuarios una licencia no exclusiva, mundial y gratuita para ver, copiar, modificar y ejecutar dichos prompts.</p>
+            <p><strong>3. Responsabilidad del Contenido:</strong> Eres el único responsable del material que subes. La plataforma actúa como un intermediario pasivo. Nos reservamos el derecho de eliminar cualquier contenido que viole leyes internacionales, derechos de autor de terceros o nuestras políticas de seguridad.</p>
+            <p><strong>4. Clasificación Obligatoria:</strong> Es tu deber etiquetar correctamente el contenido (SFW, Sugestivo, NSFW). El uso indebido de etiquetas resultará en la suspensión de la cuenta.</p>
+            <p><strong>5. Modificaciones:</strong> Nos reservamos el derecho de actualizar estos términos en cualquier momento. El uso continuado implica la aceptación de los cambios.</p>
         </div>
     `,
     privacy: `
         <h2>Política de Privacidad</h2>
         <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
-            <p><strong>1. Recopilación de Datos:</strong> Solo recopilamos los datos necesarios para el funcionamiento de la app (email, nombre de usuario y contenido subido).</p>
-            <p><strong>2. Almacenamiento:</strong> Tus preferencias locales se guardan en tu dispositivo (LocalStorage). Los datos públicos se alojan en nuestros servidores seguros.</p>
-            <p><strong>3. Uso de la Información:</strong> No vendemos ni compartimos tus datos personales con terceros para fines comerciales.</p>
-            <p><strong>4. Cookies:</strong> Usamos cookies técnicas esenciales para mantener tu sesión activa.</p>
+            <p><strong>1. Recolección de Datos:</strong> Recopilamos información mínima necesaria: correo electrónico, nombre de usuario y datos técnicos de acceso (IP, navegador) para seguridad y análisis.</p>
+            <p><strong>2. Imágenes y Prompts:</strong> Las imágenes subidas a servidores públicos son accesibles externamente. Recomendamos no subir fotos personales privadas ni información sensible en los prompts.</p>
+            <p><strong>3. Seguridad:</strong> Utilizamos cifrado estándar (HTTPS) y hash seguro para contraseñas. Nunca almacenamos contraseñas en texto plano.</p>
+            <p><strong>4. Terceros:</strong> No vendemos tus datos a terceros. Podemos utilizar servicios de análisis anonimizados para mejorar la experiencia.</p>
+            <p><strong>5. Tus Derechos:</strong> Puedes solicitar la eliminación de tu cuenta y todos tus datos enviando un correo a soporte o desde la configuración de tu perfil.</p>
         </div>
     `,
     safety: `
         <h2>Centro de Seguridad</h2>
         <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
-            <p><strong>Herramientas para tu Protección:</strong></p>
+            <p><strong>Nuestra Prioridad:</strong> Mantener un entorno creativo seguro y respetuoso.</p>
             <ul>
-                <li><strong>Filtros de Contenido:</strong> Puedes difuminar o bloquear contenido NSFW/Sugestivo desde la configuración de tu perfil.</li>
-                <li><strong>Bloqueo de Usuarios:</strong> Puedes bloquear usuarios molestos visitando su perfil.</li>
-                <li><strong>Reportes:</strong> Si ves algo ilegal, contáctanos inmediatamente a través de Soporte.</li>
+                <li><strong>Tolerancia Cero:</strong> No permitimos contenido ilegal, CSAM, violencia extrema, doxxing o discurso de odio. Reportaremos a las autoridades cualquier material ilegal.</li>
+                <li><strong>Herramientas de Control:</strong> Usa el botón "Bloquear" en perfiles molestos y configura tus filtros de contenido en "Configuración" para ocultar material sensible.</li>
+                <li><strong>Moderación:</strong> Contamos con sistemas automáticos y moderadores humanos. Si ves algo incorrecto, usa el botón de reporte.</li>
             </ul>
-            <p>Nos tomamos muy en serio la seguridad de nuestra comunidad.</p>
+            <p><strong>Consejo:</strong> Nunca compartas tu contraseña ni datos bancarios con otros usuarios.</p>
+        </div>
+    `,
+    faq: `
+        <h2>Preguntas Frecuentes (FAQ)</h2>
+        <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
+            <p><strong>¿Qué es Prompt Gallery?</strong><br>
+            Es una comunidad para entusiastas de la IA Generativa. Puedes guardar, organizar y compartir prompts para herramientas como Midjourney, Stable Diffusion, DALL-E, etc.</p>
+            
+            <p><strong>¿Es gratuito?</strong><br>
+            Sí, el registro y uso básico es 100% gratuito. Ofrecemos funciones avanzadas para usuarios activos que suben de nivel.</p>
+            
+            <p><strong>¿Qué son los PromptBits?</strong><br>
+            Son puntos de reputación y moneda virtual. Los ganas al recibir propinas de otros usuarios o contribuir a la comunidad. Sirven para destacar tus posts y apoyar a otros creadores.</p>
+            
+            <p><strong>¿Puedo vender mis prompts?</strong><br>
+            Actualmente la plataforma es de libre intercambio. Sin embargo, puedes incluir enlaces a tus redes o portafolios en tu perfil para que te contacten profesionalmente.</p>
+            
+            <p><strong>¿Cómo subo de nivel?</strong><br>
+            Publicando prompts de calidad. Cada nivel desbloquea nuevas funciones como publicar secuencias, personalizar tu perfil o destacar posts.</p>
         </div>
     `,
     support: `
@@ -158,7 +208,7 @@ const LEGAL_TEXTS = {
 };
 
 // --- COMPONENTS ---
-const TopBar = () => `<div class="top-bar"><div class="container top-bar-inner"><div class="top-bar-links"><span onclick="window.openInfo('tos')">Términos</span><span onclick="window.openInfo('privacy')">Privacidad</span><span onclick="window.openInfo('safety')">Seguridad</span></div><button class="support-btn" onclick="window.openInfo('support')">💬 Soporte</button></div></div>`;
+const TopBar = () => `<div class="top-bar"><div class="container top-bar-inner"><div class="top-bar-links"><span onclick="window.openInfo('tos')">Términos</span><span onclick="window.openInfo('privacy')">Privacidad</span><span onclick="window.openInfo('safety')">Seguridad</span><span onclick="window.openInfo('faq')">Preguntas</span></div><button class="support-btn" onclick="window.openInfo('support')">💬 Soporte</button></div></div>`;
 
 const getModeration = (p, forcedRating) => {
     let rating = forcedRating || p.rating || 'SFW / Apto';
@@ -184,7 +234,13 @@ const getFilteredPrompts = () => {
 
     if (currentView === 'profile') {
         // En perfil, el filtro 'user' es implícito o forzado
-        list = list.filter(p => profileTab === 'creations' ? p.author === profileUser : p.savedBy?.includes(profileUser));
+        list = list.filter(p => {
+            // CRITICAL FIX: Hide private posts unless viewer is the author
+            if (p.isPrivate) {
+                if (!store.currentUser || store.currentUser.username !== p.author) return false;
+            }
+            return profileTab === 'creations' ? p.author === profileUser : p.savedBy?.includes(profileUser);
+        });
     } else {
         // Main Feed Filtering
         list = list.filter(p => !p.isPrivate);
@@ -255,7 +311,14 @@ const Header = () => `
 <header style="height:auto; display:flex; flex-direction:column">
     <div class="container" style="height:72px; border-bottom:1px solid #222">
         <div class="logo" onclick="window.goHome()" style="cursor:pointer">✨ Prompt Gallery</div>
-        <div class="search-bar"><input type="search" class="search-input" id="searchInput" name="query_prevention_${Date.now()}" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');" placeholder="Buscar..." value="${searchQuery}"></div>
+        
+        <!-- Desktop Search -->
+        <div class="search-bar search-desktop">
+            <input type="search" class="search-input" id="searchInput" autocomplete="off" placeholder="Buscar..." value="${searchQuery}" onfocus="this.removeAttribute('readonly');" readonly>
+        </div>
+
+        <!-- Mobile Search Toggle -->
+        <div class="search-mobile-btn" onclick="document.querySelector('.search-mobile-overlay').classList.add('active'); document.getElementById('searchMobileInput').focus()">🔍</div>
         <nav>
             ${store.currentUser ? `
                 ${store.currentUser.role === 'admin' ? `<button class="btn-outline" onclick="window.openAdmin()" style="border-color:gold; color:gold">👑 Admin</button>` : ''}
@@ -267,6 +330,17 @@ const Header = () => `
                 <button class="btn-outline" onclick="window.doLogout()">Salir</button>
             ` : `<button class="btn" id="loginBtn">Iniciar Sesión</button>`}
         </nav>
+    </div>
+
+    <!-- Mobile Search Overlay -->
+    <div class="search-mobile-overlay">
+        <div class="container" style="display:flex; align-items:center; gap:10px; height:100%">
+             <button class="btn-icon" onclick="document.querySelector('.search-mobile-overlay').classList.remove('active')" style="font-size:1.2rem; color:#fff">✕</button>
+             <div class="search-bar" style="flex:1; max-width:none">
+                <input type="search" class="search-input" id="searchMobileInput" placeholder="Buscar prompts..." value="${searchQuery}" autocomplete="off" onkeydown="if(event.key === 'Enter'){ window.handleSearch(this.value); document.querySelector('.search-mobile-overlay').classList.remove('active'); }">
+             </div>
+        </div>
+    </div>
     </div>
     ${store.currentUser ? `
     <div class="container" style="padding:10px 20px; display:flex; gap:10px; overflow-x:auto; background:rgba(0,0,0,0.3)">
@@ -377,18 +451,11 @@ const ProfileHeader = () => {
         <button class="btn" onclick="window.location.reload()">Recargar</button>
     </div>`;
 
-    const isMe = store.currentUser && store.currentUser.username === user.username;
+    const isMe = store.currentUser && store.currentUser.username.toLowerCase() === user.username.toLowerCase();
+    if (isMe) console.log("✅ Profile detected as OWNER:", user.username);
 
     const getLevelInfo = (lvl) => {
-        const levels = [
-            { name: 'Explorador', icon: '🛡️', class: 'tier-0' },
-            { name: 'Iniciado', icon: '🎖️', class: 'tier-1' },
-            { name: 'Principiante', icon: '🏅', class: 'tier-2' },
-            { name: 'Contribuidor', icon: '🥇', class: 'tier-3' },
-            { name: 'Autor', icon: '💎', class: 'tier-4' },
-            { name: 'COLABORADOR', icon: '✨', class: 'tier-5' }
-        ];
-        return levels[lvl] || levels[0];
+        return LEVEL_REQS[lvl] || LEVEL_REQS[0];
     };
 
     const lvlInfo = getLevelInfo(user.level || 0);
@@ -400,10 +467,13 @@ const ProfileHeader = () => {
                 <div class="user-avatar-lg" style="background-image:url('${user.avatar || 'https://robohash.org/' + user.username}')"></div>
                 <div>
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px">
-                        <h1 style="font-size:2.5rem; margin:0">${user.username}</h1>
+                        <h1 style="font-size:2.5rem; margin:0">${window.escapeHTML(user.username)}</h1>
                         
                         <!-- Level Badge -->
-                        <span class="level-badge ${lvlInfo.class}" title="Nivel ${user.level || 0}">
+                        <span class="level-badge tier-${user.level || 0}" 
+                              title="${isMe ? 'Haz clic para ver tu progreso' : 'Nivel ' + (user.level || 0)}"
+                              style="${isMe ? 'cursor:pointer' : ''}"
+                              ${isMe ? 'onclick="window.openLevelProgress()"' : ''}>
                             ${lvlInfo.icon} NIVEL ${user.level || 0} - ${lvlInfo.name}
                         </span>
                     </div>
@@ -477,6 +547,38 @@ const ProfileHeader = () => {
     </div>`;
 };
 
+// --- TOP CREATORS COMPONENT ---
+const renderTopCreators = (details) => {
+    // Hide for visitors (no currentUser) or empty details
+    if (!store.currentUser || !details || details.length === 0) return '';
+    return `
+    <div class="top-creators-banner">
+        <div class="tc-header">
+            <div>
+                <div class="tc-title">⭐ Top Creadores</div>
+                <div class="tc-subtitle">Cuadro de Honor • Los 10 Mejores</div>
+            </div>
+            <!-- Button Removed as requested -->
+        </div>
+        <div class="tc-grid">
+            ${details.map((u, idx) => `
+            <div class="tc-card" onclick="window.openUserProfile('${u.username}')">
+                <div class="tc-rank">#${idx + 1}</div>
+                <img src="${u.avatar_url || 'https://via.placeholder.com/150'}" class="tc-avatar" loading="lazy">
+                <div class="tc-name">${u.username}</div>
+                <div class="tc-stats" style="background:linear-gradient(90deg, #ccc, #777); -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-weight:700; font-size:0.7rem; letter-spacing:0.5px">${u.prompts_count || 0} PROMPTS</div>
+                <div class="tc-level">Nivel ${u.level || 0}</div>
+            </div>`).join('')}
+        </div>
+    </div>`;
+};
+
+const loadTopCreators = async () => {
+    console.log("🏆 Loading Top Creators...");
+    topCreatorsList = await store.getTopCreators();
+    if (currentView === 'home' && filters.source === 'community') render(); // Re-render if on home
+};
+
 const Gallery = () => {
     const list = getFilteredPrompts(); // Use shared filtering function
     const isMyProfile = (currentView === 'profile' && profileUser === store.currentUser?.username && profileTab === 'creations');
@@ -518,8 +620,8 @@ const Gallery = () => {
                     ${p.type !== 'sequence' && applyBlur ? `<div class="blur-overlay"><span>🔞 ${warningLabel}</span></div>` : ''}
                 </div>
                 <div class="card-overlay" data-post-id="${p.id}" style="cursor:pointer">
-                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:5px">${p.title}</div>
-                    <div style="font-size:0.8rem; opacity:0.8; margin-bottom:10px">${p.author}</div>
+                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:5px">${window.escapeHTML(p.title)}</div>
+                    <div style="font-size:0.8rem; opacity:0.8; margin-bottom:10px">${window.escapeHTML(p.author)}</div>
                     <div class="card-stats" style="font-size:0.75rem; display:flex; gap:8px; flex-wrap:wrap">
                         <span title="Me gusta">👍 ${reactions.like || 0}</span>
                         <span title="Me encanta">❤️ ${reactions.love || 0}</span>
@@ -545,9 +647,16 @@ const Gallery = () => {
                      <button class="btn" style="background:rgba(255,50,50,0.8); color:white; padding:5px 10px; font-size:0.75rem; border-radius:5px; border:none; cursor:pointer" onclick="event.stopPropagation(); window.doUnsavePrompt('${p.id}')">✕ Quitar</button>
                  </div>` : ''}
             </div>`;
-        // Insert ad banner every 12 posts
-        const adBanner = (idx > 0 && (idx + 1) % 12 === 0) ? `</div><div class="ad-banner"></div><div class="gallery-grid">` : '';
-        return card + adBanner;
+
+        // Insert Top Creators Banner after 12 posts (idx == 11)
+        const topCreatorsBanner = (idx === 11 && currentView === 'home' && filters.source === 'community')
+            ? `</div>${renderTopCreators(topCreatorsList)}<div class="gallery-grid">`
+            : '';
+
+        // Insert ad banner every 12 posts (shifted if top creators is shown)
+        // Avoid double banner at index 11 by shifting ad to next slot or skipping
+        const adBanner = (idx > 11 && (idx + 1) % 12 === 0) ? `</div><div class="ad-banner"></div><div class="gallery-grid">` : '';
+        return card + topCreatorsBanner + adBanner;
     }).join('')}
     </div>
     
@@ -800,9 +909,18 @@ const DetailModal = () => `
                 </div>
                 
                 <div class="view-footer">
-                    <div style="display:flex; gap:10px">
-                        <input type="text" id="commInput" class="form-input" placeholder="Escribe un comentario...">
-                        <button class="btn" onclick="window.postComm()">Enviar</button>
+                    <!-- Anti-Bot Container -->
+                    <div id="commAntiBot" class="comment-anti-bot-container" style="display:none">
+                        <div class="crystal-slider-wrapper" id="commSlider">
+                            <div class="crystal-slider-track-text">Desliza 💎 para confirmar</div>
+                            <div class="crystal-slider-handle" id="commSliderHandle">💎</div>
+                        </div>
+                        <input type="text" name="b_name" class="hp-field" id="commHoneypot" tabindex="-1" autocomplete="off">
+                    </div>
+
+                    <div style="display:flex; gap:10px; margin-top:10px">
+                        <input type="text" id="commInput" class="form-input" placeholder="Escribe un comentario..." onfocus="window.showSlider()">
+                        <button class="btn" id="commSubmitBtn" onclick="window.postComm()">Enviar</button>
                     </div>
                 </div>
             </div>
@@ -830,7 +948,7 @@ const SettingsModal = () => {
                     ${(u.level && u.level >= 2) ? `
                     <button class="btn-outline" onclick="document.getElementById('setAvatarFile').click()">Cambiar Foto</button>
                     ` : `
-                    <button class="btn-outline" style="opacity:0.5; cursor:not-allowed" title="Necesitas ser Nivel 2 (Principiante) para cambiar tu foto">🔒 Nivel 2 Requerido</button>
+                    <span style="background:rgba(255,165,0,0.1); color:#ffa500; padding:6px 12px; border-radius:4px; font-size:0.8rem; font-weight:700; border:1px solid rgba(255,165,0,0.3); cursor:not-allowed" title="Necesitas ser Nivel 2 (Principiante) para cambiar tu foto">🔒 Nivel 2 Requerido</span>
                     `}
                     <input type="file" id="setAvatarFile" accept="image/*" style="display:none" onchange="window.previewAvatar(this)">
                 </div>
@@ -856,32 +974,36 @@ const SettingsModal = () => {
 
         </div>
 
-        <div class="settings-section" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #333">
-            <h3>🌐 Redes Sociales</h3>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+        <div class="settings-section" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #333; position:relative">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+                <h3 style="margin:0">🌐 Redes Sociales</h3>
+                ${(u.level && u.level >= 2) ? '' : `<span style="background:rgba(255,165,0,0.1); color:#ffa500; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:700; border:1px solid rgba(255,165,0,0.3)">🔒 Nivel 2 Requerido</span>`}
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; ${(u.level && u.level >= 2) ? '' : 'opacity:0.3; pointer-events:none; filter:grayscale(1)'}">
                 <div>
                     <label class="form-label">Instagram</label>
-                    <input type="text" id="setIg" class="form-input" placeholder="@usuario" value="${soc.ig || ''}">
+                    <input type="text" id="setIg" class="form-input" placeholder="@usuario" value="${soc.ig || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
                 </div>
                 <div>
                     <label class="form-label">Facebook</label>
-                    <input type="text" id="setFb" class="form-input" placeholder="URL o usuario" value="${soc.fb || ''}">
+                    <input type="text" id="setFb" class="form-input" placeholder="URL o usuario" value="${soc.fb || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
                 </div>
                 <div>
                     <label class="form-label">X / Twitter</label>
-                    <input type="text" id="setX" class="form-input" placeholder="@usuario" value="${soc.x || ''}">
+                    <input type="text" id="setX" class="form-input" placeholder="@usuario" value="${soc.x || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
                 </div>
                 <div>
                     <label class="form-label">Telegram Channel</label>
-                    <input type="text" id="setTg" class="form-input" placeholder="t.me/canal" value="${soc.tg || ''}">
+                    <input type="text" id="setTg" class="form-input" placeholder="t.me/canal" value="${soc.tg || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
                 </div>
                 <div>
                     <label class="form-label">Threads</label>
-                    <input type="text" id="setTh" class="form-input" placeholder="@usuario" value="${soc.th || ''}">
+                    <input type="text" id="setTh" class="form-input" placeholder="@usuario" value="${soc.th || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
                 </div>
                 <div>
                     <label class="form-label">Fanvue</label>
-                    <input type="text" id="setFv" class="form-input" placeholder="URL Completa" value="${soc.fv || ''}">
+                    <input type="text" id="setFv" class="form-input" placeholder="URL Completa" value="${soc.fv || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
                 </div>
             </div>
         </div>
@@ -1028,7 +1150,17 @@ const InfoModal = () => `
     <button class="btn" style="width:100%; margin-top:20px" onclick="window.closeModals()">OK</button>
 </div></div>`;
 
-const Modals = () => AuthModal() + CreateModal() + DetailModal() + InfoModal() + AdminModal();
+const ConfirmModal = () => `
+<div id="confirmModal" class="modal-overlay" style="display:none; z-index:2147483647;"><div class="modal-container" style="max-width:400px; text-align:center">
+    <div id="confirmIcon" style="font-size:3rem; margin-bottom:15px">❓</div>
+    <div id="confirmText" style="font-size:1.1rem; margin-bottom:25px; line-height:1.5">¿Estás seguro?</div>
+    <div style="display:flex; gap:15px; justify-content:center">
+        <button class="btn btn-outline" style="flex:1" onclick="window.confirmResolve(false)">Cancelar</button>
+        <button class="btn" style="flex:1" onclick="window.confirmResolve(true)">Aceptar</button>
+    </div>
+</div></div>`;
+
+const Modals = () => AuthModal() + CreateModal() + DetailModal() + InfoModal() + AdminModal() + ConfirmModal();
 
 // --- LOGIC ---
 const render = () => {
@@ -1059,7 +1191,6 @@ document.addEventListener('click', (e) => {
     const target = e.target.closest('[data-post-id]');
     if (target) {
         const postId = target.getAttribute('data-post-id');
-        console.log("Click detected on post:", postId);
         if (postId) {
             if (typeof window.openDetail === 'function') {
                 window.openDetail(postId);
@@ -1112,7 +1243,62 @@ window.openRegister = () => {
 };
 
 // Función para mostrar celebración de tokens
-window.showTokenCelebration = (amount = 1) => {
+
+// --- TOAST SYSTEM ---
+window.toast = (message, type = 'info') => {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `pg-toast ${type}`;
+
+    let icon = '🔔';
+    if (type === 'success') icon = '✅';
+    if (type === 'error') icon = '❌';
+
+    toast.innerHTML = `
+        <div class="toast-icon">${icon}</div>
+        <div class="toast-content">${message}</div>
+    `;
+
+    container.appendChild(toast);
+
+    // Auto-remove
+    setTimeout(() => {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+};
+
+// --- CONFIRM SYSTEM ---
+let confirmResolver = null;
+window.askConfirm = (message, icon = '❓') => {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirmModal');
+        if (!modal) return resolve(false);
+
+        // FIX: Mover al body para asegurar que esté sobre el TipModal (z-index issue)
+        if (modal.parentNode !== document.body) {
+            document.body.appendChild(modal);
+        }
+
+        document.getElementById('confirmText').innerText = message;
+        document.getElementById('confirmIcon').innerText = icon;
+        modal.style.cssText = 'display: flex !important; z-index: 2147483647 !important; visibility: visible !important; opacity: 1 !important;';
+        confirmResolver = resolve;
+    });
+};
+
+window.confirmResolve = (val) => {
+    document.getElementById('confirmModal').style.display = 'none';
+    if (confirmResolver) confirmResolver(val);
+};
+
+window.showTokenCelebration = (amount = 1, subtitle = null) => {
     const celebration = document.createElement('div');
     celebration.className = 'token-celebration';
     celebration.innerHTML = `
@@ -1120,7 +1306,7 @@ window.showTokenCelebration = (amount = 1) => {
         <div class="celebration-title">¡FELICIDADES!</div>
         <div class="celebration-token-amount">+${amount} 💎</div>
         <div class="celebration-subtitle">
-            ¡Sigue compartiendo prompts increíbles y ganando PromptBits!
+            ${subtitle || '¡Sigue compartiendo prompts increíbles y ganando PromptBits!'}
         </div>
     `;
 
@@ -1306,6 +1492,165 @@ window.addSeqStep = () => {
     container.appendChild(stepDiv);
 };
 
+window.openLevelProgress = () => {
+    console.log("🚀 openLevelProgress triggered (Dynamic Mode)");
+    if (!store.currentUser) { alert("Error: No has iniciado sesión."); return; }
+
+    // Bloquear scroll del fondo
+    document.body.style.overflow = 'hidden';
+
+    // Clean old instances
+    const oldModal = document.getElementById('levelModalDynamic');
+    if (oldModal) oldModal.remove();
+
+    const u = store.currentUser;
+    const count = u.prompts_count || 0;
+    const currentLvl = u.level || 0;
+
+    // Find next level
+    const nextLvlReq = LEVEL_REQS.find(l => l.posts > count) || LEVEL_REQS[LEVEL_REQS.length - 1];
+    const isMax = count >= LEVEL_REQS[LEVEL_REQS.length - 1].posts;
+
+    let progressPercent = 0;
+    if (isMax) {
+        progressPercent = 100;
+    } else {
+        const prevReq = LEVEL_REQS[currentLvl].posts;
+        const nextReq = nextLvlReq.posts;
+        progressPercent = Math.min(100, Math.max(0, ((count - prevReq) / (nextReq - prevReq)) * 100));
+    }
+
+    const html = `
+        <div style="text-align:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #222">
+            <div style="font-size:3.5rem; margin-bottom:10px">${LEVEL_REQS[currentLvl].icon}</div>
+            <h2 style="margin:0; font-size:1.8rem; color:#fff">Tu Historial: Nivel ${currentLvl}</h2>
+            <p style="color:#aaa; margin-top:5px; font-weight:600; text-transform:uppercase; letter-spacing:1px">${LEVEL_REQS[currentLvl].name}</p>
+        </div>
+
+        <div style="background:#000; padding:25px; border-radius:16px; border:1px solid #333; margin-bottom:25px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5)">
+            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
+                <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Hacia Nivel ' + (currentLvl + 1)}</span>
+                <span style="color:#2563eb">${count} / ${isMax ? '∞' : nextLvlReq.posts} Posts</span>
+            </div>
+            <div style="width:100%; height:16px; background:#222; border-radius:8px; overflow:hidden; border:1px solid #333">
+                <div style="width:${progressPercent}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1.5s cubic-bezier(0.19, 1, 0.22, 1)"></div>
+            </div>
+            ${!isMax ? `<p style="font-size:0.9rem; color:#888; margin-top:12px; text-align:center">¡Sigue así! Te faltan <strong>${nextLvlReq.posts - count}</strong> publicaciones para subir de rango.</p>` : ''}
+        </div>
+
+        <h3 style="font-size:1.2rem; margin-bottom:18px; color:#fff; display:flex; align-items:center; gap:10px">
+            <span>Beneficios y Jerarquía</span>
+            <div style="flex:1; height:1px; background:#222"></div>
+        </h3>
+        
+        <div style="display:flex; flex-direction:column; gap:12px">
+            ${LEVEL_REQS.map((l, idx) => {
+        const isUnlocked = count >= l.posts;
+        const isCurrent = currentLvl === idx;
+        return `
+                <div style="display:flex; gap:15px; align-items:start; padding:15px; border-radius:12px; border:1px solid ${isCurrent ? '#2563eb' : (isUnlocked ? '#333' : '#1a1a1a')}; background:${isCurrent ? 'rgba(37, 99, 235, 0.1)' : (isUnlocked ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.3)')}; opacity:${isUnlocked ? 1 : 0.4}; transition:0.3s">
+                    <div style="font-size:1.6rem; background:#111; min-width:50px; height:50px; border-radius:10px; display:flex; align-items:center; justify-content:center; border:2px solid ${l.color}">${l.icon}</div>
+                    <div style="flex:1">
+                        <div style="display:flex; justify-content:space-between; align-items:center">
+                            <strong style="color:${l.color}; font-size:1.05rem;">Nivel ${idx}: ${l.name}</strong>
+                            <span style="font-size:0.75rem; background:#333; color:#fff; padding:3px 10px; border-radius:100px; font-weight:700">${l.posts} Posts</span>
+                        </div>
+                        <ul style="margin:8px 0 0 0; padding-left:18px; font-size:0.9rem; color:#999; line-height:1.4">
+                            ${l.benefits.map(b => `<li>${b}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>`;
+    }).join('')}
+        </div>
+
+        <button class="btn" style="width:100%; margin-top:30px; height:54px; font-weight:800; font-size:1.1rem; background:#2563eb; color:white; border:none; border-radius:14px; cursor:pointer; box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2)" onclick="window.closeLevelProgress(this)">Entendido</button>
+    `;
+
+    window.closeLevelProgress = (btn) => {
+        btn.closest('.modal-overlay').remove();
+        document.body.style.overflow = '';
+    };
+
+    const modalDiv = document.createElement('div');
+    modalDiv.id = 'levelModalDynamic';
+    modalDiv.className = 'modal-overlay';
+    modalDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; z-index:2147483647; padding:20px; color:white; font-family:Inter, sans-serif;';
+
+    modalDiv.onclick = (e) => {
+        if (e.target === modalDiv) {
+            modalDiv.remove();
+            document.body.style.overflow = '';
+        }
+    };
+
+    modalDiv.innerHTML = `
+        <style>
+            #levelModalDynamic .modal-container::-webkit-scrollbar { width: 6px; }
+            #levelModalDynamic .modal-container::-webkit-scrollbar-track { background: transparent; }
+            #levelModalDynamic .modal-container::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+            #levelModalDynamic .modal-container::-webkit-scrollbar-thumb:hover { background: #444; }
+        </style>
+        <div class="modal-container" style="max-width:550px; background:#111; border:1px solid #333; border-radius:28px; width:100%; padding:35px; max-height:85vh; overflow-y:auto; box-shadow: 0 30px 60px rgba(0,0,0,0.8); position:relative; scroll-behavior: smooth;">
+            ${html}
+        </div>
+    `;
+
+    document.body.appendChild(modalDiv);
+    console.log("✅ Dynamic Modal Injected and Stylized");
+};
+
+// --- LEVEL UP MODAL ---
+window.showLevelUpModal = (newLevel) => {
+    const lvlInfo = LEVEL_REQS[newLevel] || LEVEL_REQS[0];
+
+    // Simple Emojis for "Confetti" background
+    const bgEmojis = ["✨", "🎉", "💎", "🎊", "🔥", "🚀", "🌟"];
+    let bgHtml = '';
+    for (let i = 0; i < 30; i++) {
+        const left = Math.random() * 100;
+        const animDelay = Math.random() * 2;
+        const dur = 3 + Math.random() * 3;
+        const emoji = bgEmojis[Math.floor(Math.random() * bgEmojis.length)];
+        bgHtml += `<div style="position:absolute; top:-10%; left:${left}%; font-size:${1 + Math.random()}rem; animation: fall ${dur}s linear infinite; animation-delay:-${animDelay}s; opacity:0.6; user-select:none;">${emoji}</div>`;
+    }
+
+    const modalHtml = `
+    <div id="levelUpModalCanvas" onclick="this.remove()">
+        <style>
+            @keyframes fall {
+                0% { transform: translateY(-10vh) rotate(0deg); }
+                100% { transform: translateY(110vh) rotate(360deg); }
+            }
+        </style>
+        ${bgHtml}
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; background:rgba(0,0,0,0.9); border:2px solid gold; border-radius:20px; padding:40px; box-shadow:0 0 50px rgba(255,215,0,0.3); z-index:20;">
+            <div class="level-up-content">
+                <div class="level-badge-large">${lvlInfo.icon}</div>
+                <div class="level-new-title">¡NIVEL DESBLOQUEADO!</div>
+                <h2 style="font-size:1.5rem; color:white; margin-bottom:10px">Has alcanzado el Nivel ${newLevel}</h2>
+                <h3 style="color:#aaa; text-transform:uppercase; letter-spacing:2px; margin-bottom:20px">${lvlInfo.name}</h3>
+                
+                <div class="level-benefits-list">
+                    <div style="font-weight:bold; margin-bottom:10px; color:white">Nuevos Beneficios:</div>
+                    <ul style="padding-left:20px; margin:0">
+                        ${lvlInfo.benefits.map(b => `<li>${b}</li>`).join('')}
+                    </ul>
+                </div>
+
+                <button class="btn" onclick="this.closest('#levelUpModalCanvas').remove()" style="width:100%; font-size:1.2rem; font-weight:bold; background:gold; color:black; border:none; padding:15px; border-radius:10px; cursor:pointer; margin-top:10px; box-shadow:0 5px 15px rgba(255,215,0,0.4)">
+                    ¡GENIAL!
+                </button>
+            </div>
+        </div>
+    </div>`;
+
+    const div = document.createElement('div');
+    div.innerHTML = modalHtml;
+    document.body.appendChild(div.firstElementChild);
+
+    // Play sound if possible (optional, maybe skip for now to avoid auto-play issues)
+};
+
 window.doPublish = () => {
     // Safety redirect for Edit Mode
     if (isEditing) return window.doUpdate();
@@ -1358,6 +1703,10 @@ window.doPublish = () => {
                 // Actualizar stats del usuario para ver nuevo nivel/tokens
                 await store.loadUsers();
                 render();
+
+                if (res.leveledUp) {
+                    setTimeout(() => window.showLevelUpModal(res.newLevel), 500);
+                }
             }
         };
         reader.readAsDataURL(file);
@@ -1424,14 +1773,22 @@ window.openDetail = (id) => {
         }
 
         // DEBUG: Dump exact data structure
-        console.log("--------------- DEBUG POST DATA ---------------");
-        console.log("ID:", p.id);
-        console.log("TYPE:", p.type);
-        console.log("CONTENT:", JSON.stringify(p.content, null, 2));
-        console.log("-----------------------------------------------");
 
-        currentId = pId; // Store as string
+        if (!p) return;
+        currentId = id;
         currentSeqStep = 0;
+
+        // RESET SLIDER ON EVERY OPEN
+        window.sliderUnlocked = false;
+        const slider = document.getElementById('commSlider');
+        const handle = document.getElementById('commSliderHandle');
+        const botContainer = document.getElementById('commAntiBot');
+        if (slider) slider.classList.remove('unlocked');
+        if (handle) {
+            handle.style.left = '4px';
+            handle.style.transition = 'none';
+        }
+        if (botContainer) botContainer.style.display = 'none';
 
         const detTitle = document.getElementById('detTitle');
         if (detTitle) {
@@ -1521,7 +1878,6 @@ window.openDetail = (id) => {
                 tipBtn.onclick = function (e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('Button clicked, calling openTip for post:', p.id);
                     window.openTip(p.id);
                 };
             }
@@ -1633,7 +1989,16 @@ window.openDetail = (id) => {
             commentsEl.innerHTML = (p.comments && p.comments.length > 0)
                 ? p.comments.map(c => {
                     const canDelete = isPostOwner || currUser === c.username;
-                    return `<div style="background:#1a1a1a; padding:10px; border-radius:8px; margin-bottom:10px; border-left:3px solid var(--accent); position:relative"><div style="display:flex; justify-content:space-between; margin-bottom:5px"><span style="font-weight:700; color:var(--accent); font-size:0.85rem">@${c.username}</span><div style="display:flex; align-items:center; gap:8px"><span style="font-size:0.65rem; opacity:0.5">${new Date(c.timestamp).toLocaleDateString()}</span>${canDelete ? `<button onclick="window.doDeleteComment(${c.id})" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; padding:0" title="Eliminar comentario">🗑️</button>` : ''}</div></div><div style="font-size:0.9rem; color:#eee; word-break:break-word">${c.text}</div></div>`;
+                    return `<div style="background:#1a1a1a; padding:10px; border-radius:8px; margin-bottom:10px; border-left:3px solid var(--accent); position:relative">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px">
+                            <span style="font-weight:700; color:var(--accent); font-size:0.85rem">@${window.escapeHTML(c.username)}</span>
+                            <div style="display:flex; align-items:center; gap:8px">
+                                <span style="font-size:0.65rem; opacity:0.5">${new Date(c.timestamp).toLocaleDateString()}</span>
+                                ${canDelete ? `<button onclick="window.doDeleteComment(${c.id})" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; padding:0" title="Eliminar comentario">🗑️</button>` : ''}
+                            </div>
+                        </div>
+                        <div style="font-size:0.9rem; color:#eee; word-break:break-word">${window.escapeHTML(c.text)}</div>
+                    </div>`;
                 }).join('')
                 : '<div style="opacity:0.5; font-size:0.9rem">No hay comentarios aún.</div>';
         }
@@ -2012,14 +2377,14 @@ window.doUpdate = async () => {
                     data.image = reader.result;
                     const res = await store.updatePrompt(editingId, data);
                     if (res.success) finishUpdate();
-                    else alert("Error: " + res.msg);
+                    else window.toast("Error: " + res.msg, 'error');
                 };
                 reader.readAsDataURL(file);
             } else {
                 data.image = p.image;
                 const res = await store.updatePrompt(editingId, data);
                 if (res.success) finishUpdate();
-                else alert("Error: " + res.msg);
+                else window.toast("Error: " + res.msg, 'error');
             }
         } else {
             // Sequence Update Logic (Simplified for brevity, assuming standard sequence flow)
@@ -2121,14 +2486,16 @@ window.saveSettings = () => {
     const avatarFile = document.getElementById('setAvatarFile').files[0];
 
     const finishSave = (avatarData) => {
-        const socials = {
+        const canEditSocials = store.currentUser && store.currentUser.level >= 2;
+
+        const socials = canEditSocials ? {
             ig: document.getElementById('setIg').value,
             fb: document.getElementById('setFb').value,
             x: document.getElementById('setX').value,
             tg: document.getElementById('setTg').value,
             th: document.getElementById('setTh').value,
             fv: document.getElementById('setFv').value
-        };
+        } : (store.currentUser.socials || {});
 
         const moderation = {
             suggestive: document.getElementById('setModSugg').value,
@@ -2138,7 +2505,7 @@ window.saveSettings = () => {
         const updateData = {
             username,
             socials,
-            // moderation: moderation, // DISABLED due to DB Schema Error: column 'moderation' undefined
+            moderation
         };
 
         if (avatarData) updateData.avatar = avatarData;
@@ -2237,13 +2604,106 @@ window.doDeleteComment = (commentId) => {
     }
 };
 
-window.postComm = () => {
-    if (!store.currentUser) return alert("Debes iniciar sesión para comentar.");
-    const val = document.getElementById('commInput').value;
+window.showSlider = () => {
+    const botContainer = document.getElementById('commAntiBot');
+    if (botContainer && botContainer.style.display === 'none') {
+        botContainer.style.display = 'flex';
+        window.initCrystalSlider();
+    }
+};
+
+window.sliderUnlocked = false;
+window.initCrystalSlider = () => {
+    const slider = document.getElementById('commSlider');
+    const handle = document.getElementById('commSliderHandle');
+    if (!slider || !handle) return;
+
+    window.sliderUnlocked = false;
+    slider.classList.remove('unlocked');
+    handle.style.left = '4px';
+
+    let isDragging = false;
+    let startX = 0;
+
+    const onStart = (e) => {
+        if (window.sliderUnlocked) return;
+        isDragging = true;
+        startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        handle.style.transition = 'none';
+    };
+
+    const onMove = (e) => {
+        if (!isDragging || window.sliderUnlocked) return;
+        const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const diff = currentX - startX;
+        const max = slider.offsetWidth - handle.offsetWidth - 8;
+
+        let move = Math.max(4, Math.min(diff + 4, max));
+        handle.style.left = `${move}px`;
+
+        if (move >= max - 2) {
+            window.sliderUnlocked = true;
+            slider.classList.add('unlocked');
+            isDragging = false;
+            handle.style.left = `${max}px`;
+            window.toast("Gesto verificado", "success");
+        }
+    };
+
+    const onEnd = () => {
+        if (window.sliderUnlocked) return;
+        isDragging = false;
+        handle.style.transition = 'left 0.3s ease';
+        handle.style.left = '4px';
+    };
+
+    handle.onmousedown = onStart;
+    window.onmousemove = onMove;
+    window.onmouseup = onEnd;
+
+    handle.ontouchstart = onStart;
+    window.ontouchmove = onMove;
+    window.ontouchend = onEnd;
+};
+
+window.postComm = async () => {
+    if (!store.currentUser) return window.toast("Debes iniciar sesión para comentar", "error");
+
+    const val = document.getElementById('commInput').value.trim();
+    const hp = document.getElementById('commHoneypot').value;
+
+    // 1. Basic Validations
     if (!val) return;
-    store.addComment(currentId, val);
-    document.getElementById('commInput').value = '';
-    window.openDetail(currentId);
+    if (val.length < 5) return window.toast("Comentario demasiado corto", "info");
+
+    // 2. Anti-Bot checks
+    if (hp) return; // Honeypot filled by bot
+    if (!window.sliderUnlocked) {
+        return window.toast("Desliza el diamante 💎 para verificar que eres humano", "info");
+    }
+
+    // 3. Store call
+    const result = await store.addComment(currentId, val);
+
+    if (result.success) {
+        window.toast("¡Comentario enviado con éxito!", "success");
+
+        if (result.reward) {
+            window.showTokenCelebration(result.reward, '¡Gracias por tu comentario! Sigue participando y ganando PromptBits.');
+        }
+
+        document.getElementById('commInput').value = '';
+        // Reset slider
+        window.sliderUnlocked = false;
+        document.getElementById('commSlider').classList.remove('unlocked');
+        document.getElementById('commSliderHandle').style.left = '4px';
+        document.getElementById('commAntiBot').style.display = 'none';
+
+        window.openDetail(currentId);
+        if (window.render) window.render(); // Update header/profile balance
+    } else {
+        window.toast(result.msg, result.isCooldown ? "info" : "error");
+    }
 };
 
 // --- ADMIN UI HELPERS ---
@@ -2260,7 +2720,6 @@ window.setAdminFilter = (char) => {
 
 window.openAdmin = (tab = 'users') => {
     try {
-        console.log("Abriendo Panel Admin:", tab);
         const modal = document.getElementById('adminModal');
         if (!modal) {
             console.error("No se encontró adminModal en el DOM");
@@ -2543,9 +3002,9 @@ window.adminSubmitGift = async () => {
     const inputs = document.querySelectorAll('#giftBitsAmount');
     const amount = parseInt(inputs[inputs.length - 1].value);
 
-    if (isNaN(amount) || amount <= 0) return alert("Ingresa una cantidad válida.");
+    if (isNaN(amount) || amount <= 0) return window.toast("Ingresa una cantidad válida.", 'error');
 
-    if (!confirm(`¿Regalar ${amount} PromptBits a este usuario?`)) return;
+    if (!await window.askConfirm(`¿Regalar ${amount} PromptBits a este usuario?`, '🎁')) return;
 
     const res = await store.adminGiftPromptBits(currentEditingUserId, amount);
     if (res.success) {
@@ -2665,7 +3124,7 @@ window.previewFile = (input, previewId) => {
     if (input.files && input.files[0]) {
         const file = input.files[0];
         if (!isImageFile(file)) {
-            alert("❌ Tipo de archivo no permitido. Solo se aceptan imágenes (JPG, PNG, WEBP, etc).");
+            window.toast("❌ Tipo de archivo no permitido. Solo se aceptan imágenes (JPG, PNG, WEBP, etc).", 'error');
             input.value = ''; // Limpiar el input
             preview.style.display = 'none';
             if (img) img.src = '';
@@ -2798,14 +3257,14 @@ window.openTip = (postId) => {
 
 window.doSendTip = async (amount) => {
     if (!currentTipPostId) return;
-    if (confirm(`¿Enviar ${amount} PromptBits a este autor?`)) {
+    if (await window.askConfirm(`¿Enviar ${amount} PromptBits a este autor?`, '💎')) {
         const res = await store.sendTip(currentTipPostId, amount);
         if (res.success) {
-            alert(res.msg);
+            window.toast(res.msg, 'success');
             window.closeModals();
             render();
         } else {
-            alert("❌ " + res.msg);
+            window.toast("❌ " + res.msg, 'error');
         }
     }
 };
@@ -2909,6 +3368,11 @@ window.startMigration = async () => {
     btn.disabled = false;
     btn.innerText = "🚀 Iniciar Migración";
 };
+
+// --- INIT TOP CREATORS ---
+setTimeout(() => {
+    loadTopCreators();
+}, 1000);
 
 
 
