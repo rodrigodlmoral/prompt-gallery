@@ -25,12 +25,18 @@ window.adminSort = { col: 'username', dir: 'asc' };
 
 // --- TOP CREATORS STATE ---
 let topCreatorsList = [];
-window.openUserProfile = (username) => {
+window.openUserProfile = async (username) => {
     profileUser = username;
     currentView = 'profile';
     profileTab = 'creations';
     window.scrollTo(0, 0);
     render();
+
+    // FETCH USER DATA ON DEMAND (Egress fix)
+    if (!store.users.find(u => u.username === username)) {
+        await store.fetchUserProfileByUsername(username);
+        render();
+    }
 };
 
 // --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist ---
@@ -1318,13 +1324,19 @@ window.showTokenCelebration = (amount = 1, subtitle = null) => {
     }, 4000);
 };
 
-window.setProfileView = (username) => {
+window.setProfileView = async (username) => {
     currentView = 'profile';
     profileUser = username;
     profileTab = 'creations';
     searchQuery = '';
     filters.source = 'user'; // Force user filter
     render();
+
+    // FETCH USER DATA ON DEMAND (Egress fix)
+    if (!store.users.find(u => u.username === username)) {
+        await store.fetchUserProfileByUsername(username);
+        render();
+    }
 };
 
 window.setProfileTab = (tab) => {
@@ -1333,33 +1345,15 @@ window.setProfileTab = (tab) => {
 };
 
 
-window.doFollow = (username, fromDetail = false) => {
-    if (!store.currentUser) return window.toggleAuth('login');
-    const target = store.users.find(u => u.username === username);
-    if (!target) return alert('Usuario no encontrado');
-
-    if (!store.currentUser.following) store.currentUser.following = [];
-
-    // Logic to toggle follow
-    const idx = store.currentUser.following.indexOf(target.id);
-    if (idx >= 0) {
-        store.currentUser.following.splice(idx, 1); // Unfollow
-        if (target.followers) {
-            const myIdx = target.followers.indexOf(store.currentUser.id);
-            if (myIdx >= 0) target.followers.splice(myIdx, 1);
-        }
-    } else {
-        store.currentUser.following.push(target.id); // Follow
-        if (!target.followers) target.followers = [];
-        target.followers.push(store.currentUser.id);
-    }
-    store.save(); // Persist
+window.doFollow = async (username, fromDetail = false) => {
+    if (!store.currentUser) return window.openLogin();
+    await store.followUser(username);
 
     if (fromDetail) {
-        const isFollowing = store.currentUser.following.includes(target.id);
+        const target = store.users.find(u => u.username === username);
+        const isFollowing = target && store.currentUser.following?.includes(target.id);
         const btn = document.getElementById('detFollowBtn');
         if (btn) btn.innerText = isFollowing ? 'Siguiendo' : 'Seguir';
-        // Also update profile view if open behind
         if (currentView === 'profile' && profileUser === username) render();
     } else {
         render();
@@ -3057,39 +3051,7 @@ window.revealImage = (btn) => {
     if (wrapper) wrapper.classList.remove('card-blurred');
 };
 
-window.doFollow = (username, fromDetail = false) => {
-    if (!store.currentUser) return window.toggleAuth('login');
-    const target = store.users.find(u => u.username === username);
-    if (!target) return alert('Usuario no encontrado');
-
-    if (!store.currentUser.following) store.currentUser.following = [];
-
-    // Logic to toggle follow
-    const idx = store.currentUser.following.indexOf(target.id);
-    if (idx >= 0) {
-        store.currentUser.following.splice(idx, 1); // Unfollow
-        if (target.followers) {
-            const myIdx = target.followers.indexOf(store.currentUser.id);
-            if (myIdx >= 0) target.followers.splice(myIdx, 1);
-        }
-    } else {
-        store.currentUser.following.push(target.id); // Follow
-        if (!target.followers) target.followers = [];
-        target.followers.push(store.currentUser.id);
-    }
-    store._persist(); // Save changes
-
-    const isFollowing = store.currentUser.following.includes(target.id);
-
-    if (fromDetail) {
-        const btn = document.getElementById('detFollowBtn');
-        if (btn) btn.innerText = isFollowing ? 'Siguiendo' : 'Seguir';
-        // Also update profile view if open behind
-        if (currentView === 'profile' && profileUser === username) render();
-    } else {
-        render();
-    }
-};
+// (Duplicate doFollow removed)
 
 // --- EXPOSING FUNCTIONS TO WINDOW (MODULE FIX) ---
 // This is critical because type="module" does not expose functions globally by default.

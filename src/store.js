@@ -17,8 +17,7 @@ export const store = {
         }
 
 
-        // 2. Load all users (Cache for profile viewing)
-        await this.loadUsers();
+        // 2. Removed global loadUsers() to save Egress. Use fetchUserProfileByUsername(username) instead.
 
         // 2. Escuchar cambios de sesión (Login/Logout externos)
         supabase.auth.onAuthStateChange((event, session) => {
@@ -112,12 +111,32 @@ export const store = {
     },
 
     async loadUsers() {
-        const { data, error } = await supabase.from('profiles').select('*');
-        if (data) {
-            this.users = data.map(u => this._normalizeProfile(u));
-        } else {
-            console.error("Error cargando usuarios:", error);
+        // Disabled for Egress health. Do not call this globally.
+        console.warn("Global loadUsers() disabled. Use fetchUserProfileByUsername for specific profiles.");
+    },
+
+    async fetchUserProfileByUsername(username) {
+        if (!username) return null;
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('username', username)
+            .single();
+
+        if (error) {
+            console.error("Error fetching user profile:", error);
+            return null;
         }
+
+        const normalized = this._normalizeProfile(data);
+
+        // Cache it
+        const idx = this.users.findIndex(u => u.username === username);
+        if (idx > -1) this.users[idx] = normalized;
+        else this.users.push(normalized);
+
+        return normalized;
     },
 
     async getTopCreators() {
@@ -390,7 +409,10 @@ export const store = {
     // --- SOCIAL ---
     async followUser(targetUsername) {
         if (!this.currentUser) return;
-        const target = this.users.find(u => u.username === targetUsername);
+        let target = this.users.find(u => u.username === targetUsername);
+        if (!target) {
+            target = await this.fetchUserProfileByUsername(targetUsername);
+        }
         if (!target || target.username === this.currentUser.username) return;
 
         const myId = this.currentUser.id;
@@ -528,9 +550,10 @@ export const store = {
     },
 
     async loadPrompts() {
+        // OPTIMIZED: Select only needed fields to reduce JSON size (Egress fix)
         const { data, error } = await supabase
             .from('prompts')
-            .select('*')
+            .select('id, title, prompt, tool, rating, image_url, author_name, author_id, created_at, copy_count, tokens_received, is_featured, reactions, comments, is_private, needs_reference, orig_creator, content, featured_until')
             .order('created_at', { ascending: false })
             .limit(100);
 
