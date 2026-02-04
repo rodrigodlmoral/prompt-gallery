@@ -343,6 +343,32 @@ export const store = {
         return data || [];
     },
 
+    privateLogSubscription: null,
+
+    subscribeToLogs(callback) {
+        if (!this.currentUser || this.currentUser.role !== 'admin') return;
+
+        // Remove existing if any
+        this.unsubscribeLogs();
+
+        console.log("📡 Activando Realtime para logs...");
+        this.privateLogSubscription = supabase
+            .channel('public:activity_logs')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_logs' }, payload => {
+                console.log("🔔 Nuevo log recibido:", payload.new);
+                if (callback) callback(payload.new);
+            })
+            .subscribe();
+    },
+
+    unsubscribeLogs() {
+        if (this.privateLogSubscription) {
+            console.log("📵 Desactivando Realtime para logs.");
+            supabase.removeChannel(this.privateLogSubscription);
+            this.privateLogSubscription = null;
+        }
+    },
+
     // --- AUTH ---
 
     async register(email, username, password) {

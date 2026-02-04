@@ -1405,6 +1405,16 @@ header nav {
    SISTEMA ANTI-BOT CRYSTAL SLIDER
    =================================== */
 
+@keyframes highlightNew {
+  from {
+    background: rgba(74, 222, 128, 0.2);
+  }
+
+  to {
+    background: transparent;
+  }
+}
+
 .comment-anti-bot-container {
   margin-top: 15px;
   background: rgba(255, 255, 255, 0.03);

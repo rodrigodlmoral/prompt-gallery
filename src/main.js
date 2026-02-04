@@ -2915,40 +2915,52 @@ window.openAdmin = async (tab = 'users') => {
         } else if (tab === 'logs') {
             const logsList = document.getElementById('adminLogsList');
             if (logsList) {
+                // Initial load
                 const logs = await store.getActivityLogs();
+                const renderLogRow = (l) => {
+                    const date = new Date(l.created_at).toLocaleString();
+                    let detailsStr = "";
+                    try {
+                        const d = l.details || {};
+                        if (l.action === 'tip') detailsStr = `Envió ${d.amount} 💎 a @${d.recipient} (${d.postId})`;
+                        else if (l.action === 'publish') detailsStr = `Publicó: ${d.postId} (${d.type})`;
+                        else if (l.action === 'levelup') detailsStr = `Subió de nivel: Lvl ${d.old} ➔ ${d.new}`;
+                        else if (l.action === 'reaction') detailsStr = `Reaccionó con ${d.type} en ${d.postId}`;
+                        else if (l.action === 'comment') detailsStr = `Comentó en ${d.postId}`;
+                        else detailsStr = JSON.stringify(d);
+                    } catch (e) { detailsStr = "Error en detalles"; }
+
+                    let badgeColor = "#888";
+                    if (l.action === 'tip') badgeColor = "#a29bfe";
+                    if (l.action === 'publish') badgeColor = "#4ade80";
+                    if (l.action === 'levelup') badgeColor = "gold";
+                    if (l.action === 'reaction') badgeColor = "#f87171";
+
+                    return `
+                        <tr style="border-bottom:1px solid #222; animation: highlightNew 2s ease-out">
+                            <td style="font-size:0.75rem; color:#888; white-space:nowrap">${date}</td>
+                            <td style="font-weight:600">@${l.username}</td>
+                            <td><span class="badge" style="background:${badgeColor}; color:#000; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold">${l.action.toUpperCase()}</span></td>
+                            <td style="font-size:0.8rem; color:#aaa">${detailsStr}</td>
+                        </tr>
+                    `;
+                };
+
                 if (logs.length === 0) {
                     logsList.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#666">No hay actividad registrada aún.</td></tr>`;
                 } else {
-                    logsList.innerHTML = logs.map(l => {
-                        const date = new Date(l.created_at).toLocaleString();
-                        let detailsStr = "";
-                        try {
-                            const d = l.details || {};
-                            if (l.action === 'tip') detailsStr = `Envió ${d.amount} 💎 a @${d.recipient} (${d.postId})`;
-                            else if (l.action === 'publish') detailsStr = `Publicó: ${d.postId} (${d.type})`;
-                            else if (l.action === 'levelup') detailsStr = `Subió de nivel: Lvl ${d.old} ➔ ${d.new}`;
-                            else if (l.action === 'reaction') detailsStr = `Reaccionó con ${d.type} en ${d.postId}`;
-                            else if (l.action === 'comment') detailsStr = `Comentó en ${d.postId}`;
-                            else detailsStr = JSON.stringify(d);
-                        } catch (e) { detailsStr = "Error en detalles"; }
-
-                        // Action Badge Color
-                        let badgeColor = "#888";
-                        if (l.action === 'tip') badgeColor = "#a29bfe";
-                        if (l.action === 'publish') badgeColor = "#4ade80";
-                        if (l.action === 'levelup') badgeColor = "gold";
-                        if (l.action === 'reaction') badgeColor = "#f87171";
-
-                        return `
-                            <tr style="border-bottom:1px solid #222">
-                                <td style="font-size:0.75rem; color:#888; white-space:nowrap">${date}</td>
-                                <td style="font-weight:600">@${l.username}</td>
-                                <td><span class="badge" style="background:${badgeColor}; color:#000; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold">${l.action.toUpperCase()}</span></td>
-                                <td style="font-size:0.8rem; color:#aaa">${detailsStr}</td>
-                            </tr>
-                        `;
-                    }).join('');
+                    logsList.innerHTML = logs.map(l => renderLogRow(l)).join('');
                 }
+
+                // Activar Realtime
+                store.subscribeToLogs((newLog) => {
+                    if (logsList) {
+                        // Si era "No hay actividad", limpiar
+                        if (logsList.innerHTML.includes('No hay actividad')) logsList.innerHTML = '';
+                        // Inyectar al inicio
+                        logsList.insertAdjacentHTML('afterbegin', renderLogRow(newLog));
+                    }
+                });
             }
         } else {
             const prompts = [...store.prompts].sort((a, b) => b.createdAt - a.createdAt);
