@@ -1153,18 +1153,45 @@ export const store = {
         return { success: true, msg: '¡Prompt destacado por 1 semana! (-50 PromptBits)' };
     },
 
-    async sendTip(postId, amount) {
+    async sendTip(postId, amount, recipientId = null) {
         if (!this.currentUser) return { success: false, msg: 'Debes iniciar sesión' };
         if (this.currentUser.tokens < amount) return { success: false, msg: 'Saldo insuficiente de PromptBits' };
 
-        const prompt = this.prompts.find(p => p.id === postId);
-        if (!prompt) return { success: false, msg: 'Post no encontrado' };
+        let authorUsername = '';
+        let activityDetails = { amount };
+
+        if (postId) {
+            const prompt = this.prompts.find(p => p.id === postId);
+            if (!prompt) return { success: false, msg: 'Post no encontrado' };
+            authorUsername = prompt.author;
+            activityDetails.recipient = prompt.author;
+            activityDetails.postId = prompt.title;
+        } else if (recipientId) {
+            // Fetch username for logging if direct tip
+            const { data: userData } = await supabase.from('profiles').select('username').eq('id', recipientId).single();
+            authorUsername = userData?.username || 'usuario';
+            activityDetails.recipient = authorUsername;
+            activityDetails.type = 'direct';
+        } else {
+            return { success: false, msg: 'ID de post o destinatario requerido' };
+        }
 
         // Llamar a la función atómica en Supabase
-        const { data, error } = await supabase.rpc('transfer_prompt_bits', {
-            p_post_id: parseInt(postId),
+        // Note: The RPC might need a null for p_post_id and a new p_recipient_id parameter
+        // Assuming the RPC transfer_prompt_bits can handle null p_post_id or we use a separate one
+        const rpcParams = {
             p_amount: parseInt(amount)
-        });
+        };
+
+        let rpcName = 'transfer_prompt_bits';
+        if (postId) {
+            rpcParams.p_post_id = parseInt(postId);
+        } else {
+            rpcName = 'transfer_prompt_bits_direct'; // Fallback to a direct transfer RPC
+            rpcParams.p_recipient_id = recipientId;
+        }
+
+        const { data, error } = await supabase.rpc(rpcName, rpcParams);
 
         if (error) {
             console.error('RPC Error:', error);
@@ -1172,25 +1199,19 @@ export const store = {
         }
 
         if (data && data.success) {
-            // Background reloads to keep UX snappy
             const reloadPromises = [
-                this._loadUserProfile(this.currentUser.id),
-                this.loadPrompts()
+                this._loadUserProfile(this.currentUser.id)
             ];
 
-            this.logActivity('tip', { recipient: prompt.author, amount: amount, postId: prompt.title });
+            this.logActivity('tip', activityDetails);
 
-            // If we have recipient info, refresh them too in cache
-            if (prompt && prompt.author) {
-                reloadPromises.push(this.fetchUserProfileByUsername(prompt.author));
+            if (authorUsername) {
+                reloadPromises.push(this.fetchUserProfileByUsername(authorUsername));
             }
 
-            // We don't necessarily await these here if we want instant response, 
-            // but for reliability we await them before returning.
-            // However, to fix the "hang" feel, we could return early.
-            // Let's do them in parallel at least.
-            await Promise.all(reloadPromises);
+            if (postId) reloadPromises.push(this.loadPrompts());
 
+            await Promise.all(reloadPromises);
             return { success: true, msg: data.msg || '¡Propina enviada con éxito! 💎' };
         } else {
             return { success: false, msg: data?.msg || 'Error en la transferencia' };

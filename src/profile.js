@@ -172,7 +172,10 @@ const ProfileHeader = () => {
                     </div>
 
                     <div style="display:flex; gap:20px; color:#888; font-size:0.9rem; align-items:center">
-                        <div class="token-display">💎 ${user.tokens || 0} PromptBits</div>
+                        <div class="token-display" 
+                             ${!isMe ? `onclick="window.openDirectTip('${user.id}', '${user.username}')" style="cursor:pointer" title="Regalar PromptBits a @${user.username}"` : ''}>
+                            💎 ${user.tokens || 0} PromptBits
+                        </div>
                         <span>|</span>
                         <span>${user.followers?.length || 0} Seguidores</span>
                         <span>${user.following?.length || 0} Siguiendo</span>
@@ -1323,6 +1326,64 @@ window.openLevelProgress = () => {
             <button class="btn" style="width:100%" onclick="document.getElementById('levelModalDynamic').remove()">Cerrar</button>
         </div>`;
     document.body.appendChild(modalDiv);
+};
+
+
+window.openDirectTip = (recipientId, username) => {
+    if (!store.currentUser) {
+        alert("Debes iniciar sesión para enviar propinas.");
+        return;
+    }
+
+    // Remove any existing dynamic tip modal
+    const existingModal = document.getElementById('dynamicTipModal');
+    if (existingModal) existingModal.remove();
+
+    // Create modal dynamically
+    const overlay = document.createElement('div');
+    overlay.id = 'dynamicTipModal';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index:9000000; display:flex; align-items:center; justify-content:center;';
+
+    overlay.innerHTML = `
+        <div style="background:#1a1a2e; border:1px solid #333; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+            <div style="font-size:3rem; margin-bottom:10px">💎</div>
+            <h2 style="color:#fff; margin:0 0 5px 0">Apoyar a @${username}</h2>
+            <p style="color:#888; margin-bottom:20px">Regala PromptBits directamente a este creador</p>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px">
+                <button onclick="window.doSendDirectTip('${recipientId}', 5)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 5</button>
+                <button onclick="window.doSendDirectTip('${recipientId}', 10)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 10</button>
+                <button onclick="window.doSendDirectTip('${recipientId}', 20)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 20</button>
+                <button onclick="window.doSendDirectTip('${recipientId}', 50)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 50</button>
+            </div>
+            
+            <div style="font-size:0.85rem; color:#666; margin-bottom:20px">
+                Tu saldo: <span style="color:#a29bfe; font-weight:700">${store.currentUser.tokens || 0}</span> PromptBits
+            </div>
+            
+            <button onclick="document.getElementById('dynamicTipModal').remove()" style="background:transparent; border:none; color:#666; padding:10px 20px; cursor:pointer; font-size:0.9rem">Cancelar</button>
+        </div>
+    `;
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
+};
+
+window.doSendDirectTip = async (recipientId, amount) => {
+    if (confirm(`¿Enviar ${amount} PromptBits a este creador?`)) {
+        const res = await store.sendTip(null, amount, recipientId);
+        if (res.success) {
+            alert(res.msg);
+            const dtm = document.getElementById('dynamicTipModal');
+            if (dtm) dtm.remove();
+            render();
+        } else {
+            alert(res.msg);
+        }
+    }
 };
 
 const init = async () => {
