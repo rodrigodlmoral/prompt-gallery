@@ -2714,8 +2714,13 @@ window.setAdminFilter = (char) => {
     window.openAdmin('users'); // Re-render
 };
 
-window.openAdmin = (tab = 'users') => {
+window.openAdmin = async (tab = 'users') => {
     try {
+        // Ensure admin has all users loaded
+        if (store.currentUser && store.currentUser.role === 'admin') {
+            await store.adminLoadAllUsers();
+        }
+
         const modal = document.getElementById('adminModal');
         if (!modal) {
             console.error("No se encontró adminModal en el DOM");
@@ -2733,18 +2738,59 @@ window.openAdmin = (tab = 'users') => {
         const btnUsers = document.getElementById('adminTabUsers');
         const btnContent = document.getElementById('adminTabContent');
         const btnMigrate = document.getElementById('adminTabMigrate');
+        const btnLogs = document.getElementById('adminTabLogs');
 
         const secUsers = document.getElementById('adminSecUsers');
         const secContent = document.getElementById('adminSecContent');
         const secMigrate = document.getElementById('adminSecMigrate');
+        const secLogs = document.getElementById('adminSecLogs');
+
+        // INJECT LOGS TAB IF MISSING
+        if (!btnLogs && btnMigrate) {
+            const logsBtn = document.createElement('button');
+            logsBtn.id = 'adminTabLogs';
+            logsBtn.className = 'tab-btn';
+            logsBtn.innerText = '📜 Actividad';
+            logsBtn.onclick = () => window.openAdmin('logs');
+            btnMigrate.parentNode.appendChild(logsBtn);
+
+            const logsSec = document.createElement('div');
+            logsSec.id = 'adminSecLogs';
+            logsSec.className = 'admin-section';
+            logsSec.style.display = 'none';
+            logsSec.innerHTML = `
+                <h3 style="margin-bottom:15px; display:flex; align-items:center; gap:10px">
+                    <span>📜 Log de Actividad Reciente</span>
+                    <button class="btn-sm" onclick="window.openAdmin('logs')" style="font-size:0.7rem">🔄 Refrescar</button>
+                </h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Usuario</th>
+                                <th>Acción</th>
+                                <th>Detalles</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminLogsList">
+                            <tr><td colspan="4" style="text-align:center; padding:20px; color:#666">Cargando logs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            secMigrate.parentNode.appendChild(logsSec);
+        }
 
         if (btnUsers) btnUsers.classList.toggle('active', tab === 'users');
         if (btnContent) btnContent.classList.toggle('active', tab === 'content');
         if (btnMigrate) btnMigrate.classList.toggle('active', tab === 'migrate');
+        if (btnLogs) btnLogs.classList.toggle('active', tab === 'logs');
 
         if (secUsers) secUsers.style.display = tab === 'users' ? 'block' : 'none';
         if (secContent) secContent.style.display = tab === 'content' ? 'block' : 'none';
         if (secMigrate) secMigrate.style.display = tab === 'migrate' ? 'block' : 'none';
+        if (secLogs) secLogs.style.display = tab === 'logs' ? 'block' : 'none';
 
         if (tab === 'users') {
             let users = [...(store.getAllUsers() || [])];
@@ -2865,6 +2911,44 @@ window.openAdmin = (tab = 'users') => {
                         </td>
                     </tr>
                 `).join('');
+            }
+        } else if (tab === 'logs') {
+            const logsList = document.getElementById('adminLogsList');
+            if (logsList) {
+                const logs = await store.getActivityLogs();
+                if (logs.length === 0) {
+                    logsList.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#666">No hay actividad registrada aún.</td></tr>`;
+                } else {
+                    logsList.innerHTML = logs.map(l => {
+                        const date = new Date(l.created_at).toLocaleString();
+                        let detailsStr = "";
+                        try {
+                            const d = l.details || {};
+                            if (l.action === 'tip') detailsStr = `Envió ${d.amount} 💎 a @${d.recipient} (${d.postId})`;
+                            else if (l.action === 'publish') detailsStr = `Publicó: ${d.postId} (${d.type})`;
+                            else if (l.action === 'levelup') detailsStr = `Subió de nivel: Lvl ${d.old} ➔ ${d.new}`;
+                            else if (l.action === 'reaction') detailsStr = `Reaccionó con ${d.type} en ${d.postId}`;
+                            else if (l.action === 'comment') detailsStr = `Comentó en ${d.postId}`;
+                            else detailsStr = JSON.stringify(d);
+                        } catch (e) { detailsStr = "Error en detalles"; }
+
+                        // Action Badge Color
+                        let badgeColor = "#888";
+                        if (l.action === 'tip') badgeColor = "#a29bfe";
+                        if (l.action === 'publish') badgeColor = "#4ade80";
+                        if (l.action === 'levelup') badgeColor = "gold";
+                        if (l.action === 'reaction') badgeColor = "#f87171";
+
+                        return `
+                            <tr style="border-bottom:1px solid #222">
+                                <td style="font-size:0.75rem; color:#888; white-space:nowrap">${date}</td>
+                                <td style="font-weight:600">@${l.username}</td>
+                                <td><span class="badge" style="background:${badgeColor}; color:#000; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold">${l.action.toUpperCase()}</span></td>
+                                <td style="font-size:0.8rem; color:#aaa">${detailsStr}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
             }
         } else {
             const prompts = [...store.prompts].sort((a, b) => b.createdAt - a.createdAt);

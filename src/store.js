@@ -117,6 +117,26 @@ export const store = {
         console.warn("Global loadUsers() disabled. Use fetchUserProfileByUsername for specific profiles.");
     },
 
+    async adminLoadAllUsers() {
+        if (!this.currentUser || this.currentUser.role !== 'admin') return;
+
+        console.log("Admin loading all users...");
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .order('username', { ascending: true });
+
+        if (error) {
+            console.error("Error loading all users (admin):", error);
+            return;
+        }
+
+        if (data) {
+            this.users = data.map(u => this._normalizeProfile(u));
+            if (window.render) window.render();
+        }
+    },
+
     async fetchUserProfileByUsername(username) {
         if (!username) return null;
 
@@ -232,6 +252,7 @@ export const store = {
                 .eq('id', uid);
 
             if (!error) {
+                this.logActivity('levelup', { old: currentLevel, new: newLevel });
                 return { leveledUp: true, newLevel };
             }
         }
@@ -286,6 +307,40 @@ export const store = {
             last_comment_day: commDay,
             last_comment_at: lastCommAt
         };
+    },
+
+    // --- ACTIVITY LOGS ---
+    async logActivity(action, details = {}) {
+        if (!this.currentUser) return;
+
+        try {
+            await supabase.from('activity_logs').insert([
+                {
+                    user_id: this.currentUser.id,
+                    username: this.currentUser.username,
+                    action: action,
+                    details: details
+                }
+            ]);
+        } catch (err) {
+            console.warn("Failed to log activity:", err);
+        }
+    },
+
+    async getActivityLogs() {
+        if (!this.currentUser || this.currentUser.role !== 'admin') return [];
+
+        const { data, error } = await supabase
+            .from('activity_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+        if (error) {
+            console.error("Error fetching logs:", error);
+            return [];
+        }
+        return data || [];
     },
 
     // --- AUTH ---
@@ -567,6 +622,8 @@ export const store = {
             setTimeout(() => window.showTokenCelebration(1), 500);
         }
 
+        this.logActivity('publish', { postId: data.title, type: data.type });
+
         return { success: true, tokensEarned: 1, ...levelUpData };
     },
 
@@ -835,6 +892,7 @@ export const store = {
                 prompt.reactions[type]++;
             }
             this._persist(id);
+            this.logActivity('reaction', { postId: prompt.title, type: type });
             return true;
         }
         return false;
@@ -1072,6 +1130,8 @@ export const store = {
                 this._loadUserProfile(this.currentUser.id),
                 this.loadPrompts()
             ];
+
+            this.logActivity('tip', { recipient: prompt.author, amount: amount, postId: prompt.title });
 
             // If we have recipient info, refresh them too in cache
             if (prompt && prompt.author) {
