@@ -1068,7 +1068,7 @@ const ConfirmModal = () => `
     </div>
 </div></div>`;
 
-const Modals = () => AuthModal() + CreateModal() + DetailModal() + InfoModal() + AdminModal() + ConfirmModal();
+const Modals = () => AuthModal() + CreateModal() + DetailModal() + InfoModal() + ConfirmModal();
 
 // --- LOGIC ---
 const render = () => {
