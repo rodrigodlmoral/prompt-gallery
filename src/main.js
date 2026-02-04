@@ -3174,7 +3174,7 @@ window.openTip = (postId) => {
     }
     const p = store.prompts.find(x => String(x.id) === String(postId));
     if (!p) {
-        alert("Post no encontrado");
+        window.toast("❌ Post no encontrado", 'error');
         return;
     }
 
@@ -3222,11 +3222,14 @@ window.openTip = (postId) => {
 window.doSendTip = async (amount) => {
     if (!currentTipPostId) return;
     if (await window.askConfirm(`¿Enviar ${amount} PromptBits a este autor?`, '💎')) {
+        // Immediate feedback
+        window.toast("Enviando PromptBits...", "info");
+
         const res = await store.sendTip(currentTipPostId, amount);
         if (res.success) {
             window.toast(res.msg, 'success');
             window.closeModals();
-            render();
+            if (window.render) window.render();
         } else {
             window.toast("❌ " + res.msg, 'error');
         }

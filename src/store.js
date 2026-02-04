@@ -12,6 +12,8 @@ export const store = {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             await this._loadUserProfile(session.user.id);
+            // Proactive sync for current user level
+            this.checkLevelUp(session.user.id, this.currentUser?.level || 0);
         } else if (localStorage.getItem('pg_master_role') === 'true') {
             await this._loadUserProfile('MASTER_ADMIN_ID');
         }
@@ -131,6 +133,11 @@ export const store = {
 
         const normalized = this._normalizeProfile(data);
 
+        // AUTO-HEAL: If visitor is ADMIN, trigger a DB level sync for the viewed user
+        if (this.currentUser && this.currentUser.role === 'admin' && normalized.id !== 'MASTER_ADMIN_ID') {
+            this.checkLevelUp(normalized.id, normalized.level);
+        }
+
         // Cache it
         const idx = this.users.findIndex(u => u.username === username);
         if (idx > -1) this.users[idx] = normalized;
@@ -158,15 +165,26 @@ export const store = {
             const { data: profiles, error: pError } = await supabase.from('profiles').select('*').in('id', sortedIds);
             if (pError) throw pError;
 
-            // 5. Merge and return
-            return sortedIds.map(id => {
+            // 5. Merge, normalize and return
+            const topCreators = sortedIds.map(id => {
                 const p = profiles.find(prof => prof.id === id);
                 if (!p) return null;
-                return {
+
+                // CRITICAL: Normalize to ensure dynamic level calculation is applied
+                const normalized = this._normalizeProfile({
                     ...p,
                     prompts_count: counts[id]
-                };
+                });
+
+                // Cache it for ProfileHeader etc.
+                const idx = this.users.findIndex(u => u.id === normalized.id);
+                if (idx > -1) this.users[idx] = normalized;
+                else this.users.push(normalized);
+
+                return normalized;
             }).filter(Boolean);
+
+            return topCreators;
 
         } catch (err) {
             console.error("Error fetching top creators:", err);
@@ -240,6 +258,18 @@ export const store = {
             commDay = socials._last_comm_day;
         }
 
+        const prompts_count = data.prompts_count || 0;
+
+        // Dynamic Level Calculation (Fallback for unsynced DB levels)
+        let calculatedLevel = 0;
+        if (prompts_count >= 250) calculatedLevel = 5;
+        else if (prompts_count >= 100) calculatedLevel = 4;
+        else if (prompts_count >= 50) calculatedLevel = 3;
+        else if (prompts_count >= 25) calculatedLevel = 2;
+        else if (prompts_count >= 10) calculatedLevel = 1;
+
+        const effectiveLevel = Math.max(data.level || 0, calculatedLevel);
+
         return {
             ...data,
             role: data.role || 'user',
@@ -248,9 +278,9 @@ export const store = {
             moderation: data.moderation || { suggestive: 'ON', nsfw: 'BLUR' },
             following: data.following || socials._following || [],
             saved_prompts: data.saved_prompts || socials._saved || [],
-            level: data.level || 0,
+            level: effectiveLevel,
             tokens: tokens,
-            prompts_count: data.prompts_count || 0,
+            prompts_count: prompts_count,
             badges: data.badges || [],
             daily_comment_count: dailyCount,
             last_comment_day: commDay,
@@ -553,7 +583,7 @@ export const store = {
         // OPTIMIZED: Select only needed fields to reduce JSON size (Egress fix)
         const { data, error } = await supabase
             .from('prompts')
-            .select('id, title, prompt, tool, rating, image_url, author_name, author_id, created_at, copy_count, tokens_received, is_featured, reactions, comments, is_private, needs_reference, orig_creator, content, featured_until, saved_by')
+            .select('*')
             .order('created_at', { ascending: false })
             .limit(100);
 
@@ -1037,18 +1067,26 @@ export const store = {
         }
 
         if (data && data.success) {
-            // Recargar perfil del usuario actual desde la DB para obtener saldo real
-            await this._loadUserProfile(this.currentUser.id);
+            // Background reloads to keep UX snappy
+            const reloadPromises = [
+                this._loadUserProfile(this.currentUser.id),
+                this.loadPrompts()
+            ];
 
-            // Recargar posts para actualizar tokens_received
-            await this.loadPrompts();
+            // If we have recipient info, refresh them too in cache
+            if (prompt && prompt.author) {
+                reloadPromises.push(this.fetchUserProfileByUsername(prompt.author));
+            }
 
-            // Recargar usuarios para actualizar caché
-            await this.loadUsers();
+            // We don't necessarily await these here if we want instant response, 
+            // but for reliability we await them before returning.
+            // However, to fix the "hang" feel, we could return early.
+            // Let's do them in parallel at least.
+            await Promise.all(reloadPromises);
 
-            return { success: true, msg: data.msg };
+            return { success: true, msg: data.msg || '¡Propina enviada con éxito! 💎' };
         } else {
-            return { success: false, msg: data?.msg || 'Error desconocido en la transferencia' };
+            return { success: false, msg: data?.msg || 'Error en la transferencia' };
         }
     },
 
