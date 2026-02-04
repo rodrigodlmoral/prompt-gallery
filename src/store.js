@@ -403,7 +403,8 @@ export const store = {
             }
         }
 
-        window.location.reload(); // Recargar para auto-login limpio
+        // window.location.reload(); // Removed to prevent session loss race condition
+        // Listener will also pick this up if auto-sign-in happens
         return { success: true };
     },
 
@@ -414,7 +415,9 @@ export const store = {
             await supabase.auth.signOut(); // Clear any existing real user session
             await this._loadUserProfile('MASTER_ADMIN_ID');
             localStorage.setItem('pg_master_role', 'true');
-            window.location.reload();
+            if (window.closeModals) window.closeModals();
+            if (window.render) window.render();
+            // window.location.reload(); 
             return { success: true };
         }
 
@@ -436,7 +439,14 @@ export const store = {
 
         if (error) return { success: false, msg: error.message };
 
-        window.location.reload();
+        // NO RELOAD: Rely on onAuthStateChange listener which interprets the change
+        // But force a manual call just in case listener is lazy
+        if (data.session) {
+            await this._loadUserProfile(data.session.user.id);
+            if (window.closeModals) window.closeModals();
+            if (window.render) window.render();
+        }
+
         return { success: true };
     },
 
