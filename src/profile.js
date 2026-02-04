@@ -9,6 +9,8 @@ let profileTab = 'creations';
 let searchQuery = '';
 let currentId = null;
 let currentSeqStep = 0;
+let currentTipPostId = null;
+window.sliderUnlocked = false;
 
 // --- HELPERS ---
 window.escapeHTML = (str) => {
@@ -224,15 +226,70 @@ const DetailModalTemplate = () => `
         <div class="view-modal">
             <button class="modal-close-x" onclick="window.closeModals()">✕</button>
             <div class="view-img-side">
+                <div id="detCopyBadge" style="position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.7); padding:4px 10px; border-radius:15px; font-size:0.7rem; color:var(--accent); font-weight:700; border:1px solid var(--accent); display:none; z-index:10">📋 Copiado 0 veces</div>
                 <img id="detImg" src="" alt="Post Image">
+                <button class="fullscreen-btn" onclick="window.doFullScreen()">🔍 Ver Pantalla Completa</button>
+                <div class="seq-nav-btn prev" id="detPrevBtn" onclick="window.prevSeqStep()" style="display:none">❮</div>
+                <div class="seq-nav-btn next" id="detNextBtn" onclick="window.nextSeqStep()" style="display:none">❯</div>
+                <div class="seq-counter" id="detSeqCount" style="display:none"></div>
             </div>
             <div class="view-info-side">
                 <div class="view-scroll-content">
-                    <h2 id="detTitle" style="margin-bottom:10px"></h2>
-                    <div id="detUser" style="font-weight:700; margin-bottom:15px; color:var(--accent)"></div>
-                    <div id="detPrompt" class="prompt-area" style="white-space:pre-wrap; background:#000; padding:15px; border-radius:8px; border:1px solid #333; margin-bottom:15px"></div>
-                    <button class="btn" style="width:100%" onclick="window.doCopyPrompt()">📋 Copiar Prompt</button>
-                    <div id="detComments" style="margin-top:20px"></div>
+                    <div id="detMetaTop" style="font-size:0.65rem; color:#666; font-weight:700; margin-bottom:5px; text-transform:uppercase"></div>
+                    <div id="detExtra" style="margin-bottom:10px; font-size:0.85rem"></div>
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px">
+                        <h2 id="detTitle" style="margin:0; flex:1"></h2>
+                        <div class="dropdown" style="position:relative">
+                            <button class="btn-icon" onclick="window.toggleOptionsMenu()" style="font-size:1.5rem">⋮</button>
+                            <div id="optionsMenu" class="dropdown-menu" style="right:0; left:auto; display:none">
+                                <div class="dropdown-item" onclick="window.doSavePrompt()">💾 Guardar</div>
+                                <div class="dropdown-item" onclick="window.doCopyPrompt()">📋 Copiar Prompt</div>
+                                <div class="dropdown-item" id="optReport" onclick="window.doReportPrompt()">⚠️ Reportar</div>
+                                <div class="dropdown-item" id="optHide" onclick="window.doHidePrompt()">🚫 Ocultar Post</div>
+                                <div class="dropdown-item" id="optBlock" onclick="window.doBlockUser()">👤 Bloquear Usuario</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="detUser" style="font-weight:700; margin-bottom:10px; color:var(--accent);"></div>
+                    
+                    <div id="detBadges" style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap"></div>
+                    
+                    <div style="position:relative">
+                        <div id="detPrompt" class="prompt-area"></div>
+                        <div id="detNegPrompt" class="prompt-area" style="display:none; margin-top:10px; border-color:#ff4444; background:rgba(255,0,0,0.05); color:#ff6666"></div>
+                        <button class="btn-outline" onclick="window.doCopyPrompt()" style="width:100%; margin-top:10px">📋 Copiar Prompt</button>
+                    </div>
+                    
+                    <div class="reactions-flex" style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap">
+                        <button class="react-btn" id="btn-react-like" onclick="window.doReact('like')">👍 <small id="det-like-count">0</small></button>
+                        <button class="react-btn" id="btn-react-love" onclick="window.doReact('love')">❤️ <small id="det-love-count">0</small></button>
+                        <button class="react-btn" id="btn-react-fire" onclick="window.doReact('fire')">🔥 <small id="det-fire-count">0</small></button>
+                        <button class="react-btn" id="btn-react-funny" onclick="window.doReact('funny')">😂 <small id="det-funny-count">0</small></button>
+                        <button class="react-btn" id="btn-react-dislike" onclick="window.doReact('dislike')">👎 <small id="det-dislike-count">0</small></button>
+                        <button class="react-btn" id="btn-react-sad" onclick="window.doReact('sad')">😢 <small id="det-sad-count">0</small></button>
+                    </div>
+                    
+                    <div style="margin-top:20px; border-top:1px solid #222; padding-top:15px">
+                         <h3 style="font-size:1rem; margin-bottom:10px">Comentarios</h3>
+                         <div id="detComments"></div>
+                    </div>
+                </div>
+                
+                <div class="view-footer">
+                    <div id="commAntiBot" class="comment-anti-bot-container" style="display:none">
+                        <div class="crystal-slider-wrapper" id="commSlider">
+                            <div class="crystal-slider-track-text">Desliza 💎 para confirmar</div>
+                            <div class="crystal-slider-handle" id="commSliderHandle">💎</div>
+                        </div>
+                        <input type="text" name="b_name" class="hp-field" id="commHoneypot" tabindex="-1" autocomplete="off">
+                    </div>
+
+                    <div style="display:flex; gap:10px; margin-top:10px">
+                        <input type="text" id="commInput" class="form-input" placeholder="Escribe un comentario..." onfocus="window.showSlider()">
+                        <button class="btn" id="commSubmitBtn" onclick="window.postComm()">Enviar</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -353,10 +410,20 @@ const SettingsModal = () => {
 </div>`;
 };
 
+const ConfirmModal = () => `
+<div id="confirmModal" class="modal-overlay" style="display:none; z-index:2147483647;"><div class="modal-container" style="max-width:400px; text-align:center">
+    <div id="confirmIcon" style="font-size:3rem; margin-bottom:15px">❓</div>
+    <div id="confirmText" style="font-size:1.1rem; margin-bottom:25px; line-height:1.5">¿Estás seguro?</div>
+    <div style="display:flex; gap:15px; justify-content:center">
+        <button class="btn btn-outline" style="flex:1" onclick="window.confirmResolve(false)">Cancelar</button>
+        <button class="btn" style="flex:1" onclick="window.confirmResolve(true)">Aceptar</button>
+    </div>
+</div></div>`;
+
 
 // --- LOGIC ---
 const render = () => {
-    app.innerHTML = Header() + ProfileHeader() + Gallery() + DetailModalTemplate() + SettingsModal();
+    app.innerHTML = Header() + ProfileHeader() + Gallery() + DetailModalTemplate() + SettingsModal() + ConfirmModal();
     attachEvents();
 };
 
@@ -370,29 +437,358 @@ const attachEvents = () => {
 };
 
 window.openDetail = (id) => {
-    const p = store.prompts.find(x => x.id === id);
+    const p = store.prompts.find(x => String(x.id) === String(id));
     if (!p) return;
     currentId = id;
+    currentSeqStep = 0;
+    window.sliderUnlocked = false;
+
     const modal = document.getElementById('viewModal');
-    document.getElementById('detTitle').innerText = p.title;
-    document.getElementById('detUser').innerText = `@${p.author}`;
-    document.getElementById('detPrompt').innerText = p.prompt || '';
-    document.getElementById('detImg').src = p.image;
+    if (!modal) return;
+
+    // UI Resets
+    const slider = document.getElementById('commSlider');
+    const handle = document.getElementById('commSliderHandle');
+    const botContainer = document.getElementById('commAntiBot');
+    if (slider) slider.classList.remove('unlocked');
+    if (handle) { handle.style.left = '4px'; handle.style.transition = 'none'; }
+    if (botContainer) botContainer.style.display = 'none';
+
+    document.getElementById('detTitle').innerText = p.title || 'Sin Título';
+
+    const detMetaTop = document.getElementById('detMetaTop');
+    if (detMetaTop) {
+        const d = new Date(p.createdAt || Date.now());
+        detMetaTop.innerText = `${p.tool} • ${p.type === 'sequence' ? 'Secuencia' : 'Imagen Única'} • ${d.toLocaleDateString()}`;
+    }
+
+    const userEl = document.getElementById('detUser');
+    if (userEl) {
+        userEl.innerHTML = `
+            <span style="display:flex; align-items:center; gap:10px">
+                Por: <span onclick="window.location.href='/profile.html?u=${p.author}'" style="cursor:pointer; text-decoration:underline">${p.author}</span>
+            </span>
+            <div id="detTipsButton" style="margin: 8px 0 10px 0">
+                <button style="background:rgba(162, 155, 254, 0.15); border:1px solid rgba(162, 155, 254, 0.4); color:#a29bfe; padding:4px 12px; border-radius:4px; font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="window.openTip('${p.id}')">
+                    💎 ${p.tokens_received || 0} PromptBits
+                </button>
+            </div>`;
+    }
+
+    const badgesEl = document.getElementById('detBadges');
+    if (badgesEl) {
+        const refText = p.needsReference ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
+        badgesEl.innerHTML = `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">🛠️ ${p.tool || 'Desconocido'}</span>
+                             <span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
+    }
+
+    // Sequence vs Single
+    const prevBtn = document.getElementById('detPrevBtn');
+    const nextBtn = document.getElementById('detNextBtn');
+    const seqCount = document.getElementById('detSeqCount');
+    const detImg = document.getElementById('detImg');
+    const detPrompt = document.getElementById('detPrompt');
+
+    if (p.type === 'sequence' && p.content && p.content.length > 0) {
+        if (prevBtn) prevBtn.style.display = 'flex';
+        if (nextBtn) nextBtn.style.display = 'flex';
+        if (seqCount) seqCount.style.display = 'block';
+        window.updateSeqDisplay(p);
+    } else {
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'none';
+        if (seqCount) seqCount.style.display = 'none';
+        if (detImg) detImg.src = p.image || '';
+        if (detPrompt) detPrompt.innerText = p.prompt || '';
+    }
+
+    // Blurred image handling
+    if (detImg) {
+        const { applyBlur, warningLabel } = getModeration(p);
+        detImg.parentElement.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
+        let blurOverlay = detImg.parentElement.querySelector('.blur-overlay');
+        if (applyBlur) {
+            if (!blurOverlay) {
+                blurOverlay = document.createElement('div');
+                blurOverlay.className = 'blur-overlay';
+                detImg.parentElement.appendChild(blurOverlay);
+            }
+            blurOverlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
+        } else if (blurOverlay) {
+            blurOverlay.remove();
+        }
+    }
+
+    const detCopyBadge = document.getElementById('detCopyBadge');
+    if (detCopyBadge) {
+        detCopyBadge.style.display = 'block';
+        detCopyBadge.innerText = `📋 Copiado ${p.copy_count || 0} veces`;
+    }
+
+    // Comments
+    const commentsEl = document.getElementById('detComments');
+    if (commentsEl) {
+        const currUser = store.currentUser?.username;
+        const isPostOwner = currUser === p.author;
+        commentsEl.innerHTML = (p.comments && p.comments.length > 0)
+            ? p.comments.map(c => `
+                <div style="background:#1a1a1a; padding:10px; border-radius:8px; margin-bottom:10px; border-left:3px solid var(--accent); position:relative">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px">
+                        <span style="font-weight:700; color:var(--accent); font-size:0.85rem">@${window.escapeHTML(c.username)}</span>
+                        ${(isPostOwner || currUser === c.username) ? `<button onclick="window.doDeleteComment(${c.id})" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; padding:0">🗑️</button>` : ''}
+                    </div>
+                    <div style="font-size:0.9rem; color:#eee">${window.escapeHTML(c.text)}</div>
+                </div>`).join('')
+            : '<div style="opacity:0.5; font-size:0.9rem">No hay comentarios aún.</div>';
+    }
+
+    // Reactions
+    const reactions = p.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 };
+    const myReaction = (p.userReactions && store.currentUser) ? p.userReactions[store.currentUser.username] : null;
+    ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(type => {
+        const countEl = document.getElementById(`det-${type}-count`);
+        const btnEl = document.getElementById(`btn-react-${type}`);
+        if (countEl) countEl.innerText = reactions[type] || 0;
+        if (btnEl) {
+            if (myReaction === type) btnEl.classList.add('active');
+            else btnEl.classList.remove('active');
+        }
+    });
+
     modal.style.display = 'flex';
 };
 
-window.closeModals = () => {
-    const vModal = document.getElementById('viewModal');
-    if (vModal) vModal.style.display = 'none';
-    const sModal = document.getElementById('settingsModal');
-    if (sModal) sModal.style.display = 'none';
+window.updateSeqDisplay = (p) => {
+    const step = p.content[currentSeqStep];
+    if (!step) return;
+    const detImg = document.getElementById('detImg');
+    const detPrompt = document.getElementById('detPrompt');
+    const seqCount = document.getElementById('detSeqCount');
+    if (detImg) detImg.src = step.image;
+    if (detPrompt) detPrompt.innerText = step.prompt || '';
+    if (seqCount) seqCount.innerText = `Imagen ${currentSeqStep + 1} de ${p.content.length}`;
+};
+
+window.prevSeqStep = () => {
+    const p = store.prompts.find(x => x.id === currentId);
+    if (!p || p.type !== 'sequence') return;
+    currentSeqStep = (currentSeqStep - 1 + p.content.length) % p.content.length;
+    window.updateSeqDisplay(p);
+};
+
+window.nextSeqStep = () => {
+    const p = store.prompts.find(x => x.id === currentId);
+    if (!p || p.type !== 'sequence') return;
+    currentSeqStep = (currentSeqStep + 1) % p.content.length;
+    window.updateSeqDisplay(p);
+};
+
+window.toggleOptionsMenu = () => {
+    const menu = document.getElementById('optionsMenu');
+    if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+};
+
+window.doSavePrompt = async () => {
+    if (!store.currentUser) return alert("Inicia sesión para guardar.");
+    await store.savePrompt(currentId);
+    render();
+    window.toggleOptionsMenu();
+    window.toast("Prompt Guardado", "success");
 };
 
 window.doCopyPrompt = async () => {
     const p = store.prompts.find(x => x.id === currentId);
     if (!p) return;
-    await navigator.clipboard.writeText(p.prompt || '');
-    alert("¡Copiado!");
+    const text = p.type === 'sequence' ? p.content[currentSeqStep]?.prompt : p.prompt;
+    await navigator.clipboard.writeText(text || '');
+    await store.incrementCopyCount(currentId);
+    window.toast("¡Copiado!", "success");
+    render();
+};
+
+window.doReportPrompt = () => { window.toast("Post Reportado", "info"); window.toggleOptionsMenu(); };
+window.doHidePrompt = () => { window.toast("Post Oculto", "info"); window.toggleOptionsMenu(); };
+
+window.doBlockUser = async () => {
+    const p = store.prompts.find(x => x.id === currentId);
+    if (!p) return;
+    if (confirm(`¿Bloquear a @${p.author}?`)) {
+        await store.blockUser(p.author);
+        window.closeModals();
+        render();
+    }
+};
+
+window.doReact = async (type) => {
+    if (!store.currentUser) return alert("Inicia sesión para reaccionar.");
+    await store.reactToPrompt(currentId, type);
+    const p = store.prompts.find(x => x.id === currentId);
+    window.openDetail(currentId); // Refresh modal
+};
+
+window.doFullScreen = () => {
+    const side = document.querySelector('.view-img-side');
+    if (side.requestFullscreen) side.requestFullscreen();
+};
+
+window.revealImage = (btn) => {
+    const overlay = btn.closest('.blur-overlay');
+    if (overlay) {
+        overlay.parentElement.classList.remove('card-blurred');
+        overlay.remove();
+    }
+};
+
+window.doDeleteComment = async (cid) => {
+    if (confirm("¿Eliminar comentario?")) {
+        await store.deleteComment(currentId, cid);
+        window.openDetail(currentId);
+    }
+};
+
+window.showSlider = () => {
+    const bot = document.getElementById('commAntiBot');
+    if (bot && bot.style.display === 'none') {
+        bot.style.display = 'flex';
+        window.initCrystalSlider();
+    }
+};
+
+window.initCrystalSlider = () => {
+    const track = document.getElementById('commSlider');
+    const handle = document.getElementById('commSliderHandle');
+    if (!track || !handle) return;
+
+    let isDragging = false;
+    let startX = 0;
+
+    const onStart = (e) => {
+        if (window.sliderUnlocked) return;
+        isDragging = true;
+        startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        handle.style.transition = 'none';
+    };
+
+    const onMove = (e) => {
+        if (!isDragging || window.sliderUnlocked) return;
+        const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const diff = currentX - startX;
+        const max = track.offsetWidth - handle.offsetWidth - 8;
+        const pos = Math.max(0, Math.min(diff, max));
+        handle.style.left = (pos + 4) + 'px';
+
+        if (pos >= max - 5) {
+            window.sliderUnlocked = true;
+            isDragging = false;
+            track.classList.add('unlocked');
+            handle.style.left = 'calc(100% - 44px)';
+        }
+    };
+
+    const onEnd = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        if (!window.sliderUnlocked) {
+            handle.style.transition = 'left 0.3s';
+            handle.style.left = '4px';
+        }
+    };
+
+    handle.onmousedown = onStart;
+    handle.ontouchstart = onStart;
+    window.onmousemove = onMove;
+    window.ontouchmove = onMove;
+    window.onmouseup = onEnd;
+    window.ontouchend = onEnd;
+};
+
+window.postComm = async () => {
+    if (!store.currentUser) return alert("Inicia sesión.");
+    if (!window.sliderUnlocked) return alert("Desliza el diamante 💎 para comentar.");
+    const text = document.getElementById('commInput').value;
+    if (!text) return;
+
+    const res = await store.addComment(currentId, text);
+    if (res.success) {
+        document.getElementById('commInput').value = '';
+        window.sliderUnlocked = false;
+        window.openDetail(currentId);
+    } else {
+        alert(res.msg);
+    }
+};
+
+window.openTip = (postId) => {
+    if (!store.currentUser) return alert("Inicia sesión para enviar propinas.");
+    currentTipPostId = postId;
+    const p = store.prompts.find(x => String(x.id) === String(postId));
+
+    const existing = document.getElementById('dynamicTipModal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'dynamicTipModal';
+    overlay.className = 'modal-overlay';
+    overlay.style.zIndex = 999999;
+    overlay.innerHTML = `
+        <div class="modal-container" style="max-width:400px; text-align:center">
+            <div style="font-size:3rem; margin-bottom:10px">💎</div>
+            <h2>Enviar a @${p.author}</h2>
+            <p style="color:#888; margin-bottom:20px">Apoya el post "${p.title}"</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px">
+                <button class="btn-outline" onclick="window.doSendTip(5)">💎 5</button>
+                <button class="btn-outline" onclick="window.doSendTip(10)">💎 10</button>
+                <button class="btn-outline" onclick="window.doSendTip(20)">💎 20</button>
+                <button class="btn-outline" onclick="window.doSendTip(50)">💎 50</button>
+            </div>
+            <div style="font-size:0.85rem; margin-bottom:20px">Saldo: ${store.currentUser.tokens || 0} bits</div>
+            <button class="btn-outline" onclick="document.getElementById('dynamicTipModal').remove()">Cancelar</button>
+        </div>`;
+    document.body.appendChild(overlay);
+};
+
+window.doSendTip = async (amount) => {
+    if (await window.askConfirm(`¿Enviar ${amount} bits?`, '💎')) {
+        const res = await store.sendTip(currentTipPostId, amount);
+        if (res.success) {
+            window.toast("¡Enviado!", "success");
+            const dtm = document.getElementById('dynamicTipModal');
+            if (dtm) dtm.remove();
+            window.openDetail(currentId);
+        } else {
+            alert(res.msg);
+        }
+    }
+};
+
+window.toast = (msg, type) => {
+    alert(msg); // Placeholder for toast system if needed
+};
+
+let confirmResolver = null;
+window.askConfirm = (msg, icon) => {
+    return new Promise(resolve => {
+        const modal = document.getElementById('confirmModal');
+        document.getElementById('confirmText').innerText = msg;
+        document.getElementById('confirmIcon').innerText = icon || '❓';
+        modal.style.display = 'flex';
+        confirmResolver = resolve;
+    });
+};
+
+window.confirmResolve = (val) => {
+    document.getElementById('confirmModal').style.display = 'none';
+    if (confirmResolver) confirmResolver(val);
+};
+
+window.closeModals = () => {
+    const modals = ['viewModal', 'settingsModal', 'confirmModal'];
+    modals.forEach(m => {
+        const el = document.getElementById(m);
+        if (el) el.style.display = 'none';
+    });
+    const dtm = document.getElementById('dynamicTipModal');
+    if (dtm) dtm.remove();
 };
 
 window.doLogout = () => {
@@ -411,7 +807,6 @@ window.setProfileTab = (tab) => {
     render();
 };
 
-// --- SETTINGS LOGIC ---
 window.openSettings = () => {
     const modal = document.getElementById('settingsModal');
     if (modal) modal.style.display = 'flex';
@@ -419,21 +814,15 @@ window.openSettings = () => {
 
 window.previewAvatar = (input) => {
     if (input.files && input.files[0]) {
-        const file = input.files[0];
-        if (!isImageFile(file)) {
-            alert("❌ Por favor selecciona una imagen válida para tu avatar.");
-            input.value = '';
-            return;
-        }
         const reader = new FileReader();
         reader.onload = (e) => {
             document.getElementById('previewAvatar').style.backgroundImage = `url('${e.target.result}')`;
         }
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(input.files[0]);
     }
 };
 
-window.saveSettings = () => {
+window.saveSettings = async () => {
     const username = document.getElementById('setUser').value;
     const avatarFile = document.getElementById('setAvatarFile').files[0];
 
@@ -447,147 +836,77 @@ window.saveSettings = () => {
             th: document.getElementById('setTh').value,
             fv: document.getElementById('setFv').value
         } : (store.currentUser.socials || {});
-
         const moderation = {
             suggestive: document.getElementById('setModSugg').value,
             nsfw: document.getElementById('setModNsfw').value
         };
-
         const updateData = { username, socials, moderation };
         if (avatarData) updateData.avatar = avatarData;
-
         const res = await store.updateUserSettings(updateData);
-        if (res.success) {
-            window.closeModals();
-            render();
-        } else {
-            alert(res.msg);
-        }
+        if (res.success) { render(); window.closeModals(); }
+        else alert(res.msg);
     };
 
-    if (!username) return alert("El nombre de usuario es requerido");
     if (avatarFile) {
         const reader = new FileReader();
         reader.onload = () => finishSave(reader.result);
         reader.readAsDataURL(avatarFile);
-    } else {
-        finishSave(null);
-    }
+    } else finishSave(null);
 };
 
 window.doChangePassword = () => {
-    const newPass = document.getElementById('newPassInput').value;
-    if (!newPass || newPass.length < 6) return alert("La contraseña debe tener al menos 6 caracteres.");
-    if (confirm("¿Seguro que quieres cambiar tu contraseña?")) {
-        store.changePassword(newPass);
-    }
+    const np = document.getElementById('newPassInput').value;
+    if (np.length < 6) return alert("Mínimo 6 chars");
+    store.changePassword(np);
 };
 
 window.doDeleteAccount = () => {
-    const confirmation = prompt("⚠️ PELIGRO ⚠️\nEscribe 'ELIMINAR' para borrar tu cuenta permanentemente.\nEsta acción NO se puede deshacer.");
-    if (confirmation === 'ELIMINAR') {
+    if (prompt("Escribe ELIMINAR") === 'ELIMINAR') {
         store.deleteAccount();
-        alert("Tu cuenta ha sido eliminada.");
         window.location.href = '/';
     }
 };
 
 window.togglePass = (id, btn) => {
     const el = document.getElementById(id);
-    if (!el) return;
-    if (el.type === 'password') {
-        el.type = 'text';
-        btn.innerText = '🙈';
-    } else {
-        el.type = 'password';
-        btn.innerText = '👁️';
-    }
+    if (el.type === 'password') { el.type = 'text'; btn.innerText = '🙈'; }
+    else { el.type = 'password'; btn.innerText = '👁️'; }
 };
 
-// --- LEVEL PROGRESS LOGIC ---
 window.openLevelProgress = () => {
-    if (!store.currentUser) { alert("Error: No has iniciado sesión."); return; }
-    document.body.style.overflow = 'hidden';
-    const oldModal = document.getElementById('levelModalDynamic');
-    if (oldModal) oldModal.remove();
-
+    if (!store.currentUser) return;
     const u = store.currentUser;
     const count = u.prompts_count || 0;
     const currentLvl = u.level || 0;
-
     const nextLvlReq = LEVEL_REQS.find(l => l.posts > count) || LEVEL_REQS[LEVEL_REQS.length - 1];
     const isMax = count >= LEVEL_REQS[LEVEL_REQS.length - 1].posts;
+    const prevReq = LEVEL_REQS[currentLvl].posts;
+    const nextReq = nextLvlReq.posts;
+    const progressPercent = isMax ? 100 : Math.min(100, Math.max(0, ((count - prevReq) / (nextReq - prevReq)) * 100));
 
-    let progressPercent = 0;
-    if (isMax) {
-        progressPercent = 100;
-    } else {
-        const prevReq = LEVEL_REQS[currentLvl].posts;
-        const nextReq = nextLvlReq.posts;
-        progressPercent = Math.min(100, Math.max(0, ((count - prevReq) / (nextReq - prevReq)) * 100));
-    }
-
-    const html = `
-        <div style="text-align:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #222">
-            <div style="font-size:3.5rem; margin-bottom:10px">${LEVEL_REQS[currentLvl].icon}</div>
-            <h2 style="margin:0; font-size:1.8rem; color:#fff">Tu Historial: Nivel ${currentLvl}</h2>
-            <p style="color:#aaa; margin-top:5px; font-weight:600; text-transform:uppercase; letter-spacing:1px">${LEVEL_REQS[currentLvl].name}</p>
-        </div>
-        <div style="background:#000; padding:25px; border-radius:16px; border:1px solid #333; margin-bottom:25px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5)">
-            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
-                <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Hacia Nivel ' + (currentLvl + 1)}</span>
-                <span style="color:#2563eb">${count} / ${isMax ? '∞' : nextLvlReq.posts} Posts</span>
-            </div>
-            <div style="width:100%; height:16px; background:#222; border-radius:8px; overflow:hidden; border:1px solid #333">
-                <div style="width:${progressPercent}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1.5s cubic-bezier(0.19, 1, 0.22, 1)"></div>
-            </div>
-            ${!isMax ? `<p style="font-size:0.9rem; color:#888; margin-top:12px; text-align:center">¡Sigue así! Te faltan <strong>${nextLvlReq.posts - count}</strong> publicaciones para subir de rango.</p>` : ''}
-        </div>
-        <h3 style="font-size:1.2rem; margin-bottom:18px; color:#fff; display:flex; align-items:center; gap:10px">
-            <span>Beneficios y Jerarquía</span>
-            <div style="flex:1; height:1px; background:#222"></div>
-        </h3>
-        <div style="display:flex; flex-direction:column; gap:12px">
-            ${LEVEL_REQS.map((l, idx) => {
-        const isUnlocked = count >= l.posts;
-        const isCurrent = currentLvl === idx;
-        return `
-                <div style="display:flex; gap:15px; align-items:start; padding:15px; border-radius:12px; border:1px solid ${isCurrent ? '#2563eb' : (isUnlocked ? '#333' : '#1a1a1a')}; background:${isCurrent ? 'rgba(37, 99, 235, 0.1)' : (isUnlocked ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.3)')}; opacity:${isUnlocked ? 1 : 0.4}; transition:0.3s">
-                    <div style="font-size:1.6rem; background:#111; min-width:50px; height:50px; border-radius:10px; display:flex; align-items:center; justify-content:center; border:2px solid ${l.color}">${l.icon}</div>
-                    <div style="flex:1">
-                        <div style="display:flex; justify-content:space-between; align-items:center">
-                            <strong style="color:${l.color}; font-size:1.05rem;">Nivel ${idx}: ${l.name}</strong>
-                            <span style="font-size:0.75rem; background:#333; color:#fff; padding:3px 10px; border-radius:100px; font-weight:700">${l.posts} Posts</span>
-                        </div>
-                        <ul style="margin:8px 0 0 0; padding-left:18px; font-size:0.9rem; color:#999; line-height:1.4">
-                            ${l.benefits.map(b => `<li>${b}</li>`).join('')}
-                        </ul>
-                    </div>
-                </div>`;
-    }).join('')}
-        </div>
-        <button class="btn" style="width:100%; margin-top:30px; height:54px; font-weight:800; font-size:1.1rem; background:#2563eb; color:white; border:none; border-radius:14px; cursor:pointer;" onclick="window.closeLevelProgress(this)">Entendido</button>
-    `;
-
-    window.closeLevelProgress = (btn) => {
-        const modal = btn ? btn.closest('.modal-overlay') : document.getElementById('levelModalDynamic');
-        if (modal) modal.remove();
-        document.body.style.overflow = '';
-    };
+    const existing = document.getElementById('levelModalDynamic');
+    if (existing) existing.remove();
 
     const modalDiv = document.createElement('div');
     modalDiv.id = 'levelModalDynamic';
     modalDiv.className = 'modal-overlay';
-    modalDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; z-index:2147483647; padding:20px; color:white; font-family:Inter, sans-serif;';
-    modalDiv.onclick = (e) => { if (e.target === modalDiv) window.closeLevelProgress(); };
+    modalDiv.style.zIndex = 2147483647;
     modalDiv.innerHTML = `
-        <style>
-            #levelModalDynamic .modal-container::-webkit-scrollbar { width: 6px; }
-            #levelModalDynamic .modal-container::-webkit-scrollbar-track { background: transparent; }
-            #levelModalDynamic .modal-container::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-        </style>
-        <div class="modal-container" style="max-width:550px; background:#111; border:1px solid #333; border-radius:28px; width:100%; padding:35px; max-height:85vh; overflow-y:auto; box-shadow: 0 30px 60px rgba(0,0,0,0.8); position:relative;">
-            ${html}
+        <div class="modal-container" style="max-width:550px">
+            <div style="text-align:center; margin-bottom:20px">
+                <div style="font-size:3rem">${LEVEL_REQS[currentLvl].icon}</div>
+                <h2>Nivel ${currentLvl}: ${LEVEL_REQS[currentLvl].name}</h2>
+            </div>
+            <div style="background:#000; padding:20px; border-radius:12px; border:1px solid #333; margin-bottom:20px">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px">
+                    <span>${isMax ? 'Rango Ápice' : 'Próximo Nivel'}</span>
+                    <span>${count} / ${isMax ? '∞' : nextReq} Posts</span>
+                </div>
+                <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden">
+                    <div style="width:${progressPercent}%; height:100%; background:var(--accent); transition:0.5s"></div>
+                </div>
+            </div>
+            <button class="btn" style="width:100%" onclick="document.getElementById('levelModalDynamic').remove()">Cerrar</button>
         </div>`;
     document.body.appendChild(modalDiv);
 };
