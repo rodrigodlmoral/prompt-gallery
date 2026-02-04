@@ -1063,6 +1063,7 @@ const AdminModal = () => `
         <button class="profile-tab active" id="adminTabUsers" onclick="window.openAdmin('users')">Usuarios</button>
         <button class="profile-tab" id="adminTabContent" onclick="window.openAdmin('content')">Moderación</button>
         <button class="profile-tab" id="adminTabMigrate" onclick="window.openAdmin('migrate')">♻️ Migración</button>
+        <button class="profile-tab" id="adminTabLogs" onclick="window.openAdmin('logs')">📜 Actividad</button>
     </div>
 
     <!-- Sub-modal de Gestión de Usuario (Compacto) -->
@@ -1149,6 +1150,29 @@ const AdminModal = () => `
                 <div id="migrateBar" style="width:0%; height:100%; background:#4caf50; transition:width 0.3s"></div>
             </div>
             <button class="btn" id="btnStartMigrate" onclick="window.startMigration()">▶️ Iniciar Migración</button>
+        </div>
+    </div>
+
+    <!-- Sección Actividad (Logs) -->
+    <div id="adminSecLogs" style="display:none; height:100%; flex-direction:column;">
+        <h3 style="margin-bottom:15px; display:flex; align-items:center; gap:10px; color: gold;">
+            <span>📜 Log de Actividad Reciente</span>
+            <button class="btn-sm" onclick="window.openAdmin('logs')" style="font-size:0.75rem; padding:4px 8px;">🔄 Refrescar</button>
+        </h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Acción</th>
+                        <th>Detalles</th>
+                    </tr>
+                </thead>
+                <tbody id="adminLogsList">
+                    <tr><td colspan="4" style="text-align:center; padding:20px; color:#666">Cargando logs...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div></div>`;
@@ -2747,65 +2771,10 @@ window.openAdmin = async (tab = 'users') => {
         const secLogs = document.getElementById('adminSecLogs');
 
         // INJECT LOGS TAB IF MISSING
-        if (!btnLogs && btnMigrate) {
-            const logsBtn = document.createElement('button');
-            logsBtn.id = 'adminTabLogs';
-            logsBtn.textContent = '📜 Actividad';
-
-            // Match styles with other tabs (transparent bg, white/gray text)
-            logsBtn.style.cssText = 'background: transparent; color: #aaa; border: none; padding: 10px 15px; cursor: pointer; font-size: 1rem; font-weight: 600; border-bottom: 2px solid transparent; transition: 0.2s;';
-
-            logsBtn.onmouseover = () => logsBtn.style.color = '#fff';
-            logsBtn.onmouseout = () => { if (tab !== 'logs') logsBtn.style.color = '#aaa'; };
-
-            logsBtn.onclick = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                window.openAdmin('logs');
-            };
-            btnMigrate.parentNode.appendChild(logsBtn);
-
-            const logsSec = document.createElement('div');
-            logsSec.id = 'adminSecLogs';
-            logsSec.className = 'admin-section';
-            logsSec.style.display = 'none';
-            logsSec.innerHTML = `
-                <h3 style="margin-bottom:15px; display:flex; align-items:center; gap:10px">
-                    <span>📜 Log de Actividad Reciente</span>
-                    <button class="btn-sm" onclick="window.openAdmin('logs')" style="font-size:0.7rem">🔄 Refrescar</button>
-                </h3>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Usuario</th>
-                                <th>Acción</th>
-                                <th>Detalles</th>
-                            </tr>
-                        </thead>
-                        <tbody id="adminLogsList">
-                            <tr><td colspan="4" style="text-align:center; padding:20px; color:#666">Cargando logs...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            secMigrate.parentNode.appendChild(logsSec);
-        }
-
         if (btnUsers) btnUsers.classList.toggle('active', tab === 'users');
         if (btnContent) btnContent.classList.toggle('active', tab === 'content');
         if (btnMigrate) btnMigrate.classList.toggle('active', tab === 'migrate');
-        if (btnLogs) {
-            // Manual Active Style Toggle because we use inline styles
-            if (tab === 'logs') {
-                btnLogs.style.color = '#fff';
-                btnLogs.style.borderBottom = '2px solid #3b82f6'; // Azul acento
-            } else {
-                btnLogs.style.color = '#aaa';
-                btnLogs.style.borderBottom = '2px solid transparent';
-            }
-        }
+        if (btnLogs) btnLogs.classList.toggle('active', tab === 'logs');
 
         if (secUsers) secUsers.style.display = tab === 'users' ? 'block' : 'none';
         if (secContent) secContent.style.display = tab === 'content' ? 'block' : 'none';
