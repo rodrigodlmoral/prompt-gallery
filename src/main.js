@@ -26,18 +26,8 @@ window.adminSort = { col: 'username', dir: 'asc' };
 
 // --- TOP CREATORS STATE ---
 let topCreatorsList = [];
-window.openUserProfile = async (username) => {
-    profileUser = username;
-    currentView = 'profile';
-    profileTab = 'creations';
-    window.scrollTo(0, 0);
-    render();
-
-    // FETCH USER DATA ON DEMAND (Egress fix)
-    if (!store.users.find(u => u.username === username)) {
-        await store.fetchUserProfileByUsername(username);
-        render();
-    }
+window.openUserProfile = (username) => {
+    window.location.href = `/profile.html?u=${encodeURIComponent(username)}`;
 };
 
 // --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist ---
@@ -332,7 +322,7 @@ const Header = () => `
             ${store.currentUser ? `
                 ${store.currentUser.role === 'admin' ? `<a href="/admin.html" class="btn-outline" style="border-color:gold; color:gold; text-decoration:none; padding: 10px 15px; border-radius: 8px; font-weight: 600;">👑 Admin</a>` : ''}
                 <button class="btn" id="addBtn">Compartir Prompt</button>
-                <div class="user-info" onclick="window.setProfileView('${store.currentUser.username}')" style="cursor:pointer">
+                <div class="user-info" onclick="window.openUserProfile('${store.currentUser.username}')" style="cursor:pointer">
                     <div class="user-avatar-sm" style="background-image:url('${store.currentUser.avatar || 'https://robohash.org/' + store.currentUser.username}')"></div>
                     <span>${store.currentUser.username}</span>
                 </div>
