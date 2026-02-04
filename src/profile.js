@@ -124,7 +124,11 @@ const ProfileHeader = () => {
         ? store.currentUser
         : store.users.find(u => u.username === profileUser);
 
-    if (!user) return `<div class="container" style="padding:100px; text-align:center"><h2>Cargando perfil...</h2></div>`;
+    if (!user) return `
+        <div style="height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif">
+            <div style="font-size:3rem; animation: pulse 1s infinite">✨</div>
+            <p style="margin-top:20px; letter-spacing:1px; font-size:0.9rem">CARGANDO PERFIL...</p>
+        </div>`;
 
     const isMe = store.currentUser && store.currentUser.username === user.username;
     const getLevelInfo = (lvl) => LEVEL_REQS[lvl] || LEVEL_REQS[0];
