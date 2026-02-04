@@ -11,6 +11,7 @@ export const store = {
         // 1. Recuperar sesión
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
+            console.log("✅ Sesión recuperada:", session.user.id);
             await this._loadUserProfile(session.user.id);
             // Proactive sync for current user level
             this.checkLevelUp(session.user.id, this.currentUser?.level || 0);
@@ -23,23 +24,26 @@ export const store = {
 
         // 2. Escuchar cambios de sesión (Login/Logout externos)
         supabase.auth.onAuthStateChange((event, session) => {
+            console.log(`🔐 Auth Event: ${event}`, session?.user?.id);
+
             // Evitar recargas si es solo un refresco de token y ya tenemos usuario
-            if (event === 'TOKEN_REFRESHED' && this.currentUser) return;
+            if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+                if (this.currentUser && session && this.currentUser.id === session.user.id) return;
+            };
 
             if (session) {
                 // Bloqueo estricto: Si ya tengo este usuario cargado, NO HAGO NADA.
-                // Esto evita que al cambiar de pestaña (y dispararse SIGNED_IN recuperado) se recargue la web.
                 if (this.currentUser && this.currentUser.id === session.user.id) {
                     return;
                 }
-
-                // Solo carga si es un usuario nuevo/diferente
+                // Si es un nuevo usuario (login), cargamos perfil
                 this._loadUserProfile(session.user.id);
             } else {
-                // IMPORTANT: If we are Master Admin, DO NOT clear the user just because Supabase session is null
+                // Logout o sesión expirada
                 if (this.currentUser && this.currentUser.id === 'MASTER_ADMIN_ID') return;
 
                 if (this.currentUser) {
+                    console.log("👋 Sesión cerrada o expirada.");
                     this.currentUser = null;
                     if (window.render) window.render();
                 }
@@ -675,43 +679,49 @@ export const store = {
         }
 
         if (data) {
-            // Adaptar campos de DB a formato local para evitar romper el frontend
-            this.prompts = data.map(p => ({
-                id: String(p.id),
-                title: p.title,
-                prompt: p.prompt || '', // Asegurar texto
-                tool: p.tool,
-                rating: p.rating,
-                image: p.image_url,     // Mapeo crucial de URL
-                model: p.tool,          // Redundancia
-                author: p.author_name,  // Mapeo de nombre
-                authorId: p.author_id,
-                createdAt: new Date(p.created_at).getTime(),
-                copy_count: p.copy_count || 0,
-                tokens_received: p.tokens_received || 0, // Nuevo campo de propinas
-                is_featured: p.is_featured || false,
-                reactions: {
-                    like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0,
-                    ...(p.reactions && typeof p.reactions === 'object' ? p.reactions : {})
-                },
-                comments: p.comments || [],
-                isPrivate: p.is_private,
-                needsReference: p.needs_reference,
-                origCreator: p.orig_creator,
-                savedBy: p.saved_by || [],
-                type: p.tool === 'sequence' || (p.content && p.content.length) ? 'sequence' : 'single',
-                content: p.content || []
-            }));
+            try {
+                // Adaptar campos de DB a formato local para evitar romper el frontend
+                this.prompts = data.map(p => ({
+                    id: String(p.id),
+                    title: p.title || 'Sin Título',
+                    prompt: p.prompt || '', // Asegurar texto
+                    tool: p.tool || 'Unknown',
+                    rating: p.rating || 'G',
+                    image: p.image_url || '',     // Mapeo crucial de URL
+                    model: p.tool || 'Unknown',          // Redundancia
+                    author: p.author_name || 'Anónimo',  // Mapeo de nombre
+                    authorId: p.author_id,
+                    createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
+                    copy_count: p.copy_count || 0,
+                    tokens_received: p.tokens_received || 0, // Nuevo campo de propinas
+                    is_featured: p.is_featured || false,
+                    reactions: {
+                        like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0,
+                        ...(p.reactions && typeof p.reactions === 'object' ? p.reactions : {})
+                    },
+                    comments: p.comments || [],
+                    isPrivate: p.is_private || false,
+                    needsReference: p.needs_reference || false,
+                    origCreator: p.orig_creator,
+                    savedBy: p.saved_by || [],
+                    type: (p.tool === 'sequence' || (p.content && p.content.length)) ? 'sequence' : 'single',
+                    content: p.content || []
+                }));
 
-            // FIX: Inject current user's profile-based saves into p.savedBy
-            if (this.currentUser && this.currentUser.saved_prompts) {
-                const mySaves = this.currentUser.saved_prompts;
-                const myName = this.currentUser.username;
-                this.prompts.forEach(p => {
-                    if (mySaves.includes(p.id)) {
-                        if (!p.savedBy.includes(myName)) p.savedBy.push(myName);
-                    }
-                });
+                // FIX: Inject current user's profile-based saves into p.savedBy
+                if (this.currentUser && this.currentUser.saved_prompts) {
+                    const mySaves = this.currentUser.saved_prompts;
+                    const myName = this.currentUser.username;
+                    this.prompts.forEach(p => {
+                        if (mySaves.includes(p.id)) {
+                            if (!p.savedBy.includes(myName)) p.savedBy.push(myName);
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("CRITICAL ERROR mapping prompts:", err);
+                // Fallback to empty to prevent UI crash
+                this.prompts = [];
             }
 
             if (window.render) window.render();

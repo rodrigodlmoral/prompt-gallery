@@ -228,7 +228,7 @@ const getModeration = (p, forcedRating) => {
 };
 
 const getFilteredPrompts = () => {
-    let list = [...store.prompts];
+    let list = Array.isArray(store.prompts) ? [...store.prompts] : [];
 
     // 1. Scope Filtering (Profile vs Feed)
     if (store.currentUser) {
