@@ -1,7 +1,6 @@
 import './style.css'
 import { store } from './store.js'
 
-store.init();
 
 // --- SECURITY HELPERS ---
 window.escapeHTML = (str) => {
