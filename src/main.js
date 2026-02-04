@@ -2750,9 +2750,19 @@ window.openAdmin = async (tab = 'users') => {
         if (!btnLogs && btnMigrate) {
             const logsBtn = document.createElement('button');
             logsBtn.id = 'adminTabLogs';
-            logsBtn.className = 'tab-btn';
-            logsBtn.innerText = '📜 Actividad';
-            logsBtn.onclick = () => window.openAdmin('logs');
+            logsBtn.textContent = '📜 Actividad';
+
+            // Match styles with other tabs (transparent bg, white/gray text)
+            logsBtn.style.cssText = 'background: transparent; color: #aaa; border: none; padding: 10px 15px; cursor: pointer; font-size: 1rem; font-weight: 600; border-bottom: 2px solid transparent; transition: 0.2s;';
+
+            logsBtn.onmouseover = () => logsBtn.style.color = '#fff';
+            logsBtn.onmouseout = () => { if (tab !== 'logs') logsBtn.style.color = '#aaa'; };
+
+            logsBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.openAdmin('logs');
+            };
             btnMigrate.parentNode.appendChild(logsBtn);
 
             const logsSec = document.createElement('div');
@@ -2786,7 +2796,16 @@ window.openAdmin = async (tab = 'users') => {
         if (btnUsers) btnUsers.classList.toggle('active', tab === 'users');
         if (btnContent) btnContent.classList.toggle('active', tab === 'content');
         if (btnMigrate) btnMigrate.classList.toggle('active', tab === 'migrate');
-        if (btnLogs) btnLogs.classList.toggle('active', tab === 'logs');
+        if (btnLogs) {
+            // Manual Active Style Toggle because we use inline styles
+            if (tab === 'logs') {
+                btnLogs.style.color = '#fff';
+                btnLogs.style.borderBottom = '2px solid #3b82f6'; // Azul acento
+            } else {
+                btnLogs.style.color = '#aaa';
+                btnLogs.style.borderBottom = '2px solid transparent';
+            }
+        }
 
         if (secUsers) secUsers.style.display = tab === 'users' ? 'block' : 'none';
         if (secContent) secContent.style.display = tab === 'content' ? 'block' : 'none';
