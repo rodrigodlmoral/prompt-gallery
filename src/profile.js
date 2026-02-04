@@ -106,7 +106,10 @@ const Header = () => `
 
 const ProfileHeader = () => {
     if (!profileUser) return '';
-    let user = store.users.find(u => u.username === profileUser);
+    let user = (store.currentUser && store.currentUser.username === profileUser)
+        ? store.currentUser
+        : store.users.find(u => u.username === profileUser);
+
     if (!user) return `<div class="container" style="padding:100px; text-align:center"><h2>Cargando perfil...</h2></div>`;
 
     const isMe = store.currentUser && store.currentUser.username === user.username;
@@ -121,16 +124,55 @@ const ProfileHeader = () => {
                 <div>
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px">
                         <h1 style="font-size:2.5rem; margin:0">${window.escapeHTML(user.username)}</h1>
-                        <span class="level-badge tier-${user.level || 0}" title="Nivel ${user.level || 0}">
+                        
+                        <!-- Level Badge -->
+                        <span class="level-badge tier-${user.level || 0}" 
+                              title="${isMe ? 'Haz clic para ver tu progreso' : 'Nivel ' + (user.level || 0)}"
+                              style="${isMe ? 'cursor:pointer' : ''}"
+                              ${isMe ? 'onclick="window.openLevelProgress()"' : ''}>
                             ${lvlInfo.icon} NIVEL ${user.level || 0} - ${lvlInfo.name}
                         </span>
                     </div>
+
+                    <!-- Badges Container -->
+                    <div class="badge-container">
+                        ${(user.username === 'rodrigodlmoral' || user.username === 'rodridomrock') ? `
+                        <div class="founder-badge">
+                            <span class="badge-text">👑 Administrador - Fundador</span>
+                        </div>
+                        ` : ''}
+
+                        ${(user.badges || []).map(b => {
+        if (b.type === 'creator_founder') {
+            return `
+                                <div class="creator-founder-badge">
+                                    <span class="badge-text">✨ CREADOR FUNDADOR</span>
+                                </div>`;
+        }
+        return '';
+    }).join('')}
+                    </div>
+
                     <div style="display:flex; gap:20px; color:#888; font-size:0.9rem; align-items:center">
                         <div class="token-display">💎 ${user.tokens || 0} PromptBits</div>
                         <span>|</span>
                         <span>${user.followers?.length || 0} Seguidores</span>
                         <span>${user.following?.length || 0} Siguiendo</span>
                     </div>
+
+                    ${user.socials ? `
+                    <div style="display:flex; gap:15px; margin-top:10px; align-items:center">
+                        ${user.socials.ig ? `<a href="${user.socials.ig.startsWith('http') ? user.socials.ig : 'https://instagram.com/' + user.socials.ig.replace('@', '')}" target="_blank" title="Instagram" style="text-decoration:none; width:24px; height:24px">
+                            <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                        </a>` : ''}
+                        ${user.socials.fb ? `<a href="${user.socials.fb.startsWith('http') ? user.socials.fb : 'https://facebook.com/' + user.socials.fb}" target="_blank" title="Facebook" style="text-decoration:none; width:24px; height:24px">
+                            <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                        </a>` : ''}
+                        ${user.socials.x ? `<a href="${user.socials.x.startsWith('http') ? user.socials.x : 'https://x.com/' + user.socials.x.replace('@', '')}" target="_blank" title="X / Twitter" style="text-decoration:none; width:22px; height:22px">
+                            <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                        </a>` : ''}
+                    </div>` : ''}
+
                     ${!isMe ? `<button class="btn" style="margin-top:15px" onclick="window.doFollow('${user.username}')">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
             : `<button class="btn-outline" style="margin-top:15px" onclick="window.openSettings()">⚙️ Configurar Perfil</button>`}
                 </div>
@@ -460,6 +502,94 @@ window.togglePass = (id, btn) => {
         el.type = 'password';
         btn.innerText = '👁️';
     }
+};
+
+// --- LEVEL PROGRESS LOGIC ---
+window.openLevelProgress = () => {
+    if (!store.currentUser) { alert("Error: No has iniciado sesión."); return; }
+    document.body.style.overflow = 'hidden';
+    const oldModal = document.getElementById('levelModalDynamic');
+    if (oldModal) oldModal.remove();
+
+    const u = store.currentUser;
+    const count = u.prompts_count || 0;
+    const currentLvl = u.level || 0;
+
+    const nextLvlReq = LEVEL_REQS.find(l => l.posts > count) || LEVEL_REQS[LEVEL_REQS.length - 1];
+    const isMax = count >= LEVEL_REQS[LEVEL_REQS.length - 1].posts;
+
+    let progressPercent = 0;
+    if (isMax) {
+        progressPercent = 100;
+    } else {
+        const prevReq = LEVEL_REQS[currentLvl].posts;
+        const nextReq = nextLvlReq.posts;
+        progressPercent = Math.min(100, Math.max(0, ((count - prevReq) / (nextReq - prevReq)) * 100));
+    }
+
+    const html = `
+        <div style="text-align:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #222">
+            <div style="font-size:3.5rem; margin-bottom:10px">${LEVEL_REQS[currentLvl].icon}</div>
+            <h2 style="margin:0; font-size:1.8rem; color:#fff">Tu Historial: Nivel ${currentLvl}</h2>
+            <p style="color:#aaa; margin-top:5px; font-weight:600; text-transform:uppercase; letter-spacing:1px">${LEVEL_REQS[currentLvl].name}</p>
+        </div>
+        <div style="background:#000; padding:25px; border-radius:16px; border:1px solid #333; margin-bottom:25px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5)">
+            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
+                <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Hacia Nivel ' + (currentLvl + 1)}</span>
+                <span style="color:#2563eb">${count} / ${isMax ? '∞' : nextLvlReq.posts} Posts</span>
+            </div>
+            <div style="width:100%; height:16px; background:#222; border-radius:8px; overflow:hidden; border:1px solid #333">
+                <div style="width:${progressPercent}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1.5s cubic-bezier(0.19, 1, 0.22, 1)"></div>
+            </div>
+            ${!isMax ? `<p style="font-size:0.9rem; color:#888; margin-top:12px; text-align:center">¡Sigue así! Te faltan <strong>${nextLvlReq.posts - count}</strong> publicaciones para subir de rango.</p>` : ''}
+        </div>
+        <h3 style="font-size:1.2rem; margin-bottom:18px; color:#fff; display:flex; align-items:center; gap:10px">
+            <span>Beneficios y Jerarquía</span>
+            <div style="flex:1; height:1px; background:#222"></div>
+        </h3>
+        <div style="display:flex; flex-direction:column; gap:12px">
+            ${LEVEL_REQS.map((l, idx) => {
+        const isUnlocked = count >= l.posts;
+        const isCurrent = currentLvl === idx;
+        return `
+                <div style="display:flex; gap:15px; align-items:start; padding:15px; border-radius:12px; border:1px solid ${isCurrent ? '#2563eb' : (isUnlocked ? '#333' : '#1a1a1a')}; background:${isCurrent ? 'rgba(37, 99, 235, 0.1)' : (isUnlocked ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.3)')}; opacity:${isUnlocked ? 1 : 0.4}; transition:0.3s">
+                    <div style="font-size:1.6rem; background:#111; min-width:50px; height:50px; border-radius:10px; display:flex; align-items:center; justify-content:center; border:2px solid ${l.color}">${l.icon}</div>
+                    <div style="flex:1">
+                        <div style="display:flex; justify-content:space-between; align-items:center">
+                            <strong style="color:${l.color}; font-size:1.05rem;">Nivel ${idx}: ${l.name}</strong>
+                            <span style="font-size:0.75rem; background:#333; color:#fff; padding:3px 10px; border-radius:100px; font-weight:700">${l.posts} Posts</span>
+                        </div>
+                        <ul style="margin:8px 0 0 0; padding-left:18px; font-size:0.9rem; color:#999; line-height:1.4">
+                            ${l.benefits.map(b => `<li>${b}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>`;
+    }).join('')}
+        </div>
+        <button class="btn" style="width:100%; margin-top:30px; height:54px; font-weight:800; font-size:1.1rem; background:#2563eb; color:white; border:none; border-radius:14px; cursor:pointer;" onclick="window.closeLevelProgress(this)">Entendido</button>
+    `;
+
+    window.closeLevelProgress = (btn) => {
+        const modal = btn ? btn.closest('.modal-overlay') : document.getElementById('levelModalDynamic');
+        if (modal) modal.remove();
+        document.body.style.overflow = '';
+    };
+
+    const modalDiv = document.createElement('div');
+    modalDiv.id = 'levelModalDynamic';
+    modalDiv.className = 'modal-overlay';
+    modalDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; z-index:2147483647; padding:20px; color:white; font-family:Inter, sans-serif;';
+    modalDiv.onclick = (e) => { if (e.target === modalDiv) window.closeLevelProgress(); };
+    modalDiv.innerHTML = `
+        <style>
+            #levelModalDynamic .modal-container::-webkit-scrollbar { width: 6px; }
+            #levelModalDynamic .modal-container::-webkit-scrollbar-track { background: transparent; }
+            #levelModalDynamic .modal-container::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        </style>
+        <div class="modal-container" style="max-width:550px; background:#111; border:1px solid #333; border-radius:28px; width:100%; padding:35px; max-height:85vh; overflow-y:auto; box-shadow: 0 30px 60px rgba(0,0,0,0.8); position:relative;">
+            ${html}
+        </div>`;
+    document.body.appendChild(modalDiv);
 };
 
 const init = async () => {
