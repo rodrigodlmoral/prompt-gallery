@@ -1437,7 +1437,7 @@ window.openDirectTip = (recipientId, username) => {
 
 window.doSendDirectTip = async (recipientId, amount) => {
     if (await window.askConfirm(`¿Enviar ${amount} PromptBits a este creador?`, '💎')) {
-        window.toast("Enviando...", "info");
+        window.toast("Enviando PromptBits...", "info");
         const res = await store.sendTip(null, amount, recipientId);
         if (res.success) {
             window.toast(res.msg, 'success');
@@ -1445,7 +1445,7 @@ window.doSendDirectTip = async (recipientId, amount) => {
             if (dtm) dtm.remove();
             render();
         } else {
-            window.toast(res.msg, 'error');
+            window.toast("❌ " + res.msg, 'error');
         }
     }
 };
