@@ -7,7 +7,8 @@ const app = document.getElementById('profile-app');
 let profileUser = new URLSearchParams(window.location.search).get('u') || '';
 let profileTab = 'creations';
 let searchQuery = '';
-let filters = { source: 'community', sort: 'newest', time: 'all', tool: 'all', refFilter: 'all', rating: 'all' };
+let currentId = null;
+let currentSeqStep = 0;
 
 // --- HELPERS ---
 window.escapeHTML = (str) => {
@@ -20,7 +21,7 @@ window.escapeHTML = (str) => {
         .replace(/'/g, "&#039;");
 };
 
-// --- MODERATION LOGIC (Replicated from main.js) ---
+// --- MODERATION LOGIC ---
 const getModeration = (p, forcedRating) => {
     let rating = forcedRating || p.rating || 'SFW / Apto';
     if (!forcedRating && p.type === 'sequence' && p.content && p.content.length > 0) {
@@ -43,20 +44,50 @@ const LEVEL_REQS = [
     { posts: 250, name: 'COLABORADOR', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '✨', color: 'gold' }
 ];
 
-// --- COMPONENTS (Copy/Paste from main.js for now to avoid breaking main feed) ---
+const renderCollage = (p) => {
+    if (p.type !== 'sequence' || !p.content || p.content.length === 0) {
+        return `<img src="${p.image || ''}" loading="lazy">`;
+    }
+    const items = p.content.slice(0, 6);
+    const count = items.length;
+    let gridStyle = '';
+    if (count === 1) gridStyle = 'grid-template-columns: 1fr; grid-template-rows: 1fr;';
+    else if (count === 2) gridStyle = 'grid-template-columns: 1fr 1fr; grid-template-rows: 1fr;';
+    else if (count === 3) gridStyle = 'grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;';
+    else if (count === 4) gridStyle = 'grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;';
+    else if (count === 5) gridStyle = 'grid-template-columns: repeat(6, 1fr); grid-template-rows: 1fr 1fr;';
+    else if (count >= 6) gridStyle = 'grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr;';
+
+    return `
+    <div class="card-collage" style="${gridStyle}">
+        ${items.map((step, idx) => {
+        const { applyBlur } = getModeration(p, step.rating);
+        let spanStyle = '';
+        if (count === 3 && idx === 0) spanStyle = 'grid-column: span 2;';
+        if (count === 5) {
+            if (idx < 2) spanStyle = 'grid-column: span 3;';
+            else spanStyle = 'grid-column: span 2;';
+        }
+        return `
+            <div class="collage-item ${applyBlur ? 'card-blurred' : ''}" style="${spanStyle}">
+                <img src="${step.image}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">
+            </div>`;
+    }).join('')}
+    </div>`;
+};
+
+// --- COMPONENTS ---
 const Header = () => `
 <header style="height:auto; display:flex; flex-direction:column">
     <div class="container" style="height:72px; border-bottom:1px solid #222">
         <div class="logo" onclick="window.location.href='/'" style="cursor:pointer">✨ Prompt Gallery</div>
-        
         <div class="search-bar search-desktop">
-            <input type="search" class="search-input" id="searchInput" autocomplete="off" placeholder="Buscar..." value="${searchQuery}" readonly>
+            <input type="search" class="search-input" id="searchInput" placeholder="Buscar..." value="${searchQuery}" readonly>
         </div>
-
         <nav>
             ${store.currentUser ? `
                 ${store.currentUser.role === 'admin' ? `<a href="/admin.html" class="btn-outline" style="border-color:gold; color:gold; text-decoration:none; padding: 10px 15px; border-radius: 8px; font-weight: 600;">👑 Admin</a>` : ''}
-                <button class="btn" id="addBtn" onclick="window.location.href='/'">Compartir Prompt</button>
+                <button class="btn" onclick="window.location.href='/'">Compartir Prompt</button>
                 <div class="user-info" onclick="window.location.href='/profile.html?u=${store.currentUser.username}'" style="cursor:pointer">
                     <div class="user-avatar-sm" style="background-image:url('${store.currentUser.avatar || 'https://robohash.org/' + store.currentUser.username}')"></div>
                     <span>${store.currentUser.username}</span>
@@ -88,16 +119,14 @@ const ProfileHeader = () => {
                             ${lvlInfo.icon} NIVEL ${user.level || 0} - ${lvlInfo.name}
                         </span>
                     </div>
-
                     <div style="display:flex; gap:20px; color:#888; font-size:0.9rem; align-items:center">
                         <div class="token-display">💎 ${user.tokens || 0} PromptBits</div>
                         <span>|</span>
                         <span>${user.followers?.length || 0} Seguidores</span>
                         <span>${user.following?.length || 0} Siguiendo</span>
                     </div>
-                    
-                    ${!isMe ? `<button class="btn" style="margin-top:15px">Seguir</button>`
-            : `<button class="btn-outline" style="margin-top:15px">⚙️ Configurar Perfil</button>`}
+                    ${!isMe ? `<button class="btn" style="margin-top:15px" onclick="window.doFollow('${user.username}')">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
+            : `<button class="btn-outline" style="margin-top:15px" onclick="window.location.href='/?settings=true'">⚙️ Configurar Perfil</button>`}
                 </div>
             </div>
             <div style="display:flex; gap:20px; border-bottom:1px solid #333">
@@ -118,23 +147,98 @@ const Gallery = () => {
 
     return `
     <div class="container gallery-grid" style="margin-top:20px">
-        ${list.map(p => `
-            <div class="prompt-card" data-post-id="${p.id}">
-                <div class="card-img-wrapper">
-                    <img src="${p.image}" loading="lazy">
+        ${list.map(p => {
+        const { applyBlur, warningLabel } = getModeration(p);
+        const reactions = p.reactions || { like: 0 };
+        return `
+            <div class="card">
+                <div class="card-img-wrap ${applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" style="height:100%; cursor:pointer">
+                    ${renderCollage(p)}
+                    ${applyBlur ? `<div class="blur-overlay"><span>🔞 ${warningLabel}</span></div>` : ''}
                 </div>
-                <div class="card-info">
-                    <div class="card-title">${window.escapeHTML(p.title)}</div>
-                    <div class="card-author">por @${p.author}</div>
+                <div class="card-overlay" data-post-id="${p.id}" style="cursor:pointer">
+                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:5px">${window.escapeHTML(p.title)}</div>
+                    <div style="font-size:0.8rem; opacity:0.8; margin-bottom:10px">por @${window.escapeHTML(p.author)}</div>
+                    <div class="card-stats" style="font-size:0.75rem; display:flex; gap:8px; flex-wrap:wrap">
+                        <span title="Me gusta">👍 ${reactions.like || 0}</span>
+                        <span title="Copiado" style="color:var(--accent); font-weight:700">📋 ${p.copy_count || 0}</span>
+                        <span style="color:#a29bfe; font-weight:700">💎 ${p.tokens_received || 0}</span>
+                    </div>
                 </div>
-            </div>
-        `).join('')}
+            </div>`;
+    }).join('')}
     </div>`;
 };
 
+const DetailModalTemplate = () => `
+<div id="viewModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) window.closeModals()">
+    <div class="view-modal-wrapper">
+        <div class="view-modal">
+            <button class="modal-close-x" onclick="window.closeModals()">✕</button>
+            <div class="view-img-side">
+                <img id="detImg" src="" alt="Post Image">
+            </div>
+            <div class="view-info-side">
+                <div class="view-scroll-content">
+                    <h2 id="detTitle" style="margin-bottom:10px"></h2>
+                    <div id="detUser" style="font-weight:700; margin-bottom:15px; color:var(--accent)"></div>
+                    <div id="detPrompt" class="prompt-area" style="white-space:pre-wrap; background:#000; padding:15px; border-radius:8px; border:1px solid #333; margin-bottom:15px"></div>
+                    <button class="btn" style="width:100%" onclick="window.doCopyPrompt()">📋 Copiar Prompt</button>
+                    <div id="detComments" style="margin-top:20px"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>`;
+
 // --- LOGIC ---
 const render = () => {
-    app.innerHTML = Header() + ProfileHeader() + Gallery();
+    app.innerHTML = Header() + ProfileHeader() + Gallery() + DetailModalTemplate();
+    attachEvents();
+};
+
+const attachEvents = () => {
+    document.querySelectorAll('[data-post-id]').forEach(el => {
+        el.addEventListener('click', () => {
+            const id = el.getAttribute('data-post-id');
+            window.openDetail(id);
+        });
+    });
+};
+
+window.openDetail = (id) => {
+    const p = store.prompts.find(x => x.id === id);
+    if (!p) return;
+    currentId = id;
+    const modal = document.getElementById('viewModal');
+    document.getElementById('detTitle').innerText = p.title;
+    document.getElementById('detUser').innerText = `@${p.author}`;
+    document.getElementById('detPrompt').innerText = p.prompt || '';
+    document.getElementById('detImg').src = p.image;
+    modal.style.display = 'flex';
+};
+
+window.closeModals = () => {
+    const modal = document.getElementById('viewModal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.doCopyPrompt = async () => {
+    const p = store.prompts.find(x => x.id === currentId);
+    if (!p) return;
+    await navigator.clipboard.writeText(p.prompt || '');
+    alert("¡Copiado!");
+};
+
+window.doLogout = () => {
+    store.logout();
+    window.location.href = '/';
+};
+
+window.doFollow = async (username) => {
+    if (!store.currentUser) return window.location.href = '/';
+    await store.followUser(username);
+    render();
 };
 
 window.setProfileTab = (tab) => {

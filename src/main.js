@@ -620,7 +620,7 @@ const Gallery = () => {
                 </div>
                 <div class="card-overlay" data-post-id="${p.id}" style="cursor:pointer">
                     <div style="font-weight:700; font-size:0.9rem; margin-bottom:5px">${window.escapeHTML(p.title)}</div>
-                    <div style="font-size:0.8rem; opacity:0.8; margin-bottom:10px">${window.escapeHTML(p.author)}</div>
+                    <div style="font-size:0.8rem; opacity:0.8; margin-bottom:10px; cursor:pointer" onclick="event.stopPropagation(); window.openUserProfile('${p.author}')">por @${window.escapeHTML(p.author)}</div>
                     <div class="card-stats" style="font-size:0.75rem; display:flex; gap:8px; flex-wrap:wrap">
                         <span title="Me gusta">👍 ${reactions.like || 0}</span>
                         <span title="Me encanta">❤️ ${reactions.love || 0}</span>
@@ -1217,19 +1217,8 @@ window.showTokenCelebration = (amount = 1, subtitle = null) => {
     }, 4000);
 };
 
-window.setProfileView = async (username) => {
-    currentView = 'profile';
-    profileUser = username;
-    profileTab = 'creations';
-    searchQuery = '';
-    filters.source = 'user'; // Force user filter
-    render();
-
-    // FETCH USER DATA ON DEMAND (Egress fix)
-    if (!store.users.find(u => u.username === username)) {
-        await store.fetchUserProfileByUsername(username);
-        render();
-    }
+window.setProfileView = (username) => {
+    window.openUserProfile(username);
 };
 
 window.setProfileTab = (tab) => {
@@ -1737,7 +1726,7 @@ window.openDetail = (id) => {
 
             userEl.innerHTML = `
             <span style="display:flex; align-items:center; gap:10px">
-                Por: <span onclick="window.closeModals(); window.setProfileView('${p.author}')" style="cursor:pointer; text-decoration:underline">${p.author}</span>
+                Por: <span onclick="window.closeModals(); window.openUserProfile('${p.author}')" style="cursor:pointer; text-decoration:underline">${p.author}</span>
                 ${!isMe && store.currentUser ? `
                     <button id="detFollowBtn" class="support-btn" style="padding:2px 8px; font-size:0.7rem;" onclick="window.doFollow('${p.author}', true)">
                         ${isFollowing ? 'Siguiendo' : 'Seguir'}
@@ -2819,6 +2808,14 @@ try {
     store.init().then(() => {
         render();
         console.log("MAIN JS INIT SUCCESS");
+
+        // Auto-open settings if requested via URL
+        if (window.location.search.includes('settings=true')) {
+            setTimeout(() => {
+                if (store.currentUser) window.openSettings();
+                else window.openLogin();
+            }, 500);
+        }
     }).catch(err => {
         console.error("Init Error:", err);
         alert("Error de Inicio: " + err.message);
