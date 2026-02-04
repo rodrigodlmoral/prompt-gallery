@@ -1335,7 +1335,7 @@ header nav {
   position: fixed;
   top: 20px;
   right: 20px;
-  z-index: 1000000;
+  z-index: 2147483647;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1740,271 +1740,289 @@ header nav {
   margin-top: 5px;
   display: inline-block;
   color: #aaa;
-}/* --- RESPONSIVE / SIDE PANEL OPTIMIZATIONS --- */
+}
+
+/* --- RESPONSIVE / SIDE PANEL OPTIMIZATIONS --- */
 @media (max-width: 500px) {
 
-    /* Header Compression */
-    header .container {
-        padding: 0 10px;
-        gap: 10px;
-    }
+  /* Header Compression */
+  header .container {
+    padding: 0 10px;
+    gap: 10px;
+  }
 
-    .logo {
-        font-size: 1.1rem;
-    }
+  .logo {
+    font-size: 1.1rem;
+  }
 
-    /* Hide full search on very small screens if needed, or compress it */
-    .search-bar {
-        max-width: none;
-        flex: 1;
-    }
+  /* Hide full search on very small screens if needed, or compress it */
+  .search-bar {
+    max-width: none;
+    flex: 1;
+  }
 
-    .search-input {
-        padding: 8px 12px;
-        font-size: 0.9rem;
-    }
+  .search-input {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
 
-    header nav {
-        gap: 8px;
-    }
+  header nav {
+    gap: 8px;
+  }
 
-    #addBtn,
-    #loginBtn {
-        font-size: 0.75rem;
-        padding: 6px 12px;
-        white-space: nowrap;
-    }
+  #addBtn,
+  #loginBtn {
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    white-space: nowrap;
+  }
 
-    .user-info span {
-        display: none;
-        /* Hide username in header on mobile to save space */
-    }
+  .user-info span {
+    display: none;
+    /* Hide username in header on mobile to save space */
+  }
 
-    /* Top Bar Scrolling */
-    .top-bar-inner {
-        flex-direction: row;
-        gap: 10px;
-        overflow-x: auto;
-        white-space: nowrap;
-        padding-bottom: 5px;
-        /* space for scrollbar if needed */
-        justify-content: flex-start;
-    }
+  /* Top Bar Scrolling */
+  .top-bar-inner {
+    flex-direction: row;
+    gap: 10px;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 5px;
+    /* space for scrollbar if needed */
+    justify-content: flex-start;
+  }
 
-    .top-bar-links {
-        gap: 15px;
-    }
+  .top-bar-links {
+    gap: 15px;
+  }
 
-    /* Grid Adjustments */
-    .gallery-grid {
-        grid-template-columns: 1fr !important;
-        /* Force single column */
-        gap: 15px;
-    }
+  /* Grid Adjustments */
+  .gallery-grid {
+    grid-template-columns: 1fr !important;
+    /* Force single column */
+    gap: 15px;
+  }
 
-    /* Top Creators Mobile */
-    .tc-grid {
-        overflow-x: auto;
-        padding-bottom: 10px;
-        justify-content: flex-start;
-    }
+  /* Top Creators Mobile */
+  .tc-grid {
+    overflow-x: auto;
+    padding-bottom: 10px;
+    justify-content: flex-start;
+  }
 
-    .tc-card {
-        min-width: 100px;
-        /* Ensure they don't get crushed */
-    }
+  .tc-card {
+    min-width: 100px;
+    /* Ensure they don't get crushed */
+  }
 
-    /* Modal Adjustments */
-    .modal-content {
-        width: 100%;
-        height: 100%;
-        border-radius: 0;
-        max-height: 100vh;
-    }
+  /* Modal Adjustments */
+  .modal-content {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    max-height: 100vh;
+  }
 
-    .side-panel {
-        width: 100%;
-        /* Full width details on mobile */
-        border-left: none;
-        border-top: 1px solid #333;
-    }
+  .side-panel {
+    width: 100%;
+    /* Full width details on mobile */
+    border-left: none;
+    border-top: 1px solid #333;
+  }
 }
+
 /* --- FIXED & IMPROVED MOBILE STYLES --- */
 
 /* 1. Hide ugly scrollbars but keep functionality */
 .top-bar-inner::-webkit-scrollbar,
 .tc-grid::-webkit-scrollbar,
 .badge-container::-webkit-scrollbar {
-    display: none;
-    /* Chrome/Safari */
+  display: none;
+  /* Chrome/Safari */
 }
 
 .top-bar-inner,
 .tc-grid,
 .badge-container {
-    scrollbar-width: none;
-    /* Firefox */
-    -ms-overflow-style: none;
-    /* IE */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE */
 }
 
 /* 2. Mobile Search Elements */
 .search-mobile-btn {
-    display: none;
-    /* Hidden on desktop */
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 50%;
-    transition: 0.2s;
+  display: none;
+  /* Hidden on desktop */
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: 0.2s;
 }
 
 .search-mobile-btn:hover {
-    background: #222;
+  background: #222;
 }
 
 .search-mobile-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 72px;
-    /* Same as header height */
-    background: #000;
-    z-index: 1001;
-    /* Above header content */
-    display: none;
-    /* Hidden by default */
-    border-bottom: 1px solid var(--accent);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 72px;
+  /* Same as header height */
+  background: #000;
+  z-index: 1001;
+  /* Above header content */
+  display: none;
+  /* Hidden by default */
+  border-bottom: 1px solid var(--accent);
 }
 
 .search-mobile-overlay.active {
-    display: block;
-    animation: fadeIn 0.2s ease-out;
+  display: block;
+  animation: fadeIn 0.2s ease-out;
 }
 
 /* 3. Modal & Post Fixes */
 @media (max-width: 500px) {
 
-    /* Hide desktop search */
-    .search-desktop {
-        display: none !important;
-    }
+  /* Hide desktop search */
+  .search-desktop {
+    display: none !important;
+  }
 
-    /* Show mobile search icon */
-    .search-mobile-btn {
-        display: block;
-        margin-left: auto;
-        /* Push to right */
-        margin-right: 15px;
-    }
+  /* Show mobile search icon */
+  .search-mobile-btn {
+    display: block;
+    margin-left: auto;
+    /* Push to right */
+    margin-right: 15px;
+  }
 
-    /* Fix Post content visibility */
-    .view-modal {
-        padding-top: 40px;
-        /* Space for close button */
-    }
+  /* Fix Post content visibility */
+  .view-modal {
+    padding-top: 40px;
+    /* Space for close button */
+  }
 
-    /* Fix Close Button - Make it prominent */
-    .modal-close-x {
-        position: fixed !important;
-        /* Stick to viewport */
-        top: 10px !important;
-        right: 10px !important;
-        background: rgba(0, 0, 0, 0.8) !important;
-        color: #fff !important;
-        width: 40px !important;
-        height: 40px !important;
-        border-radius: 50% !important;
-        font-size: 1.5rem !important;
-        z-index: 99999 !important;
-        /* Always on top */
-        border: 2px solid #555 !important;
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    }
+  /* Fix Close Button - Make it prominent */
+  .modal-close-x {
+    position: fixed !important;
+    /* Stick to viewport */
+    top: 10px !important;
+    right: 10px !important;
+    background: rgba(0, 0, 0, 0.8) !important;
+    color: #fff !important;
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    font-size: 1.5rem !important;
+    z-index: 99999 !important;
+    /* Always on top */
+    border: 2px solid #555 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  }
 
-    /* Ensure image fits */
-    .view-img-side {
-        height: auto !important;
-        min-height: 50vh;
-        max-height: 60vh;
-    }
+  /* Ensure image fits */
+  .view-img-side {
+    height: auto !important;
+    min-height: 50vh;
+    max-height: 60vh;
+  }
 
-    .view-img-side img {
-        object-fit: contain !important;
-        max-height: 60vh !important;
-    }
+  .view-img-side img {
+    object-fit: contain !important;
+    max-height: 60vh !important;
+  }
 
-    /* Adjust Fullscreen button */
-    .fullscreen-btn {
-        bottom: 10px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        width: auto !important;
-        padding: 5px 15px !important;
-        font-size: 0.8rem !important;
-        white-space: nowrap;
-    }
+  /* Adjust Fullscreen button */
+  .fullscreen-btn {
+    bottom: 10px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: auto !important;
+    padding: 5px 15px !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap;
+  }
 }
 
 /* --- LEVEL UP MODAL --- */
 #levelUpModalCanvas {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 2147483648; /* Highest */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2147483648;
+  /* Highest */
 }
 
 .level-up-content {
-    text-align: center;
-    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  text-align: center;
+  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .level-badge-large {
-    font-size: 5rem;
-    margin-bottom: 20px;
-    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
-    animation: float 3s ease-in-out infinite;
+  font-size: 5rem;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
+  animation: float 3s ease-in-out infinite;
 }
 
 .level-new-title {
-    font-size: 2rem;
-    font-weight: 900;
-    background: linear-gradient(45deg, #FFD700, #FDB931, #FFD700);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 10px;
+  font-size: 2rem;
+  font-weight: 900;
+  background: linear-gradient(45deg, #FFD700, #FDB931, #FFD700);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 10px;
 }
 
 .level-benefits-list {
-    text-align: left;
-    background: rgba(255, 215, 0, 0.1);
-    border: 1px solid rgba(255, 215, 0, 0.3);
-    border-radius: 12px;
-    padding: 20px;
-    margin: 20px 0;
+  text-align: left;
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
 }
 
 .level-benefits-list li {
-    margin-bottom: 8px;
-    color: #ffd700;
-    list-style-type: ' ';
+  margin-bottom: 8px;
+  color: #ffd700;
+  list-style-type: ' ';
 }
 
 @keyframes popIn {
-    from { transform: scale(0.5); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-    100% { transform: translateY(0px); }
-}
+  0% {
+    transform: translateY(0px);
+  }
 
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
