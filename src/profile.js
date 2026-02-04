@@ -1370,22 +1370,22 @@ window.toast = (message, type = 'info') => {
     }
 
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
+    toast.className = `pg-toast ${type}`;
+
+    let icon = '🔔';
+    if (type === 'success') icon = '✅';
+    if (type === 'error') icon = '❌';
+
     toast.innerHTML = `
-        <span style="margin-right:8px">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
-        <span>${message}</span>
+        <div class="toast-icon">${icon}</div>
+        <div class="toast-content">${message}</div>
     `;
 
     container.appendChild(toast);
 
-    requestAnimationFrame(() => {
-        toast.style.opacity = '1';
-        toast.style.transform = 'translateY(0)';
-    });
-
+    // Auto-remove
     setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(100%)';
+        toast.classList.add('hide');
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 };
