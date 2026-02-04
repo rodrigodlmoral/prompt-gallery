@@ -11,6 +11,18 @@ let currentId = null;
 let currentSeqStep = 0;
 let currentTipPostId = null;
 window.sliderUnlocked = false;
+let seqStepCount = 0;
+let isEditing = false; // Required for doPublish compatibility
+
+// --- CONSTANTS ---
+const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.0', 'SDXL', 'Flux', 'Midjourney', 'Huggingface', 'Fooocus', 'ComfyUI', 'Perchance', 'Otro'];
+const RATINGS = ['SFW / Apto', 'Sugestivo', 'NSFW / +18'];
+const RATING_INFO = `SFW / Apto (Safe for Work): Imágenes aptas para todo público. No contienen violencia, desnudez ni contenido sexual.
+
+Sugestivo: Imágenes que insinúan, pero no muestran desnudez explícita ni actos sexuales. Puede incluir ropa reveladora, lenceria, ropa interior o posturas insinuantes. Se considera inapropiado para el trabajo pero no adulto en su totalidad.
+
+NSFW / +18 (No Safe for Work): La categoría máxima. Imágenes que muestran desnudez total, actos sexuales, pornografía. No apto para menores.`;
+const INFO_ICON = `<span title='${RATING_INFO}' style="text-decoration:none; color:white; background:#0070ba; width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; margin-left:8px; font-weight:bold; cursor:default; font-size:12px">¡</span>`;
 
 // --- HELPERS ---
 window.escapeHTML = (str) => {
@@ -95,7 +107,7 @@ const Header = () => `
         <nav>
             ${store.currentUser ? `
                 ${store.currentUser.role === 'admin' ? `<a href="/admin.html" class="btn-outline" style="border-color:gold; color:gold; text-decoration:none; padding: 10px 15px; border-radius: 8px; font-weight: 600;">👑 Admin</a>` : ''}
-                <button class="btn" onclick="window.location.href='/'">Compartir Prompt</button>
+                <button class="btn" onclick="window.openCreate()">Compartir Prompt</button>
                 <div class="user-info" onclick="window.location.href='/profile.html?u=${store.currentUser.username}'" style="cursor:pointer">
                     <div class="user-avatar-sm" style="background-image:url('${store.currentUser.avatar || 'https://robohash.org/' + store.currentUser.username}')"></div>
                     <span>${store.currentUser.username}</span>
@@ -410,6 +422,107 @@ const SettingsModal = () => {
 </div>`;
 };
 
+const CreateModal = () => `
+<div id="createModal" class="modal-overlay" style="display:none;"><div class="modal-container">
+    <h2>Compartir Prompt</h2>
+    
+    <div class="form-group">
+        <label class="form-label">Tipo de Prompt</label>
+        <div style="display:flex; gap:15px; margin-bottom:20px">
+            <label class="chk-wrap">
+                <input type="radio" name="postType" value="single" checked onchange="window.togglePostType('single')">
+                <span>Sencillo (1 imagen)</span>
+            </label>
+            <label class="chk-wrap">
+                <input type="radio" name="postType" value="sequence" onchange="window.togglePostType('sequence')">
+                <span>Secuencia (Múltiples) <small style="color:var(--accent); font-weight:bold">[Nivel 1+]</small></span>
+            </label>
+        </div>
+    </div>
+    
+    <form autocomplete="off" onsubmit="return false;" style="display:contents">
+        <input type="text" name="fakeusernameremembered" style="display:none" autocomplete="username">
+        <input type="password" name="fakepasswordremembered" style="display:none" autocomplete="current-password">
+    
+    <input type="text" id="upTitle" class="form-input" placeholder="Título" style="margin-bottom:15px" autocomplete="off" name="post_title_unique_id">
+    
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px">
+        <label class="form-label" style="font-size:0.75rem; color:#666">HERRAMIENTA</label>
+        <select id="upTool" class="form-input" style="margin:0" onchange="window.checkToolConfig()">${TOOLS.map(t => `<option value='${t}'>${t}</option>`).join('')}</select>
+    </div>
+
+    <div id="upExtraConfig" style="display:none; background:#111; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #222">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+            <span style="font-size:0.8rem; font-weight:bold; color:var(--accent)">CONFIGURACIÓN ADICIONAL</span>
+            <button class="btn-icon" onclick="window.addExtraRow()" style="background:var(--accent); width:24px; height:24px; font-size:1.2rem; display:flex; align-items:center; justify-content:center">+</button>
+        </div>
+        <div id="extraRowsContainer"></div>
+    </div>
+    
+    <div id="singleFields">
+        <div style="display:flex; align-items:center; margin-bottom:15px">
+            <select id="upRating" class="form-input" style="margin:0">${RATINGS.map(r => `<option value='${r}'>${r}</option>`).join('')}</select>
+            ${INFO_ICON}
+        </div>
+        <input type="file" id="upFile" class="form-input" accept="image/*" style="margin-bottom:15px" onchange="window.previewFile(this, 'singlePreview')">
+        <div id="singlePreview" style="width:100%; display:none; background:#000; border-radius:8px; margin-bottom:15px; border:1px solid #333; align-items:center; justify-content:center; padding:10px; overflow:hidden">
+            <img src="" style="max-width:100%; max-height:350px; display:block; border-radius:4px">
+        </div>
+        <label class="form-label" style="font-size:0.75rem; color:#666">PROMPT</label>
+        <textarea id="upPrompt" class="form-input" placeholder="Prompt positivo..." rows="4" autocomplete="off" style="margin-bottom:10px"></textarea>
+        
+        <div style="display:flex; justify-content:center; margin-bottom:10px">
+            <button class="btn-outline" onclick="window.toggleNeg('singleNeg')" style="padding:4px 12px; font-size:0.85rem; border-color:#ff4444; color:#ff4444; border-radius:20px; font-weight:700">+Añadir Negative Prompt</button>
+        </div>
+        
+        <div id="singleNeg" style="display:none; margin-bottom:15px">
+            <label class="form-label" style="font-size:0.75rem; color:#ff4444">NEGATIVE PROMPT</label>
+            <textarea id="upNegPrompt" class="form-input" placeholder="Lo que NO quieres en la imagen..." rows="3" style="border-color:#ff4444; background:rgba(255,0,0,0.05)"></textarea>
+        </div>
+    </div>
+    
+    <div id="sequenceFields" style="display:none">
+        <div id="seqContainer"></div>
+        <button class="btn-outline" onclick="window.addSeqStep()" style="width:100%; margin-bottom:15px">+ Añadir Paso</button>
+    </div>
+    
+    <div class="form-group" style="margin-bottom:15px">
+        <label class="form-label">¿QUIEN ES EL CREADOR ORIGINAL?</label>
+        <div style="display:flex; gap:15px; margin-bottom:10px">
+            <label class="chk-wrap">
+                <input type="radio" name="origCreator" value="me" checked onchange="window.toggleOrigCreator('me')">
+                <span>Yo</span>
+            </label>
+            <label class="chk-wrap">
+                <input type="radio" name="origCreator" value="other" onchange="window.toggleOrigCreator('other')">
+                <span>Otro Creador</span>
+            </label>
+        </div>
+        <div id="otherCreatorFields" style="display:none; gap:10px; flex-direction:column">
+            <input type="text" id="upOrigName" class="form-input" placeholder="Nombre del Creador">
+            <input type="text" id="upOrigUrl" class="form-input" placeholder="URL Red Social (https://...)" autocomplete="off">
+        </div>
+    </div>
+    
+    <div style="display:flex; flex-direction:column; gap:5px; margin:15px 0">
+        <label class="chk-wrap">
+            <input type="checkbox" id="upReference" name="reference_chk_unique">
+            <span>📸 Requiere imagen de referencia</span>
+        </label>
+        <label class="chk-wrap">
+            <input type="checkbox" id="upPrivate" name="private_chk_unique">
+            <span>🔒 Hacer privado (solo yo puedo verlo)</span>
+        </label>
+    </div>
+    
+    </form>
+    
+    <div style="display:flex; gap:10px">
+        <button class="btn" id="pubBtn" onclick="window.doPublish()" style="width:100%; margin-bottom:10px">Publicar</button>
+        <button class="btn-outline" onclick="window.closeModals()" style="width:100%">Cerrar</button>
+    </div>
+</div></div>`;
+
 const ConfirmModal = () => `
 <div id="confirmModal" class="modal-overlay" style="display:none; z-index:2147483647;"><div class="modal-container" style="max-width:400px; text-align:center">
     <div id="confirmIcon" style="font-size:3rem; margin-bottom:15px">❓</div>
@@ -423,7 +536,7 @@ const ConfirmModal = () => `
 
 // --- LOGIC ---
 const render = () => {
-    app.innerHTML = Header() + ProfileHeader() + Gallery() + DetailModalTemplate() + SettingsModal() + ConfirmModal();
+    app.innerHTML = Header() + ProfileHeader() + Gallery() + DetailModalTemplate() + SettingsModal() + CreateModal() + ConfirmModal();
     attachEvents();
 };
 
@@ -789,8 +902,297 @@ window.confirmResolve = (val) => {
     if (confirmResolver) confirmResolver(val);
 };
 
+window.openCreate = () => {
+    if (!store.currentUser) {
+        alert("Debes iniciar sesión para compartir prompts.");
+        window.location.href = '/';
+        return;
+    }
+    seqStepCount = 0;
+    const modal = document.getElementById('createModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Reset single preview
+        const sp = document.getElementById('singlePreview');
+        if (sp) sp.style.display = 'none';
+        // Reset sequence container
+        const sc = document.getElementById('seqContainer');
+        if (sc) sc.innerHTML = '';
+        // Ensure single fields are visible by default
+        window.togglePostType('single');
+    }
+};
+
+window.togglePostType = (type) => {
+    if (type === 'sequence' && (!store.currentUser || (store.currentUser.level || 0) < 1)) {
+        alert("⚠️ Función Bloquedada: Necesitas ser Nivel 1 o superior para subir secuencias (aporta al menos 10 prompts sencillos).");
+        const singleRadio = document.querySelector('input[name="postType"][value="single"]');
+        if (singleRadio) singleRadio.checked = true;
+        return;
+    }
+    document.getElementById('singleFields').style.display = type === 'single' ? 'block' : 'none';
+    document.getElementById('sequenceFields').style.display = type === 'sequence' ? 'block' : 'none';
+    if (type === 'sequence' && seqStepCount === 0) {
+        window.addSeqStep();
+    }
+};
+
+window.toggleOrigCreator = (type) => {
+    document.getElementById('otherCreatorFields').style.display = type === 'other' ? 'flex' : 'none';
+};
+
+window.checkToolConfig = () => {
+    const tool = document.getElementById('upTool').value;
+    const sdTools = ['SD 1.5', 'SD 2.0', 'SDXL', 'Fooocus', 'ComfyUI'];
+    const panel = document.getElementById('upExtraConfig');
+    if (sdTools.includes(tool)) {
+        panel.style.display = 'block';
+        if (document.getElementById('extraRowsContainer').children.length === 0) {
+            window.addExtraRow();
+        }
+    } else {
+        panel.style.display = 'none';
+    }
+};
+
+window.addExtraRow = () => {
+    const container = document.getElementById('extraRowsContainer');
+    const div = document.createElement('div');
+    div.className = 'extra-config-row';
+    div.style.cssText = 'display:flex; gap:10px; margin-bottom:10px; align-items:center';
+    div.innerHTML = `
+        <select class="form-input extra-type" style="margin:0; flex:1">
+            <option value="CHECKPOINT">CHECKPOINT</option>
+            <option value="LORA">LORA</option>
+            <option value="EMBEDDING">EMBEDDING</option>
+        </select>
+        <input type="text" class="form-input extra-val" placeholder="Nombre/Valor..." style="margin:0; flex:2">
+        <button class="btn-icon" onclick="this.parentElement.remove()" style="background:#444; width:24px; height:24px; flex-shrink:0">×</button>
+    `;
+    container.appendChild(div);
+};
+
+window.toggleNeg = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+};
+
+window.addSeqStep = () => {
+    seqStepCount++;
+    const container = document.getElementById('seqContainer');
+    const stepDiv = document.createElement('div');
+    stepDiv.className = 'seq-step';
+    stepDiv.style.cssText = 'border:1px solid #333; padding:15px; border-radius:8px; margin-bottom:15px';
+    const negId = `seqNeg-${seqStepCount}`;
+    stepDiv.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+            <strong>Paso ${seqStepCount}</strong>
+            <button class="btn-outline" onclick="this.parentElement.parentElement.remove()" style="padding:5px 10px">Eliminar</button>
+        </div>
+        <div style="display:flex; align-items:center; margin-bottom:10px">
+            <select class="form-input seqRating" style="margin:0">${RATINGS.map(r => `<option value='${r}'>${r}</option>`).join('')}</select>
+            ${INFO_ICON}
+        </div>
+        <input type="file" class="form-input seqFile" accept="image/*" style="margin-bottom:10px" onchange="window.previewFile(this, 'seqPreview-${seqStepCount}')">
+        <div id="seqPreview-${seqStepCount}" style="width:100%; display:none; background:#000; border-radius:8px; margin-bottom:10px; border:1px solid #333; align-items:center; justify-content:center; padding:10px; overflow:hidden">
+            <img src="" style="max-width:100%; max-height:300px; display:block; border-radius:4px">
+        </div>
+        
+        <label class="form-label" style="font-size:0.7rem; color:#666">PROMPT</label>
+        <textarea class="form-input seqPrompt" placeholder="Prompt para este paso" rows="3" style="margin-bottom:10px"></textarea>
+
+        <div style="display:flex; justify-content:center; margin-bottom:10px">
+             <button class="btn-outline" onclick="window.toggleNeg('${negId}')" style="padding:3px 10px; font-size:0.75rem; border-color:#ff4444; color:#ff4444; border-radius:20px; font-weight:700">+Añadir Negative Prompt</button>
+        </div>
+        
+        <div id="${negId}" style="display:none; margin-bottom:10px">
+            <label class="form-label" style="font-size:0.7rem; color:#ff4444">NEGATIVE PROMPT</label>
+            <textarea class="form-input seqNegPrompt" placeholder="Negative prompt para este paso..." rows="2" style="border-color:#ff4444; background:rgba(255,0,0,0.05)"></textarea>
+        </div>
+    `;
+    container.appendChild(stepDiv);
+};
+
+window.previewFile = (input, previewId) => {
+    const preview = document.getElementById(previewId);
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = preview.querySelector('img');
+            if (img) img.src = e.target.result;
+            preview.style.display = 'flex';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+};
+
+window.doPublish = () => {
+    if (isEditing) return; // Not implemented for profile edit yet
+
+    const postType = document.querySelector('input[name="postType"]:checked').value;
+    const title = document.getElementById('upTitle').value;
+    const tool = document.getElementById('upTool').value;
+    const isPrivate = document.getElementById('upPrivate').checked;
+    const needsReference = document.getElementById('upReference').checked;
+    const origCreatorType = document.querySelector('input[name="origCreator"]:checked').value;
+    const origCreator = origCreatorType === 'other' ? {
+        name: document.getElementById('upOrigName').value,
+        url: document.getElementById('upOrigUrl').value
+    } : null;
+
+    if (!title) return alert("El título es obligatorio");
+    if (origCreatorType === 'other' && !origCreator.name) return alert("Falta el nombre del creador original");
+
+    const extraConfig = [];
+    document.querySelectorAll('.extra-config-row').forEach(row => {
+        const type = row.querySelector('.extra-type').value;
+        const val = row.querySelector('.extra-val').value;
+        if (val.trim()) {
+            extraConfig.push({ type, val: val.trim() });
+        }
+    });
+
+    const pubBtn = document.getElementById('pubBtn');
+    if (pubBtn) {
+        pubBtn.disabled = true;
+        pubBtn.innerText = "Publicando...";
+    }
+
+    if (postType === 'single') {
+        const file = document.getElementById('upFile').files[0];
+        if (!file) {
+            if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
+            return alert("Imagen obligatoria");
+        }
+        const negPrompt = document.getElementById('upNegPrompt').value;
+        const reader = new FileReader();
+        reader.onload = async () => {
+            const res = await store.addPrompt({
+                title,
+                tool,
+                rating: document.getElementById('upRating').value,
+                image: reader.result,
+                prompt: document.getElementById('upPrompt').value,
+                negative_prompt: negPrompt,
+                type: 'single',
+                isPrivate,
+                needsReference,
+                origCreator,
+                extraConfig
+            });
+            if (!res.success) {
+                alert(res.msg);
+                if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
+            } else {
+                window.closeModals();
+                await store.init(); // Refresh data
+                render();
+                if (res.leveledUp) {
+                    setTimeout(() => window.showLevelUpModal(res.newLevel), 500);
+                }
+            }
+        };
+        reader.readAsDataURL(file);
+    } else {
+        const steps = Array.from(document.querySelectorAll('.seq-step'));
+        if (steps.length === 0) {
+            if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
+            return alert("Añade al menos un paso");
+        }
+
+        const content = [];
+        let loaded = 0;
+
+        steps.forEach((step, idx) => {
+            const file = step.querySelector('.seqFile').files[0];
+            const prompt = step.querySelector('.seqPrompt').value;
+            const negPrompt = step.querySelector('.seqNegPrompt').value;
+            const rating = step.querySelector('.seqRating').value;
+            if (!file) {
+                if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
+                return alert(`Falta imagen en paso ${idx + 1}`);
+            }
+
+            const reader = new FileReader();
+            reader.onload = async () => {
+                content.push({ image: reader.result, prompt, negative_prompt: negPrompt, rating });
+                loaded++;
+                if (loaded === steps.length) {
+                    const res = await store.addPrompt({
+                        title,
+                        tool,
+                        type: 'sequence',
+                        content,
+                        isPrivate,
+                        needsReference,
+                        origCreator,
+                        extraConfig
+                    });
+                    if (!res.success) {
+                        alert("❌ Error: " + res.msg);
+                        if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
+                    } else {
+                        seqStepCount = 0;
+                        window.closeModals();
+                        await store.init();
+                        render();
+                    }
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+};
+
+window.showLevelUpModal = (newLevel) => {
+    const lvlInfo = LEVEL_REQS[newLevel] || LEVEL_REQS[0];
+    const bgEmojis = ["✨", "🎉", "💎", "🎊", "🔥", "🚀", "🌟"];
+    let bgHtml = '';
+    for (let i = 0; i < 30; i++) {
+        const left = Math.random() * 100;
+        const animDelay = Math.random() * 2;
+        const dur = 3 + Math.random() * 3;
+        const emoji = bgEmojis[Math.floor(Math.random() * bgEmojis.length)];
+        bgHtml += `<div style="position:absolute; top:-10%; left:${left}%; font-size:${1 + Math.random()}rem; animation: fall ${dur}s linear infinite; animation-delay:-${animDelay}s; opacity:0.6; user-select:none;">${emoji}</div>`;
+    }
+
+    const modalHtml = `
+    <div id="levelUpModalCanvas" onclick="this.remove()">
+        <style>
+            @keyframes fall {
+                0% { transform: translateY(-10vh) rotate(0deg); }
+                100% { transform: translateY(110vh) rotate(360deg); }
+            }
+        </style>
+        ${bgHtml}
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; background:rgba(0,0,0,0.9); border:2px solid gold; border-radius:20px; padding:40px; box-shadow:0 0 50px rgba(255,215,0,0.3); z-index:10000000;">
+            <div class="level-up-content" style="text-align:center">
+                <div style="font-size:4rem; margin-bottom:10px">${lvlInfo.icon}</div>
+                <div style="font-size:1.5rem; font-weight:800; color:gold; margin-bottom:10px">¡NIVEL DESBLOQUEADO!</div>
+                <h2 style="font-size:1.5rem; color:white; margin-bottom:5px">Has alcanzado el Nivel ${newLevel}</h2>
+                <h3 style="color:#aaa; text-transform:uppercase; letter-spacing:2px; margin-bottom:20px">${lvlInfo.name}</h3>
+                
+                <div style="text-align:left; background:rgba(255,255,255,0.05); padding:15px; border-radius:10px">
+                    <div style="font-weight:bold; margin-bottom:10px; color:white">Nuevos Beneficios:</div>
+                    <ul style="padding-left:20px; margin:0; color:#ddd">
+                        ${lvlInfo.benefits.map(b => `<li>${b}</li>`).join('')}
+                    </ul>
+                </div>
+
+                <button class="btn" onclick="this.closest('#levelUpModalCanvas').remove()" style="width:100%; font-size:1.2rem; font-weight:bold; background:gold; color:black; border:none; padding:15px; border-radius:10px; cursor:pointer; margin-top:20px; box-shadow:0 5px 15px rgba(255,215,0,0.4)">
+                    ¡GENIAL!
+                </button>
+            </div>
+        </div>
+    </div>`;
+
+    const div = document.createElement('div');
+    div.innerHTML = modalHtml;
+    document.body.appendChild(div.firstElementChild);
+};
+
 window.closeModals = () => {
-    const modals = ['viewModal', 'settingsModal', 'confirmModal'];
+    const modals = ['viewModal', 'settingsModal', 'confirmModal', 'createModal'];
     modals.forEach(m => {
         const el = document.getElementById(m);
         if (el) el.style.display = 'none';
