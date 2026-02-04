@@ -2808,14 +2808,6 @@ try {
     store.init().then(() => {
         render();
         console.log("MAIN JS INIT SUCCESS");
-
-        // Auto-open settings if requested via URL
-        if (window.location.search.includes('settings=true')) {
-            setTimeout(() => {
-                if (store.currentUser) window.openSettings();
-                else window.openLogin();
-            }, 500);
-        }
     }).catch(err => {
         console.error("Init Error:", err);
         alert("Error de Inicio: " + err.message);
