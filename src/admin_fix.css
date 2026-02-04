@@ -1,0 +1,30 @@
+/* ADMIN PANEL FIXES */
+.modal-container {
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.table-container {
+    max-height: 60vh !important;
+    overflow-y: auto !important;
+    border: 1px solid #333;
+    border-radius: 8px;
+    background: #111;
+}
+
+thead th {
+    position: sticky !important;
+    top: 0 !important;
+    background: #222 !important;
+    z-index: 10 !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.admin-section {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
