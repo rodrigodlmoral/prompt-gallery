@@ -2741,25 +2741,16 @@ window.setAdminFilter = (char) => {
 
 window.openAdmin = async (tab = 'users') => {
     try {
-        // Ensure admin has all users loaded
-        if (store.currentUser && store.currentUser.role === 'admin') {
-            await store.adminLoadAllUsers();
-        }
-
         const modal = document.getElementById('adminModal');
         if (!modal) {
             console.error("No se encontró adminModal en el DOM");
             return;
         }
 
-        // FIX: Mover al body para evitar problemas de capas (z-index)
-        if (modal.parentNode !== document.body) {
-            document.body.appendChild(modal);
-        }
-
+        // 1. UI FIRST: Switch Tabs Immediately
+        if (modal.parentNode !== document.body) document.body.appendChild(modal);
         modal.style.cssText = 'display: flex !important; z-index: 2147483647 !important; visibility: visible !important; opacity: 1 !important; background: rgba(0,0,0,0.9) !important; position: fixed !important; top: 0; left: 0; width: 100%; height: 100%;';
 
-        // Toggle Tabs UI
         const btnUsers = document.getElementById('adminTabUsers');
         const btnContent = document.getElementById('adminTabContent');
         const btnMigrate = document.getElementById('adminTabMigrate');
@@ -2770,7 +2761,6 @@ window.openAdmin = async (tab = 'users') => {
         const secMigrate = document.getElementById('adminSecMigrate');
         const secLogs = document.getElementById('adminSecLogs');
 
-        // INJECT LOGS TAB IF MISSING
         if (btnUsers) btnUsers.classList.toggle('active', tab === 'users');
         if (btnContent) btnContent.classList.toggle('active', tab === 'content');
         if (btnMigrate) btnMigrate.classList.toggle('active', tab === 'migrate');
@@ -2780,6 +2770,11 @@ window.openAdmin = async (tab = 'users') => {
         if (secContent) secContent.style.display = tab === 'content' ? 'block' : 'none';
         if (secMigrate) secMigrate.style.display = tab === 'migrate' ? 'block' : 'none';
         if (secLogs) secLogs.style.display = tab === 'logs' ? 'block' : 'none';
+
+        // 2. DATA SECOND: Load required data
+        if (store.currentUser && store.currentUser.role === 'admin') {
+            await store.adminLoadAllUsers();
+        }
 
         if (tab === 'users') {
             let users = [...(store.getAllUsers() || [])];
