@@ -251,7 +251,10 @@ const getFilteredPrompts = () => {
         list = list.filter(p => !p.isPrivate);
         if (filters.source === 'following' && store.currentUser) {
             const myFollowing = store.currentUser.following || [];
-            list = list.filter(p => myFollowing.includes(store.users.find(u => u.username === p.author)?.id));
+            list = list.filter(p => {
+                const authorUser = store.users.find(u => u.username === p.author);
+                return authorUser ? myFollowing.includes(authorUser.id) : false;
+            });
         } else if (filters.source === 'user' && store.currentUser) {
             // "Tus Prompts" en Home (librería propia)
             list = list.filter(p => p.author === store.currentUser.username);

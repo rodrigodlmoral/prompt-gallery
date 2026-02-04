@@ -553,9 +553,13 @@ export const store = {
         // OPTIMIZED: Select only needed fields to reduce JSON size (Egress fix)
         const { data, error } = await supabase
             .from('prompts')
-            .select('id, title, prompt, tool, rating, image_url, author_name, author_id, created_at, copy_count, tokens_received, is_featured, reactions, comments, is_private, needs_reference, orig_creator, content, featured_until')
+            .select('id, title, prompt, tool, rating, image_url, author_name, author_id, created_at, copy_count, tokens_received, is_featured, reactions, comments, is_private, needs_reference, orig_creator, content, featured_until, saved_by')
             .order('created_at', { ascending: false })
             .limit(100);
+
+        if (error) {
+            console.error("SUPABASE ERROR loading prompts:", error);
+        }
 
         if (data) {
             // Adaptar campos de DB a formato local para evitar romper el frontend
@@ -575,7 +579,7 @@ export const store = {
                 is_featured: p.is_featured || false,
                 reactions: {
                     like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0,
-                    ...(typeof p.reactions === 'object' ? p.reactions : {})
+                    ...(p.reactions && typeof p.reactions === 'object' ? p.reactions : {})
                 },
                 comments: p.comments || [],
                 isPrivate: p.is_private,
