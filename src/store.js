@@ -102,12 +102,13 @@ export const store = {
             const { leveledUp, newLevel } = await this.checkLevelUp(uid, userProfile.level);
             if (leveledUp) {
                 userProfile.level = newLevel; // Update local immediately
-                // We could show a toast here if we wanted: "¡Has subido al Nivel X mientras no estabas!"
             }
 
             this.currentUser = userProfile;
+            // alert("DEBUG: Perfil cargado correctamente para " + userProfile.username);
         } else {
             console.error("Perfil no encontrado", error);
+            alert("DEBUG ERROR: No se pudo cargar tu perfil. " + (error ? error.message : "Desconocido") + "\nPosible causa: RLS o tabla profiles vacía.");
         }
         if (window.render) window.render();
     },
@@ -437,14 +438,20 @@ export const store = {
             password: password,
         });
 
-        if (error) return { success: false, msg: error.message };
+        if (error) {
+            alert("DEBUG LOG IN ERROR: " + error.message);
+            return { success: false, msg: error.message };
+        }
 
         // NO RELOAD: Rely on onAuthStateChange listener which interprets the change
         // But force a manual call just in case listener is lazy
         if (data.session) {
+            // alert("DEBUG: Login correcto. Iniciando carga de perfil...");
             await this._loadUserProfile(data.session.user.id);
             if (window.closeModals) window.closeModals();
             if (window.render) window.render();
+        } else {
+            alert("DEBUG: Login exitoso pero SIN sesión devuelta por Supabase.");
         }
 
         return { success: true };
