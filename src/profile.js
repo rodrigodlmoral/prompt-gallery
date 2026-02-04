@@ -1329,6 +1329,69 @@ window.openLevelProgress = () => {
 };
 
 
+
+// --- CONFIRMATION & TOAST SYSTEM ---
+
+window.askConfirm = (msg, icon = '❓') => {
+    return new Promise((resolve) => {
+        let modal = document.getElementById('confirmModal');
+        // If modal doesn't exist, try to find it in DOM or fallback
+        if (!modal) {
+            if (confirm(msg)) resolve(true);
+            else resolve(false);
+            return;
+        }
+
+        const text = document.getElementById('confirmText');
+        const ico = document.getElementById('confirmIcon');
+
+        // Define cleanup function
+        const cleanup = (val) => {
+            modal.style.display = 'none';
+            resolve(val);
+        };
+
+        window.confirmResolve = cleanup;
+
+        if (modal && text) {
+            text.innerText = msg;
+            if (ico) ico.innerText = icon;
+            modal.style.display = 'flex';
+        }
+    });
+};
+
+window.toast = (message, type = 'info') => {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <span style="margin-right:8px">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+        <span>${message}</span>
+    `;
+
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    });
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(100%)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+};
+
+
+
 window.openDirectTip = (recipientId, username) => {
     if (!store.currentUser) {
         alert("Debes iniciar sesión para enviar propinas.");
@@ -1373,15 +1436,16 @@ window.openDirectTip = (recipientId, username) => {
 };
 
 window.doSendDirectTip = async (recipientId, amount) => {
-    if (confirm(`¿Enviar ${amount} PromptBits a este creador?`)) {
+    if (await window.askConfirm(`¿Enviar ${amount} PromptBits a este creador?`, '💎')) {
+        window.toast("Enviando...", "info");
         const res = await store.sendTip(null, amount, recipientId);
         if (res.success) {
-            alert(res.msg);
+            window.toast(res.msg, 'success');
             const dtm = document.getElementById('dynamicTipModal');
             if (dtm) dtm.remove();
             render();
         } else {
-            alert(res.msg);
+            window.toast(res.msg, 'error');
         }
     }
 };
