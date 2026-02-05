@@ -1466,11 +1466,11 @@ const init = async () => {
 // --- USER ACTIVITY LOGS ---
 
 const ActivityModal = () => `
-<div id="activityModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) document.getElementById('activityModal').style.display='none'">
+<div id="activityModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) { document.getElementById('activityModal').style.display='none'; store.unsubscribeUserLogs(); }">
     <div class="modal-container" style="max-width:500px; height:80vh; display:flex; flex-direction:column">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px">
             <h2 style="margin:0">📜 Mi Actividad</h2>
-            <button class="modal-close-x" onclick="document.getElementById('activityModal').style.display='none'" style="position:static">✕</button>
+            <button class="modal-close-x" onclick="document.getElementById('activityModal').style.display='none'; store.unsubscribeUserLogs();" style="position:static">✕</button>
         </div>
         <div id="activityList" style="flex:1; overflow-y:auto; padding-right:5px">
             <div style="text-align:center; padding:20px; color:#666">Cargando...</div>
