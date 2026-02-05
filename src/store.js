@@ -531,6 +531,28 @@ const store = {
         const { error } = await supabase.auth.resetPasswordForEmail(email);
         if (error) return { success: false, msg: error.message };
         return { success: true, msg: "Email de recuperación enviado. Revisa tu bandeja de entrada." };
+    },
+
+    // --- ADMIN FUNCTIONS ---
+    async toggleFeatured(postId) {
+        if (!this.currentUser || this.currentUser.role !== 'admin') {
+            return { success: false, msg: 'Solo administradores pueden destacar posts.' };
+        }
+
+        const prompt = this.prompts.find(p => p.id === postId);
+        if (!prompt) return { success: false, msg: 'Post no encontrado' };
+
+        const newVal = !prompt.admin_featured;
+
+        const { error } = await supabase
+            .from('prompts')
+            .update({ admin_featured: newVal })
+            .eq('id', postId);
+
+        if (error) return { success: false, msg: error.message };
+
+        prompt.admin_featured = newVal;
+        return { success: true };
     }
 };
 

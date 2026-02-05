@@ -380,43 +380,71 @@ const Header = () => `
 const HeroCarousel = () => {
     if (currentView !== 'home') return '';
 
-    // Featured prompts logic
+    // === FEATURED PROMPTS: THREE TYPES ===
     const all = [...store.prompts].filter(p => !p.isPrivate);
 
-    // 1. Manually/paid featured prompts (is_featured = true)
-    const manualFeatured = all.filter(p => p.is_featured);
+    // Calculate engagement score function
+    function calculateEngagementScore(p) {
+        const reactions = Object.values(p.reactions || {}).reduce((sum, val) => sum + val, 0);
+        const comments = (p.comments || []).length;
+        const copies = (p.saved_by || []).length;
+        const tips = p.tokens_received || 0;
+        return reactions + comments + copies + tips;
+    }
 
-    // 2. Auto-featured by engagement score if we need more
-    const autoFeatured = all
-        .filter(p => !p.is_featured)
-        .map(p => {
-            // Calculate engagement score: reactions * 2 + comments * 3
-            const totalReactions = Object.values(p.reactions || {}).reduce((sum, val) => sum + val, 0);
-            const totalComments = (p.comments || []).length;
-            const score = (totalReactions * 2) + (totalComments * 3);
-            return { ...p, engagementScore: score };
-        })
+    // 1. ADMIN-FEATURED (permanent, manually marked by admin)
+    const adminFeatured = all.filter(p => p.admin_featured === true);
+
+    // 2. USER-BOOSTED (paid 50 tokens, 1 week duration)
+    const userBoosted = all.filter(p => {
+        if (!p.is_featured || !p.featured_until) return false;
+        return new Date(p.featured_until) > new Date();
+    });
+
+    // 3. ORGANIC TOP 12 (by engagement score)
+    const organicCandidates = all
+        .filter(p => !p.admin_featured && (!p.is_featured || new Date(p.featured_until) <= new Date()))
+        .map(p => ({ ...p, engagementScore: calculateEngagementScore(p) }))
         .sort((a, b) => b.engagementScore - a.engagementScore)
         .slice(0, 12);
 
-    const listRaw = [...manualFeatured, ...autoFeatured].slice(0, 12);
-    if (listRaw.length === 0) return '';
+    // Combine all three types
+    const featured = [...adminFeatured, ...userBoosted, ...organicCandidates];
+    if (featured.length === 0) return '';
 
-    const list = listRaw.length < 6 ? listRaw : listRaw.concat(listRaw);
+    // Duplicate for infinite scroll if needed
+    const list = featured.length < 6 ? featured : featured.concat(featured);
 
     return `
     <div class="container" style="margin-top:20px; margin-bottom:-10px">
         <h2 style="font-size:1.2rem; font-weight:800; color:var(--accent); letter-spacing:1px">🌟 PROMPTS DESTACADOS</h2>
     </div>
     <div class="hero-carousel">
-        <div class="carousel-track" style="${listRaw.length < 6 ? 'animation:none; justify-content:center; width:100%' : ''}">
-            ${list.map(p => {
+        <div class="carousel-track" style="${featured.length < 6 ? 'animation:none; justify-content:center; width:100%' : ''}">
+            ${list.map((p, idx) => {
         const { applyBlur, warningLabel } = getModeration(p);
+
+        // Determine badge type
+        let badge = '';
+        if (p.admin_featured) {
+            badge = `<div style="position:absolute; top:10px; left:10px; background:rgba(139,0,255,0.95); color:white; padding:6px 12px; border-radius:20px; font-size:0.75rem; font-weight:700; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.4); display:flex; align-items:center; gap:5px">⚡ Admin</div>`;
+        } else if (p.is_featured && new Date(p.featured_until) > new Date()) {
+            badge = `<div style="position:absolute; top:10px; left:10px; background:rgba(241,196,15,0.95); color:#000; padding:6px 12px; border-radius:20px; font-size:0.75rem; font-weight:700; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.4); display:flex; align-items:center; gap:5px">💎 Semana</div>`;
+        } else {
+            // Find organic rank (1-12)
+            const organicRank = organicCandidates.findIndex(oc => oc.id === p.id);
+            if (organicRank !== -1) {
+                const medals = ['🥇', '🥈', '🥉'];
+                const icon = organicRank < 3 ? medals[organicRank] : `#${organicRank + 1}`;
+                badge = `<div style="position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.8); color:white; padding:6px 12px; border-radius:50%; font-size:0.9rem; font-weight:700; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.4); min-width:40px; text-align:center">${icon}</div>`;
+            }
+        }
+
         return `
                 <div class="carousel-item ${applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" style="cursor:pointer">
                     ${renderCollage(p, true)}
                     ${applyBlur ? `<div class="blur-overlay"><span>🔞 ${warningLabel}</span></div>` : ''}
-                    ${p.is_featured ? `<div style="position:absolute; top:5px; left:5px; background:rgba(255,215,0,0.8); border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-size:0.8rem; z-index:10" title="Destacado Manual">⭐</div>` : ''}
+                    ${badge}
                 </div>`;
     }).join('')}
         </div>
@@ -635,7 +663,7 @@ const Gallery = () => {
                 
                  ${(store.currentUser?.role === 'admin' || (currentView === 'profile' && profileUser === store.currentUser?.username && profileTab === 'creations')) ? `
                  <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px; z-index:10;">
-                     ${store.currentUser?.role === 'admin' ? `<button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem; color:${p.is_featured ? 'gold' : 'white'}" onclick="event.stopPropagation(); window.doToggleFeatured('${p.id}')" title="Destacar">${p.is_featured ? '⭐' : '☆'}</button>` : ''}
+                     ${store.currentUser?.role === 'admin' ? `<button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem; color:${p.admin_featured ? 'purple' : 'white'}" onclick="event.stopPropagation(); window.doToggleFeatured('${p.id}')" title="Destacar Admin">${p.admin_featured ? '⚡' : '☆'}</button>` : ''}
                      ${(store.currentUser?.level >= 4 && p.author === store.currentUser?.username && !p.is_featured) ? `<button class="btn-icon" style="background:rgba(241,196,15,0.8); padding:5px; width:auto; height:30px; font-size:0.75rem; color:black; font-weight:700" onclick="event.stopPropagation(); window.doPromotePrompt('${p.id}')" title="Destacar por 1 semana (50 PromptBits)">💎 50 PromptBits</button>` : ''}
                      <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doEditPrompt('${p.id}')" title="Editar">✏️</button>
                      <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doDeletePrompt('${p.id}')" title="Eliminar Post">🗑️</button>
