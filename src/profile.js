@@ -1483,9 +1483,81 @@ window.openActivity = async () => {
     if (!modal) return;
     modal.style.display = 'flex';
 
-    // Fetch logs
+    // Initial fetch
     const logs = await store.getUserActivityLogs();
     renderActivityLogs(logs);
+
+    // Realtime subscription
+    store.subscribeToUserLogs((newLog) => {
+        // Prepend new log to current list (visual only)
+        const container = document.getElementById('activityList');
+        if (container) {
+            // Remove "No activity" or "Loading" msg if exists
+            const emptyMsg = container.querySelector('.empty-state');
+            if (emptyMsg) emptyMsg.remove();
+
+            // Render single log and prepend
+            const logHtml = createLogItemHtml(newLog);
+            container.insertAdjacentHTML('afterbegin', logHtml);
+        }
+    });
+};
+
+const createLogItemHtml = (log) => {
+    let icon = '📝';
+    let title = 'Acción';
+    let detail = '';
+    let color = '#888';
+
+    // Details extraction
+    const d = log.details || {};
+
+    switch (log.action) {
+        case 'login': icon = '🔑'; title = 'Iniciaste Sesión'; color = '#a29bfe'; break;
+        case 'signup': icon = '👋'; title = 'Bienvenido a Prompt Gallery'; color = '#a29bfe'; break;
+        case 'publish': icon = '🖼️'; title = 'Publicaste un Post'; detail = d.title || ''; color = '#00cec9'; break;
+        case 'comment': icon = '💬'; title = 'Comentaste'; detail = `en ${d.postTitle || 'un post'}`; break;
+        case 'like': icon = '👍'; title = 'Te gustó'; detail = `${d.postTitle || 'un post'}`; break;
+        case 'love': icon = '❤️'; title = 'Te encantó'; detail = `${d.postTitle || 'un post'}`; break;
+        case 'fire': icon = '🔥'; title = 'Diste fuego'; detail = `${d.postTitle || 'un post'}`; break;
+        case 'funny': icon = '😂'; title = 'Te divirtió'; detail = `${d.postTitle || 'un post'}`; break;
+        case 'sad': icon = '😢'; title = 'Te entristeció'; detail = `${d.postTitle || 'un post'}`; break;
+        case 'dislike': icon = '👎'; title = 'No te gustó'; detail = `${d.postTitle || 'un post'}`; break;
+        case 'follow': icon = '👤'; title = 'Seguiste a un usuario'; detail = `@${d.target || 'usuario'}`; break;
+        case 'tip': // Valid for legacy logs
+        case 'tip_sent':
+            icon = '💎';
+            color = '#fdcb6e';
+            title = `Enviaste ${d.amount} PromptBits`;
+            detail = `a @${d.recipient || 'usuario'}`;
+            break;
+        case 'tip_received':
+            icon = '🎁';
+            color = '#00b894'; // Green for receiving
+            title = `Recibiste ${d.amount} PromptBits`;
+            detail = `de @${d.sender || 'un usuario'}`;
+            break;
+        case 'level_up':
+            icon = '🆙';
+            color = '#e17055';
+            title = `¡Subiste de Nivel!`;
+            detail = `Alcanzaste el Nivel ${d.newLevel}`;
+            break;
+    }
+
+    const time = new Date(log.created_at).toLocaleString('es-MX', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    return `
+    <div style="display:flex; gap:15px; padding:15px; background:rgba(255,255,255,0.03); border-radius:8px; margin-bottom:10px; align-items:center; border-left:3px solid ${color}; animation: fadeIn 0.5s ease">
+        <div style="font-size:1.5rem">${icon}</div>
+        <div style="flex:1">
+            <div style="font-weight:600; font-size:0.9rem; color:#eee">${title}</div>
+            ${detail ? `<div style="font-size:0.8rem; color:#aaa">${detail}</div>` : ''}
+        </div>
+        <div style="font-size:0.75rem; color:#666; white-space:nowrap">${time}</div>
+    </div>`;
 };
 
 const renderActivityLogs = (logs) => {
@@ -1493,62 +1565,14 @@ const renderActivityLogs = (logs) => {
     if (!container) return;
 
     if (!logs || logs.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding:40px; color:#666">
+        container.innerHTML = `<div class="empty-state" style="text-align:center; padding:40px; color:#666">
             <div style="font-size:2rem; margin-bottom:10px">📭</div>
             No hay actividad reciente.
         </div>`;
         return;
     }
 
-    container.innerHTML = logs.map(log => {
-        let icon = '📝';
-        let title = 'Acción';
-        let detail = '';
-        let color = '#888';
-
-        // Details extraction
-        const d = log.details || {};
-
-        switch (log.action) {
-            case 'login': icon = '🔑'; title = 'Inicio de Sesión'; color = '#a29bfe'; break;
-            case 'signup': icon = '👋'; title = 'Bienvenido'; color = '#a29bfe'; break;
-            case 'publish': icon = '🖼️'; title = 'Publicó un Post'; detail = d.title || ''; color = '#00cec9'; break;
-            case 'comment': icon = '💬'; title = 'Comentó'; detail = `en ${d.postTitle || 'un post'}`; break;
-            case 'like': icon = '👍'; title = 'Le gustó'; detail = `${d.postTitle || 'un post'}`; break;
-            case 'love': icon = '❤️'; title = 'Le encantó'; detail = `${d.postTitle || 'un post'}`; break;
-            case 'fire': icon = '🔥'; title = 'Dio fuego'; detail = `${d.postTitle || 'un post'}`; break;
-            case 'funny': icon = '😂'; title = 'Le divirtió'; detail = `${d.postTitle || 'un post'}`; break;
-            case 'sad': icon = '😢'; title = 'Le entristeció'; detail = `${d.postTitle || 'un post'}`; break;
-            case 'dislike': icon = '👎'; title = 'No le gustó'; detail = `${d.postTitle || 'un post'}`; break;
-            case 'follow': icon = '👤'; title = 'Siguió a un usuario'; detail = `@${d.target || 'usuario'}`; break;
-            case 'tip':
-                icon = '💎';
-                color = '#fdcb6e';
-                title = `Envió ${d.amount} PromptBits`;
-                detail = `a @${d.recipient || 'usuario'}`;
-                break;
-            case 'level_up':
-                icon = '🆙';
-                color = '#e17055';
-                title = `Subió de Nivel`;
-                detail = `Nivel ${d.newLevel}`;
-                break;
-        }
-
-        const time = new Date(log.created_at).toLocaleString('es-MX', {
-            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
-
-        return `
-        <div style="display:flex; gap:15px; padding:15px; background:rgba(255,255,255,0.03); border-radius:8px; margin-bottom:10px; align-items:center; border-left:3px solid ${color}">
-            <div style="font-size:1.5rem">${icon}</div>
-            <div style="flex:1">
-                <div style="font-weight:600; font-size:0.9rem; color:#eee">${title}</div>
-                ${detail ? `<div style="font-size:0.8rem; color:#aaa">${detail}</div>` : ''}
-            </div>
-            <div style="font-size:0.75rem; color:#666; white-space:nowrap">${time}</div>
-        </div>`;
-    }).join('');
+    container.innerHTML = logs.map(createLogItemHtml).join('');
 };
 
 init();

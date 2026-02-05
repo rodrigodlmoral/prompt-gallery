@@ -364,6 +364,43 @@ export const store = {
         return data || [];
     },
 
+    userLogSubscription: null,
+
+    subscribeToUserLogs(callback) {
+        if (!this.currentUser) return;
+
+        // Remove existing sub if any
+        if (this.userLogSubscription) {
+            supabase.removeChannel(this.userLogSubscription);
+        }
+
+        const channel = supabase
+            .channel('user_logs_' + this.currentUser.id)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'activity_logs',
+                    filter: 'user_id=eq.' + this.currentUser.id
+                },
+                (payload) => {
+                    console.log("New User Log:", payload);
+                    callback(payload.new);
+                }
+            )
+            .subscribe();
+
+        this.userLogSubscription = channel;
+    },
+
+    unsubscribeUserLogs() {
+        if (this.userLogSubscription) {
+            supabase.removeChannel(this.userLogSubscription);
+            this.userLogSubscription = null;
+        }
+    },
+
     privateLogSubscription: null,
 
     subscribeToLogs(callback) {
