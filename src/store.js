@@ -25,6 +25,8 @@ const store = {
             .single();
 
         if (profile) {
+            // Normalize avatar field
+            profile.avatar = profile.avatar_url || profile.avatar;
             this.currentUser = profile;
         } else {
             console.warn("Perfil no encontrado o error:", error);
