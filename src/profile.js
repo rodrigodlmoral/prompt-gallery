@@ -897,6 +897,15 @@ window.doCopyPrompt = async () => {
     const text = p.type === 'sequence' ? p.content[currentSeqStep]?.prompt : p.prompt;
     await navigator.clipboard.writeText(text || '');
     await store.incrementCopyCount(currentId);
+
+    // Track Event in GA4
+    window.trackEvent('copy_prompt', {
+        id: p.id,
+        title: p.title,
+        author: p.author,
+        tool: p.tool
+    });
+
     window.toast("¡Copiado!", "success");
     render();
 };
@@ -1261,6 +1270,14 @@ window.doPublish = () => {
                 window.closeModals();
                 await store.init(); // Refresh data
                 render();
+
+                // Track Event in GA4
+                window.trackEvent('publish_post', {
+                    title: title,
+                    tool: tool,
+                    type: 'single'
+                });
+
                 if (res.leveledUp) {
                     setTimeout(() => window.showLevelUpModal(res.newLevel), 500);
                 }
@@ -1310,6 +1327,14 @@ window.doPublish = () => {
                         window.closeModals();
                         await store.init();
                         render();
+
+                        // Track Event in GA4
+                        window.trackEvent('publish_post', {
+                            title: title,
+                            tool: tool,
+                            type: 'sequence',
+                            steps: steps.length
+                        });
                     }
                 }
             };

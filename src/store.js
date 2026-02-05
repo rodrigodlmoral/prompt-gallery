@@ -1,5 +1,12 @@
-
 import { supabase } from './supabase.js';
+
+// --- GOOGLE ANALYTICS HELPER ---
+window.trackEvent = (name, params = {}) => {
+    if (typeof window.gtag === 'function') {
+        window.gtag('event', name, params);
+        console.log(`[GA4] Event tracked: ${name}`, params);
+    }
+};
 
 // STORE (Estado global simple)
 const store = {
@@ -95,6 +102,9 @@ const store = {
                     details: details
                 }
             ]);
+
+            // Track in Google Analytics automatically
+            window.trackEvent(action, details);
         } catch (err) {
             console.warn("Failed to log activity:", err);
         }

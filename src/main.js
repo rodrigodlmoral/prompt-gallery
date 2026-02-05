@@ -1621,6 +1621,13 @@ window.doPublish = () => {
                 await store.loadUsers();
                 render();
 
+                // Track Event in GA4
+                window.trackEvent('publish_post', {
+                    title: title,
+                    tool: tool,
+                    type: 'single'
+                });
+
                 if (res.leveledUp) {
                     setTimeout(() => window.showLevelUpModal(res.newLevel), 500);
                 }
@@ -1664,6 +1671,14 @@ window.doPublish = () => {
                             seqStepCount = 0;
                             window.closeModals();
                             render();
+
+                            // Track Event in GA4
+                            window.trackEvent('publish_post', {
+                                title: title,
+                                tool: tool,
+                                type: 'sequence',
+                                steps: steps.length
+                            });
                         }
                     });
                 }
@@ -2106,6 +2121,14 @@ window.doCopyPrompt = async (idFromMenu) => {
             btn.innerText = "✅ ¡Copiado!";
             setTimeout(() => btn.innerText = oldText, 2000);
         }
+
+        // Track Event in GA4
+        window.trackEvent('copy_prompt', {
+            id: p.id,
+            title: p.title,
+            author: p.author,
+            tool: p.tool
+        });
 
         // Incrementar contador
         await store.incrementCopyCount(targetId);
