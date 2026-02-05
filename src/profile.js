@@ -195,7 +195,12 @@ const ProfileHeader = () => {
                     </div>` : ''}
 
                     ${!isMe ? `<button class="btn" style="margin-top:15px" onclick="window.doFollow('${user.username}')">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
-            : `<button class="btn-outline" style="margin-top:15px" onclick="window.openSettings()">⚙️ Configurar Perfil</button>`}
+            : `
+            <div style="display:flex; gap:10px; margin-top:15px">
+                <button class="btn-outline" onclick="window.openActivity()">📜 Actividad</button>
+                <button class="btn-outline" onclick="window.openSettings()">⚙️ Configurar</button>
+            </div>
+            `}
                 </div>
             </div>
             <div style="display:flex; gap:20px; border-bottom:1px solid #333">
@@ -543,7 +548,7 @@ const ConfirmModal = () => `
 
 // --- LOGIC ---
 const render = () => {
-    app.innerHTML = Header() + ProfileHeader() + Gallery() + DetailModalTemplate() + SettingsModal() + CreateModal() + ConfirmModal();
+    app.innerHTML = Header() + ProfileHeader() + Gallery() + DetailModalTemplate() + SettingsModal() + CreateModal() + ConfirmModal() + ActivityModal();
     attachEvents();
 };
 
@@ -1456,6 +1461,94 @@ const init = async () => {
         await store.fetchUserProfileByUsername(profileUser);
     }
     render();
+};
+
+// --- USER ACTIVITY LOGS ---
+
+const ActivityModal = () => `
+<div id="activityModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) document.getElementById('activityModal').style.display='none'">
+    <div class="modal-container" style="max-width:500px; height:80vh; display:flex; flex-direction:column">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px">
+            <h2 style="margin:0">📜 Mi Actividad</h2>
+            <button class="modal-close-x" onclick="document.getElementById('activityModal').style.display='none'" style="position:static">✕</button>
+        </div>
+        <div id="activityList" style="flex:1; overflow-y:auto; padding-right:5px">
+            <div style="text-align:center; padding:20px; color:#666">Cargando...</div>
+        </div>
+    </div>
+</div>`;
+
+window.openActivity = async () => {
+    const modal = document.getElementById('activityModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+
+    // Fetch logs
+    const logs = await store.getUserActivityLogs();
+    renderActivityLogs(logs);
+};
+
+const renderActivityLogs = (logs) => {
+    const container = document.getElementById('activityList');
+    if (!container) return;
+
+    if (!logs || logs.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:40px; color:#666">
+            <div style="font-size:2rem; margin-bottom:10px">📭</div>
+            No hay actividad reciente.
+        </div>`;
+        return;
+    }
+
+    container.innerHTML = logs.map(log => {
+        let icon = '📝';
+        let title = 'Acción';
+        let detail = '';
+        let color = '#888';
+
+        // Details extraction
+        const d = log.details || {};
+
+        switch (log.action) {
+            case 'login': icon = '🔑'; title = 'Inicio de Sesión'; color = '#a29bfe'; break;
+            case 'signup': icon = '👋'; title = 'Bienvenido'; color = '#a29bfe'; break;
+            case 'publish': icon = '🖼️'; title = 'Publicó un Post'; detail = d.title || ''; color = '#00cec9'; break;
+            case 'comment': icon = '💬'; title = 'Comentó'; detail = `en ${d.postTitle || 'un post'}`; break;
+            case 'like': icon = '👍'; title = 'Le gustó'; detail = `${d.postTitle || 'un post'}`; break;
+            case 'love': icon = '❤️'; title = 'Le encantó'; detail = `${d.postTitle || 'un post'}`; break;
+            case 'fire': icon = '🔥'; title = 'Dio fuego'; detail = `${d.postTitle || 'un post'}`; break;
+            case 'funny': icon = '😂'; title = 'Le divirtió'; detail = `${d.postTitle || 'un post'}`; break;
+            case 'sad': icon = '😢'; title = 'Le entristeció'; detail = `${d.postTitle || 'un post'}`; break;
+            case 'dislike': icon = '👎'; title = 'No le gustó'; detail = `${d.postTitle || 'un post'}`; break;
+            case 'follow': icon = '👤'; title = 'Siguió a un usuario'; detail = `@${d.target || 'usuario'}`; break;
+            case 'tip':
+                icon = '💎';
+                color = '#fdcb6e';
+                title = `Envió ${d.amount} PromptBits`;
+                detail = `a @${d.recipient || 'usuario'}`;
+                break;
+            case 'level_up':
+                icon = '🆙';
+                color = '#e17055';
+                title = `Subió de Nivel`;
+                detail = `Nivel ${d.newLevel}`;
+                break;
+        }
+
+        const time = new Date(log.created_at).toLocaleString('es-MX', {
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+
+        return `
+        <div style="display:flex; gap:15px; padding:15px; background:rgba(255,255,255,0.03); border-radius:8px; margin-bottom:10px; align-items:center; border-left:3px solid ${color}">
+            <div style="font-size:1.5rem">${icon}</div>
+            <div style="flex:1">
+                <div style="font-weight:600; font-size:0.9rem; color:#eee">${title}</div>
+                ${detail ? `<div style="font-size:0.8rem; color:#aaa">${detail}</div>` : ''}
+            </div>
+            <div style="font-size:0.75rem; color:#666; white-space:nowrap">${time}</div>
+        </div>`;
+    }).join('');
 };
 
 init();

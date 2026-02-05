@@ -346,6 +346,24 @@ export const store = {
         return data || [];
     },
 
+    async getUserActivityLogs() {
+        if (!this.currentUser) return [];
+
+        // RLS ensures we only see our own logs, but adding .eq() is good practice and index-friendly
+        const { data, error } = await supabase
+            .from('activity_logs')
+            .select('*')
+            .eq('user_id', this.currentUser.id)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (error) {
+            console.error("Error fetching user logs:", error);
+            return [];
+        }
+        return data || [];
+    },
+
     privateLogSubscription: null,
 
     subscribeToLogs(callback) {
