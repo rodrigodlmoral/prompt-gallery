@@ -499,6 +499,48 @@ const store = {
         if (error) {
             console.error("Error persisting user:", error);
         }
+    },
+
+    // --- AUTHENTICATION ---
+    async login(email, password) {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) return { success: false, msg: error.message };
+
+        await this._loadUserProfile(data.user.id);
+        location.reload();
+        return { success: true };
+    },
+
+    async register(email, username, password) {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) return { success: false, msg: error.message };
+
+        // Create profile
+        const { error: profileError } = await supabase.from('profiles').insert([{
+            id: data.user.id,
+            username: username,
+            email: email,
+            level: 0,
+            xp: 0,
+            tokens: 100
+        }]);
+
+        if (profileError) return { success: false, msg: profileError.message };
+
+        alert("¡Registro exitoso! Revisa tu email para confirmar tu cuenta.");
+        return { success: true };
+    },
+
+    async logout() {
+        await supabase.auth.signOut();
+        this.currentUser = null;
+        location.reload();
+    },
+
+    async recoverPassword(email) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        if (error) return { success: false, msg: error.message };
+        return { success: true, msg: "Email de recuperación enviado. Revisa tu bandeja de entrada." };
     }
 };
 
