@@ -58,7 +58,7 @@ const RATINGS = ['SFW / Apto', 'Sugestivo', 'NSFW / +18'];
 
 const LEVEL_REQS = [
     { posts: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
-    { posts: 10, name: 'Iniciado', benefits: ['Publicar Secuencias (Multi-imagen)', 'Acceso a retos semanales'], icon: '🎖️', color: '#4caf50' },
+    { posts: 10, name: 'Iniciado', benefits: ['Publicar Secuencias (Multi-imagen)'], icon: '🎖️', color: '#4caf50' },
     { posts: 25, name: 'Principiante', benefits: ['Cambiar foto de perfil', 'Añadir redes sociales al perfil'], icon: '🏅', color: '#2196f3' },
     { posts: 50, name: 'Contribuidor', benefits: ['Sin cooldown en comentarios', 'Medalla especial de plata'], icon: '🥇', color: '#ff9800' },
     { posts: 100, name: 'Autor', benefits: ['Destacar tus propios posts (Self-Promo)', 'Panel de estadísticas avanzado'], icon: '💎', color: '#9c27b0' },
