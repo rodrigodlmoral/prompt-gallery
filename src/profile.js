@@ -865,14 +865,14 @@ window.updateSeqDisplay = (p) => {
 };
 
 window.prevSeqStep = () => {
-    const p = store.prompts.find(x => x.id === currentId);
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
     if (!p || p.type !== 'sequence') return;
     currentSeqStep = (currentSeqStep - 1 + p.content.length) % p.content.length;
     window.updateSeqDisplay(p);
 };
 
 window.nextSeqStep = () => {
-    const p = store.prompts.find(x => x.id === currentId);
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
     if (!p || p.type !== 'sequence') return;
     currentSeqStep = (currentSeqStep + 1) % p.content.length;
     window.updateSeqDisplay(p);
@@ -892,7 +892,7 @@ window.doSavePrompt = async () => {
 };
 
 window.doCopyPrompt = async () => {
-    const p = store.prompts.find(x => x.id === currentId);
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
     if (!p) return;
     const text = p.type === 'sequence' ? p.content[currentSeqStep]?.prompt : p.prompt;
     await navigator.clipboard.writeText(text || '');

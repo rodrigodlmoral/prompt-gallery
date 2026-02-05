@@ -51,18 +51,18 @@ const store = {
 
         let { data, error } = await supabase
             .from('prompts')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .select('*, profiles(username, avatar_url, level)')
+            .order('created_at', { ascending: false })
+            .limit(100);
 
         if (error) {
             console.error("Error loading prompts:", error);
-            // Fallback empty
             this.prompts = [];
         } else {
             this.prompts = (data || []).map(p => ({
                 ...p,
                 image: p.image_url || p.image, // Fallback for stability
-                author: p.author_name || 'Desconocido' // También el autor
+                author: p.author || p.profiles?.username || p.author_name || 'Explorador'
             }));
         }
         return this.prompts;
@@ -74,17 +74,22 @@ const store = {
             return this.usersCache[username];
         }
 
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('username', username)
-            .single();
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('username', username)
+                .single();
 
-        if (data) {
-            // Normalizar nivel (Frontend calculation)
-            this.usersCache[username] = window.normalizeProfile ? window.normalizeProfile(data) : data;
-            this.usersCache[username]._fetchedAt = Date.now();
-            return this.usersCache[username];
+            if (data) {
+                // Normalizar nivel (Frontend calculation)
+                const normalized = window.normalizeProfile ? window.normalizeProfile(data) : data;
+                this.usersCache[username] = normalized;
+                this.usersCache[username]._fetchedAt = Date.now();
+                return this.usersCache[username];
+            }
+        } catch (err) {
+            console.warn("Error fetching user profile:", err);
         }
         return null;
     },
@@ -356,7 +361,7 @@ const store = {
         if (!this.currentUser) return { success: false, msg: 'Inicia sesión' };
         if (this.currentUser.tokens < 50) return { success: false, msg: 'Insuficientes PromptBits (Req: 50)' };
 
-        const prompt = this.prompts.find(p => p.id === postId);
+        const prompt = this.prompts.find(p => String(p.id) === String(postId));
         if (!prompt) return { success: false, msg: 'Post no encontrado' };
 
         // Calculate expiration (1 week)

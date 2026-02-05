@@ -2111,7 +2111,7 @@ window.doCopyPrompt = async (idFromMenu) => {
         textToCopy = p.prompt || '';
     }
 
-    const btn = event?.currentTarget;
+    const btn = window.event?.currentTarget;
 
     try {
         await navigator.clipboard.writeText(textToCopy);
@@ -2492,14 +2492,15 @@ window.doDeleteAccount = () => {
 window.doReact = (type) => {
     if (!store.currentUser) return alert("Inicia sesión para reaccionar");
     store.toggleReaction(currentId, type);
-    const p = store.prompts.find(x => x.id === currentId);
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
     if (p) {
         const user = store.currentUser?.username;
         const myReaction = (p.userReactions && user) ? p.userReactions[user] : null;
         ['like', 'love', 'fire', 'funny'].forEach(t => {
             const el = document.getElementById(`det-${t}-count`);
             const btn = document.getElementById(`btn-react-${t}`);
-            if (el) el.innerText = p.reactions ? (p.reactions[t] || 0) : 0;
+            const reactions = p.reactions || {};
+            if (el) el.innerText = reactions[t] || 0;
             if (btn) {
                 if (myReaction === t) btn.classList.add('active');
                 else btn.classList.remove('active');
