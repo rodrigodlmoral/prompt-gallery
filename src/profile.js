@@ -260,7 +260,7 @@ const Gallery = () => {
 window.doEditPrompt = (id) => {
     isEditing = true;
     editingId = id;
-    const p = store.prompts.find(x => x.id === id);
+    const p = store.prompts.find(x => String(x.id) === String(id));
     if (!p) return;
 
     // Reuse Create Modal
@@ -269,6 +269,9 @@ window.doEditPrompt = (id) => {
     document.getElementById('upTool').value = p.tool;
     document.getElementById('upRating').value = p.rating || 'SFW / Apto';
     document.getElementById('upPrompt').value = p.prompt || '';
+    if (document.getElementById('upNegPrompt')) {
+        document.getElementById('upNegPrompt').value = p.negative_prompt || '';
+    }
     document.getElementById('upPrivate').checked = p.isPrivate;
     document.getElementById('upReference').checked = p.needsReference;
 
@@ -327,11 +330,13 @@ window.doUpdate = async () => {
         const tool = document.getElementById('upTool').value;
         if (!title) return alert("El título es obligatorio");
 
-        const p = store.prompts.find(x => x.id === editingId);
+        const p = store.prompts.find(x => String(x.id) === String(editingId));
         if (!p) return;
 
         const data = {
-            title, tool, rating: document.getElementById('upRating').value, prompt: document.getElementById('upPrompt').value,
+            title, tool, rating: document.getElementById('upRating').value,
+            prompt: document.getElementById('upPrompt').value,
+            negative_prompt: document.getElementById('upNegPrompt')?.value || '',
             isPrivate: document.getElementById('upPrivate').checked,
             needsReference: document.getElementById('upReference').checked,
             type: p.type
@@ -378,7 +383,7 @@ const finishUpdate = () => {
 };
 
 window.doDeletePrompt = async (id) => {
-    if (confirm('¿Eliminar este post permanentemente?')) {
+    if (await window.askConfirm('¿Eliminar este post permanentemente?', '🗑️')) {
         const res = await store.removePrompt(id);
         if (res.success) {
             if (id === currentId) window.closeModals();
@@ -390,7 +395,7 @@ window.doDeletePrompt = async (id) => {
 };
 
 window.doPromotePrompt = async (id) => {
-    if (confirm('¿Destacar este prompt por 1 semana (Costo: 50 PromptBits)?')) {
+    if (await window.askConfirm('¿Destacar este prompt por 1 semana (Costo: 50 PromptBits)?', '💎')) {
         const res = await store.promotePrompt(id);
         if (res.success) {
             alert("🚀 ¡Prompt destacado con éxito!");
@@ -1439,10 +1444,13 @@ window.doChangePassword = () => {
     store.changePassword(np);
 };
 
-window.doDeleteAccount = () => {
-    if (prompt("Escribe ELIMINAR") === 'ELIMINAR') {
-        store.deleteAccount();
-        window.location.href = '/';
+window.doDeleteAccount = async () => {
+    if (await window.askConfirm('⚠️ PELIGRO ⚠️\n¿Eliminar tu cuenta permanentemente?\nEsta acción NO se puede deshacer.', '🔥')) {
+        const confirmation = prompt("Escribe 'ELIMINAR' para confirmar borrado total:");
+        if (confirmation === 'ELIMINAR') {
+            store.deleteAccount();
+            window.location.href = '/';
+        }
     }
 };
 
