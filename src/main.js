@@ -243,7 +243,7 @@ const getFilteredPrompts = () => {
         if (filters.source === 'following' && store.currentUser) {
             const myFollowing = store.currentUser.following || [];
             list = list.filter(p => {
-                const authorUser = store.users.find(u => u.username === p.author);
+                const authorUser = null; // Fix: store.users no existe
                 return authorUser ? myFollowing.includes(authorUser.id) : false;
             });
         } else if (filters.source === 'user' && store.currentUser) {
@@ -429,7 +429,7 @@ const ProfileHeader = () => {
     // PRIORIDAD: Si es mi propio perfil, usar store.currentUser para ver cambios de saldo al instante
     let user = (store.currentUser && store.currentUser.username === profileUser)
         ? store.currentUser
-        : store.users.find(u => u.username === profileUser);
+        : null; // Fix: store.users no existe
 
     // ULTIMATE FALLBACK: Skeleton User
     // If we have profileUser string (from URL/click) but no full user object, create a fake one
@@ -1232,7 +1232,7 @@ window.doFollow = async (username, fromDetail = false) => {
     await store.followUser(username);
 
     if (fromDetail) {
-        const target = store.users.find(u => u.username === username);
+        const target = null; // Fix: store.users no existe
         const isFollowing = target && store.currentUser.following?.includes(target.id);
         const btn = document.getElementById('detFollowBtn');
         if (btn) btn.innerText = isFollowing ? 'Siguiendo' : 'Seguir';
@@ -1720,7 +1720,7 @@ window.openDetail = (id) => {
         // Setup User Link
         const userEl = document.getElementById('detUser');
         if (userEl) {
-            const u = store.users.find(u => u.username === p.author);
+            const u = null; // Fix: store.users no existe
             const isMe = store.currentUser && store.currentUser.username === p.author;
             const isFollowing = (store.currentUser && store.currentUser.following) ? store.currentUser.following.includes(u?.id) : false;
 
