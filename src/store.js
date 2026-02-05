@@ -496,3 +496,4 @@ const store = {
 
 // Export globally
 window.store = store;
+export { store };
