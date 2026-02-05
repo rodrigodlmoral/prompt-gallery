@@ -50,7 +50,11 @@ const store = {
             // Fallback empty
             this.prompts = [];
         } else {
-            this.prompts = data || [];
+            this.prompts = (data || []).map(p => ({
+                ...p,
+                image: p.image_url || p.image, // Fallback for stability
+                author: p.author_name || 'Desconocido' // También el autor
+            }));
         }
         return this.prompts;
     },
