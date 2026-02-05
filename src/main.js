@@ -265,14 +265,14 @@ const getFilteredPrompts = () => {
         // En perfil, el filtro 'user' es implícito o forzado
         list = list.filter(p => {
             // CRITICAL FIX: Hide private posts unless viewer is the author
-            if (p.isPrivate) {
+            if (p.isPrivate || p.is_private) {
                 if (!store.currentUser || store.currentUser.username !== p.author) return false;
             }
             return profileTab === 'creations' ? p.author === profileUser : p.savedBy?.includes(profileUser);
         });
     } else {
         // Main Feed Filtering
-        list = list.filter(p => !p.isPrivate);
+        list = list.filter(p => !(p.isPrivate || p.is_private));
         if (filters.source === 'following' && store.currentUser) {
             const myFollowing = store.currentUser.following || [];
             list = list.filter(p => {

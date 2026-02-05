@@ -64,17 +64,17 @@ const store = {
                 title: p.title,
                 prompt: p.prompt,
                 negative_prompt: p.negative_prompt,
-                image: p.image,
+                image: p.image_url || p.image, // Normalización de campo de imagen
                 author: p.author_name || p.expand?.author?.username || 'Explorador',
                 author_id: p.author,
-                createdAt: new Date(p.created).getTime(),
-                created_at: p.created, // Mantener ambos por compatibilidad
+                createdAt: new Date(p.created || p.created_at_original).getTime(),
+                created_at: p.created,
                 reactions: p.reactions || { like: 0, love: 0, fire: 0, funny: 0 },
                 comments: p.comments || [],
                 savedBy: p.saved_by || [],
-                saved_by: p.saved_by || [], // Redundancia para evitar errores en main.js/profile.js
+                saved_by: p.saved_by || [],
                 type: p.type || 'single',
-                is_private: p.is_private || false,
+                isPrivate: p.is_private || p.isPrivate || false, // Normalización de privacidad
                 admin_featured: p.admin_featured || false,
                 is_featured: p.is_featured || false,
                 featured_until: p.featured_until || null,
