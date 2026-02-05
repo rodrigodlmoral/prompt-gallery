@@ -453,6 +453,10 @@ const store = {
             if (postId) reloadPromises.push(this.loadPrompts());
 
             await Promise.all(reloadPromises);
+
+            // Track in Google Analytics (Manual addition since sendTip skipped logActivity)
+            window.trackEvent('send_tip', activityDetails);
+
             return { success: true, msg: data.msg || '¡Propina enviada con éxito! 💎' };
         } else {
             return { success: false, msg: data?.msg || 'Error en la transferencia' };
