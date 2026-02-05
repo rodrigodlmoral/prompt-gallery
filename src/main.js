@@ -434,9 +434,24 @@ const HeroCarousel = () => {
             // Find organic rank (1-12)
             const organicRank = organicCandidates.findIndex(oc => oc.id === p.id);
             if (organicRank !== -1) {
-                const medals = ['🥇', '🥈', '🥉'];
-                const icon = organicRank < 3 ? medals[organicRank] : `#${organicRank + 1}`;
-                badge = `<div style="position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.8); color:white; padding:6px 12px; border-radius:50%; font-size:0.9rem; font-weight:700; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.4); min-width:40px; text-align:center">${icon}</div>`;
+                const rankNumber = organicRank + 1;
+
+                // Color mapping for top 3
+                let rankStyle = 'background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.2);';
+                let textColor = '#fff';
+
+                if (rankNumber === 1) {
+                    rankStyle = 'background: linear-gradient(135deg, #FFD700 0%, #FF8C00 100%); border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 0 15px rgba(255, 140, 0, 0.5);';
+                    textColor = '#000';
+                } else if (rankNumber === 2) {
+                    rankStyle = 'background: linear-gradient(135deg, #E0E0E0 0%, #808080 100%); border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 0 15px rgba(128, 128, 128, 0.5);';
+                    textColor = '#000';
+                } else if (rankNumber === 3) {
+                    rankStyle = 'background: linear-gradient(135deg, #CD7F32 0%, #8B4513 100%); border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 0 15px rgba(139, 69, 19, 0.5);';
+                    textColor = '#000';
+                }
+
+                badge = `<div style="position:absolute; top:10px; left:10px; ${rankStyle} color:${textColor}; width:34px; height:34px; border-radius:50%; font-size:1.1rem; font-weight:900; z-index:10; display:flex; align-items:center; justify-content:center; font-family:'Outfit', sans-serif;">${rankNumber}</div>`;
             }
         }
 
