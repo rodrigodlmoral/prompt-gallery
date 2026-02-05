@@ -1296,40 +1296,108 @@ window.togglePass = (id, btn) => {
 };
 
 window.openLevelProgress = () => {
-    if (!store.currentUser) return;
+    console.log("🚀 openLevelProgress triggered (Profile Mode)");
+    if (!store.currentUser) { alert("Error: No has iniciado sesión."); return; }
+
+    // Bloquear scroll del fondo
+    document.body.style.overflow = 'hidden';
+
+    // Clean old instances
+    const oldModal = document.getElementById('levelModalDynamic');
+    if (oldModal) oldModal.remove();
+
     const u = store.currentUser;
     const count = u.prompts_count || 0;
     const currentLvl = u.level || 0;
+
+    // Find next level
     const nextLvlReq = LEVEL_REQS.find(l => l.posts > count) || LEVEL_REQS[LEVEL_REQS.length - 1];
     const isMax = count >= LEVEL_REQS[LEVEL_REQS.length - 1].posts;
-    const prevReq = LEVEL_REQS[currentLvl].posts;
-    const nextReq = nextLvlReq.posts;
-    const progressPercent = isMax ? 100 : Math.min(100, Math.max(0, ((count - prevReq) / (nextReq - prevReq)) * 100));
 
-    const existing = document.getElementById('levelModalDynamic');
-    if (existing) existing.remove();
+    let progressPercent = 0;
+    if (isMax) {
+        progressPercent = 100;
+    } else {
+        const prevReq = LEVEL_REQS[currentLvl].posts;
+        const nextReq = nextLvlReq.posts;
+        progressPercent = Math.min(100, Math.max(0, ((count - prevReq) / (nextReq - prevReq)) * 100));
+    }
+
+    const html = `
+        <div style="text-align:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #222">
+            <div style="font-size:3.5rem; margin-bottom:10px">${LEVEL_REQS[currentLvl].icon}</div>
+            <h2 style="margin:0; font-size:1.8rem; color:#fff">Nivel ${currentLvl}</h2>
+            <p style="color:#aaa; margin-top:5px; font-weight:600; text-transform:uppercase; letter-spacing:1px">${LEVEL_REQS[currentLvl].name}</p>
+        </div>
+
+        <div style="background:#000; padding:25px; border-radius:16px; border:1px solid #333; margin-bottom:25px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5)">
+            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
+                <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Hacia Nivel ' + (currentLvl + 1)}</span>
+                <span style="color:#2563eb">${count} / ${isMax ? '∞' : nextLvlReq.posts} Posts</span>
+            </div>
+            <div style="width:100%; height:16px; background:#222; border-radius:8px; overflow:hidden; border:1px solid #333">
+                <div style="width:${progressPercent}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1.5s cubic-bezier(0.19, 1, 0.22, 1)"></div>
+            </div>
+            ${!isMax ? `<p style="font-size:0.9rem; color:#888; margin-top:12px; text-align:center">¡Sigue así! Te faltan <strong>${nextLvlReq.posts - count}</strong> publicaciones para subir de rango.</p>` : ''}
+        </div>
+
+        <h3 style="font-size:1.2rem; margin-bottom:18px; color:#fff; display:flex; align-items:center; gap:10px">
+            <span>Beneficios y Jerarquía</span>
+            <div style="flex:1; height:1px; background:#222"></div>
+        </h3>
+        
+        <div style="display:flex; flex-direction:column; gap:12px">
+            ${LEVEL_REQS.map((l, idx) => {
+        const isUnlocked = count >= l.posts;
+        const isCurrent = currentLvl === idx;
+        return `
+                <div style="display:flex; gap:15px; align-items:start; padding:15px; border-radius:12px; border:1px solid ${isCurrent ? '#2563eb' : (isUnlocked ? '#333' : '#1a1a1a')}; background:${isCurrent ? 'rgba(37, 99, 235, 0.1)' : (isUnlocked ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.3)')}; opacity:${isUnlocked ? 1 : 0.4}; transition:0.3s">
+                    <div style="font-size:1.6rem; background:#111; min-width:50px; height:50px; border-radius:10px; display:flex; align-items:center; justify-content:center; border:2px solid ${l.color}">${l.icon}</div>
+                    <div style="flex:1">
+                        <div style="display:flex; justify-content:space-between; align-items:center">
+                            <strong style="color:${l.color}; font-size:1.05rem;">Nivel ${idx}: ${l.name}</strong>
+                            <span style="font-size:0.75rem; background:#333; color:#fff; padding:3px 10px; border-radius:100px; font-weight:700">${l.posts} Posts</span>
+                        </div>
+                        <ul style="margin:8px 0 0 0; padding-left:18px; font-size:0.9rem; color:#999; line-height:1.4">
+                            ${l.benefits.map(b => `<li>${b}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>`;
+    }).join('')}
+        </div>
+
+        <button class="btn" style="width:100%; margin-top:30px; height:54px; font-weight:800; font-size:1.1rem; background:#2563eb; color:white; border:none; border-radius:14px; cursor:pointer; box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2)" onclick="window.closeLevelProgress(this)">Entendido</button>
+    `;
+
+    window.closeLevelProgress = (btn) => {
+        btn.closest('.modal-overlay').remove();
+        document.body.style.overflow = '';
+    };
 
     const modalDiv = document.createElement('div');
     modalDiv.id = 'levelModalDynamic';
     modalDiv.className = 'modal-overlay';
-    modalDiv.style.zIndex = 2147483647;
+    modalDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; z-index:2147483647; padding:20px; color:white; font-family:Inter, sans-serif;';
+
+    modalDiv.onclick = (e) => {
+        if (e.target === modalDiv) {
+            modalDiv.remove();
+            document.body.style.overflow = '';
+        }
+    };
+
     modalDiv.innerHTML = `
-        <div class="modal-container" style="max-width:550px">
-            <div style="text-align:center; margin-bottom:20px">
-                <div style="font-size:3rem">${LEVEL_REQS[currentLvl].icon}</div>
-                <h2>Nivel ${currentLvl}: ${LEVEL_REQS[currentLvl].name}</h2>
-            </div>
-            <div style="background:#000; padding:20px; border-radius:12px; border:1px solid #333; margin-bottom:20px">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px">
-                    <span>${isMax ? 'Rango Ápice' : 'Próximo Nivel'}</span>
-                    <span>${count} / ${isMax ? '∞' : nextReq} Posts</span>
-                </div>
-                <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden">
-                    <div style="width:${progressPercent}%; height:100%; background:var(--accent); transition:0.5s"></div>
-                </div>
-            </div>
-            <button class="btn" style="width:100%" onclick="document.getElementById('levelModalDynamic').remove()">Cerrar</button>
-        </div>`;
+        <style>
+            #levelModalDynamic .modal-container::-webkit-scrollbar { width: 6px; }
+            #levelModalDynamic .modal-container::-webkit-scrollbar-track { background: transparent; }
+            #levelModalDynamic .modal-container::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+            #levelModalDynamic .modal-container::-webkit-scrollbar-thumb:hover { background: #444; }
+        </style>
+        <div class="modal-container" style="max-width:550px; background:#111; border:1px solid #333; border-radius:28px; width:100%; padding:35px; max-height:85vh; overflow-y:auto; box-shadow: 0 30px 60px rgba(0,0,0,0.8); position:relative; scroll-behavior: smooth;">
+            ${html}
+        </div>
+    `;
+
     document.body.appendChild(modalDiv);
 };
 
