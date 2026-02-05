@@ -1258,7 +1258,12 @@ export const store = {
                 this._loadUserProfile(this.currentUser.id)
             ];
 
-            this.logActivity('tip', activityDetails);
+            // LOGGING STRATEGY:
+            // - Post Tips: Log via Frontend (Legacy)
+            // - Direct Tips: Log via Backend (SQL) to ensure atomic recipient log
+            if (postId) {
+                this.logActivity('tip', activityDetails);
+            }
 
             if (authorUsername) {
                 reloadPromises.push(this.fetchUserProfileByUsername(authorUsername));
