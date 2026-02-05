@@ -443,11 +443,8 @@ const store = {
             ];
 
             // LOGGING STRATEGY:
-            // - Post Tips: Log via Frontend (Legacy)
-            // - Direct Tips: Log via Backend (SQL) to ensure atomic recipient log
-            if (postId) {
-                this.logActivity('tip', activityDetails);
-            }
+            // All logging is now handled by SQL functions (transfer_prompt_bits and transfer_prompt_bits_direct)
+            // No frontend logging needed to avoid duplicates
 
             if (authorUsername) {
                 reloadPromises.push(this.fetchUserProfileByUsername(authorUsername));
