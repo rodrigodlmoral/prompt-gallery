@@ -54,11 +54,15 @@ const store = {
 
     async loadPrompts() {
         try {
-            const records = await pb.collection('prompts').getList(1, 100, {
-                sort: '-created'
+            // NO usar sort: '-created' porque causa error 400 en PocketHost
+            const records = await pb.collection('prompts').getList(1, 100);
+
+            // Ordenar en el cliente
+            const sortedItems = records.items.sort((a, b) => {
+                return new Date(b.created) - new Date(a.created);
             });
 
-            this.prompts = records.items.map(p => ({
+            this.prompts = sortedItems.map(p => ({
                 id: p.id,
                 title: p.title,
                 prompt: p.prompt,
