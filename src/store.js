@@ -1,4 +1,6 @@
 
+import { supabase } from './supabase.js';
+
 // STORE (Estado global simple)
 const store = {
     prompts: [],
