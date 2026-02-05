@@ -157,7 +157,10 @@ const store = {
                 },
                 (payload) => {
                     console.log("Realtime Log:", payload);
-                    callback(payload.new);
+                    // CRITICAL FIX: Only process logs for current user
+                    if (payload.new.user_id === this.currentUser.id) {
+                        callback(payload.new);
+                    }
                 }
             )
             .subscribe((status) => {
