@@ -55,8 +55,7 @@ const store = {
     async loadPrompts() {
         try {
             const records = await pb.collection('prompts').getList(1, 100, {
-                sort: '-created',
-                expand: 'author'
+                sort: '-created'
             });
 
             this.prompts = records.items.map(p => ({
