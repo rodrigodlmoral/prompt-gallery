@@ -1,0 +1,28 @@
+{
+    "manifest_version": 3,
+    "name": "Prompt Gallery Extension",
+    "version": "1.0",
+    "description": "Tu galería de prompts siempre a la mano en el panel lateral.",
+    "permissions": [
+        "sidePanel"
+    ],
+    "side_panel": {
+        "default_path": "sidepanel.html"
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_title": "Abrir Prompt Gallery",
+        "default_icon": {
+            "16": "icon.png",
+            "48": "icon.png",
+            "128": "icon.png"
+        }
+    },
+    "icons": {
+        "16": "icon.png",
+        "48": "icon.png",
+        "128": "icon.png"
+    }
+}
