@@ -12,7 +12,8 @@ let currentSeqStep = 0;
 let currentTipPostId = null;
 window.sliderUnlocked = false;
 let seqStepCount = 0;
-let isEditing = false; // Required for doPublish compatibility
+let isEditing = false;
+let editingId = null;
 
 // --- CONSTANTS ---
 const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.0', 'SDXL', 'Flux', 'Midjourney', 'Huggingface', 'Fooocus', 'ComfyUI', 'Perchance', 'Otro'];
@@ -25,6 +26,10 @@ NSFW / +18 (No Safe for Work): La categoría máxima. Imágenes que muestran des
 const INFO_ICON = `<span title='${RATING_INFO}' style="text-decoration:none; color:white; background:#0070ba; width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; margin-left:8px; font-weight:bold; cursor:default; font-size:12px">¡</span>`;
 
 // --- HELPERS ---
+window.openUserProfile = (username) => {
+    window.location.href = `/profile.html?u=${encodeURIComponent(username)}`;
+};
+
 window.escapeHTML = (str) => {
     if (!str) return "";
     return str.toString()
@@ -239,9 +244,161 @@ const Gallery = () => {
                         <span style="color:#a29bfe; font-weight:700">💎 ${p.tokens_received || 0}</span>
                     </div>
                 </div>
+
+                ${(store.currentUser?.username === profileUser && p.author === store.currentUser?.username) ? `
+                <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px; z-index:10;">
+                    ${(store.currentUser?.level >= 4 && !p.is_featured) ? `<button class="btn-icon" style="background:rgba(241,196,15,0.8); padding:5px; width:auto; height:30px; font-size:0.75rem; color:black; font-weight:700" onclick="event.stopPropagation(); window.doPromotePrompt('${p.id}')" title="Destacar por 1 semana (50 PromptBits)">💎 50 PromptBits</button>` : ''}
+                    <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doEditPrompt('${p.id}')" title="Editar">✏️</button>
+                    <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doDeletePrompt('${p.id}')" title="Eliminar Post">🗑️</button>
+                </div>` : ''}
             </div>`;
     }).join('')}
     </div>`;
+};
+
+// --- ACTION FUNCTIONS ---
+window.doEditPrompt = (id) => {
+    isEditing = true;
+    editingId = id;
+    const p = store.prompts.find(x => x.id === id);
+    if (!p) return;
+
+    // Reuse Create Modal
+    document.getElementById('createModal').style.display = 'flex';
+    document.getElementById('upTitle').value = p.title;
+    document.getElementById('upTool').value = p.tool;
+    document.getElementById('upRating').value = p.rating || 'SFW / Apto';
+    document.getElementById('upPrompt').value = p.prompt || '';
+    document.getElementById('upPrivate').checked = p.isPrivate;
+    document.getElementById('upReference').checked = p.needsReference;
+
+    // Handle Creator
+    if (p.origCreator) {
+        document.querySelector('input[name="origCreator"][value="other"]').checked = true;
+        window.toggleOrigCreator('other');
+        document.getElementById('upOrigName').value = p.origCreator.name;
+        document.getElementById('upOrigUrl').value = p.origCreator.url;
+    } else {
+        document.querySelector('input[name="origCreator"][value="me"]').checked = true;
+        window.toggleOrigCreator('me');
+    }
+
+    // Handle Type
+    if (p.type === 'sequence') {
+        document.querySelector('input[name="postType"][value="sequence"]').checked = true;
+        window.togglePostType('sequence');
+        const container = document.getElementById('seqContainer');
+        container.innerHTML = '';
+        seqStepCount = 0;
+        if (p.content) {
+            p.content.forEach(step => {
+                window.addSeqStep();
+                const lastStep = container.lastElementChild;
+                lastStep.querySelector('.seqPrompt').value = step.prompt;
+                lastStep.querySelector('.seqRating').value = step.rating;
+                const fileInput = lastStep.querySelector('.seqFile');
+                const prev = document.createElement('div');
+                prev.innerHTML = `<small>Imagen actual guardada.</small><br><img src="${step.image}" style="height:50px; border:1px solid #444; margin-top:5px">`;
+                fileInput.parentElement.insertBefore(prev, fileInput);
+            });
+        }
+    } else {
+        document.querySelector('input[name="postType"][value="single"]').checked = true;
+        window.togglePostType('single');
+        const fileInput = document.getElementById('upFile');
+        const existingPrev = fileInput.parentElement.querySelector('.edit-preview');
+        if (existingPrev) existingPrev.remove();
+        const prev = document.createElement('div');
+        prev.className = 'edit-preview';
+        prev.innerHTML = `<div style="margin:10px 0"><small>Imagen actual:</small><br><img src="${p.image}" style="max-height:100px; border:1px solid #555"></div>`;
+        fileInput.parentElement.insertBefore(prev, fileInput);
+    }
+
+    const btn = document.getElementById('pubBtn');
+    if (btn) {
+        btn.innerText = "Actualizar";
+        btn.onclick = window.doUpdate;
+    }
+};
+
+window.doUpdate = async () => {
+    try {
+        const title = document.getElementById('upTitle').value;
+        const tool = document.getElementById('upTool').value;
+        if (!title) return alert("El título es obligatorio");
+
+        const p = store.prompts.find(x => x.id === editingId);
+        if (!p) return;
+
+        const data = {
+            title, tool, rating: document.getElementById('upRating').value, prompt: document.getElementById('upPrompt').value,
+            isPrivate: document.getElementById('upPrivate').checked,
+            needsReference: document.getElementById('upReference').checked,
+            type: p.type
+        };
+
+        const btn = document.getElementById('pubBtn');
+        if (btn) btn.innerText = "Guardando...";
+
+        if (p.type === 'single') {
+            const file = document.getElementById('upFile').files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    data.image = reader.result;
+                    const res = await store.updatePrompt(editingId, data);
+                    if (res.success) finishUpdate();
+                    else alert("Error: " + res.msg);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                data.image = p.image;
+                const res = await store.updatePrompt(editingId, data);
+                if (res.success) finishUpdate();
+                else alert("Error: " + res.msg);
+            }
+        } else {
+            alert("Edición de secuencias en mantenimiento en perfil. Por favor borra y crea de nuevo.");
+            if (btn) { btn.innerText = "Actualizar"; }
+        }
+    } catch (e) { console.error(e); }
+};
+
+const finishUpdate = () => {
+    alert("✅ Post actualizado");
+    isEditing = false;
+    editingId = null;
+    window.closeModals();
+    render();
+    const btn = document.getElementById('pubBtn');
+    if (btn) {
+        btn.innerText = "Publicar";
+        btn.onclick = window.doPublish;
+    }
+};
+
+window.doDeletePrompt = async (id) => {
+    if (confirm('¿Eliminar este post permanentemente?')) {
+        const res = await store.removePrompt(id);
+        if (res.success) {
+            if (id === currentId) window.closeModals();
+            render();
+        } else {
+            alert(res.msg);
+        }
+    }
+};
+
+window.doPromotePrompt = async (id) => {
+    if (confirm('¿Destacar este prompt por 1 semana (Costo: 50 PromptBits)?')) {
+        const res = await store.promotePrompt(id);
+        if (res.success) {
+            alert("🚀 ¡Prompt destacado con éxito!");
+            render();
+        } else {
+            alert(res.msg);
+        }
+    }
 };
 
 const DetailModalTemplate = () => `
