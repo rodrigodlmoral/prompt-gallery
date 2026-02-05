@@ -2111,11 +2111,12 @@ window.doCopyPrompt = async (idFromMenu) => {
         textToCopy = p.prompt || '';
     }
 
+    const btn = event?.currentTarget;
+
     try {
         await navigator.clipboard.writeText(textToCopy);
 
         // Efecto visual en los botones
-        const btn = event.currentTarget;
         if (btn && btn.tagName === 'BUTTON') {
             const oldText = btn.innerText;
             btn.innerText = "✅ ¡Copiado!";
@@ -2493,11 +2494,12 @@ window.doReact = (type) => {
     store.toggleReaction(currentId, type);
     const p = store.prompts.find(x => x.id === currentId);
     if (p) {
-        const myReaction = p.userReactions[store.currentUser.username];
+        const user = store.currentUser?.username;
+        const myReaction = (p.userReactions && user) ? p.userReactions[user] : null;
         ['like', 'love', 'fire', 'funny'].forEach(t => {
             const el = document.getElementById(`det-${t}-count`);
             const btn = document.getElementById(`btn-react-${t}`);
-            if (el) el.innerText = p.reactions[t] || 0;
+            if (el) el.innerText = p.reactions ? (p.reactions[t] || 0) : 0;
             if (btn) {
                 if (myReaction === t) btn.classList.add('active');
                 else btn.classList.remove('active');

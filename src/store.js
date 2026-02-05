@@ -262,7 +262,7 @@ const store = {
     async toggleReaction(postId, type) {
         if (!this.currentUser) return { success: false, msg: 'Debes iniciar sesión' };
 
-        const prompt = this.prompts.find(p => p.id === postId);
+        const prompt = this.prompts.find(p => String(p.id) === String(postId));
         if (!prompt) return { success: false, msg: 'Prompt no encontrado' };
 
         let reactions = prompt.reactions || {};
@@ -299,7 +299,7 @@ const store = {
         if (!this.currentUser) return { success: false, msg: 'Debes iniciar sesión' };
         if (!text.trim()) return { success: false, msg: 'Comentario vacío' };
 
-        const prompt = this.prompts.find(p => p.id === postId);
+        const prompt = this.prompts.find(p => String(p.id) === String(postId));
         if (!prompt) return { success: false, msg: 'Prompt no encontrado' };
 
         const newComment = {
@@ -332,7 +332,7 @@ const store = {
 
         // Add to user saved list
         // Update prompt saved_by list
-        const prompt = this.prompts.find(p => p.id === postId);
+        const prompt = this.prompts.find(p => String(p.id) === String(postId));
         if (!prompt) return { success: false };
 
         const savedBy = prompt.saved_by || [];
@@ -400,7 +400,7 @@ const store = {
         let activityDetails = { amount };
 
         if (postId) {
-            const prompt = this.prompts.find(p => p.id === postId);
+            const prompt = this.prompts.find(p => String(p.id) === String(postId));
             if (!prompt) return { success: false, msg: 'Post no encontrado' };
             authorUsername = prompt.author;
             activityDetails.recipient = prompt.author;

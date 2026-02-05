@@ -925,8 +925,8 @@ window.doBlockUser = async () => {
 
 window.doReact = async (type) => {
     if (!store.currentUser) return alert("Inicia sesión para reaccionar.");
-    await store.reactToPrompt(currentId, type);
-    const p = store.prompts.find(x => x.id === currentId);
+    await store.toggleReaction(currentId, type);
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
     window.openDetail(currentId); // Refresh modal
 };
 
