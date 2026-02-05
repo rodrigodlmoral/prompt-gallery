@@ -37,6 +37,7 @@ const store = {
             const profile = await pb.collection('users').getOne(userId);
             if (profile) {
                 profile.avatar = profile.avatar_url || profile.avatar;
+                profile.username = profile.name; // PocketBase usa 'name', no 'username'
                 this.currentUser = profile;
             }
         } catch (error) {
@@ -44,7 +45,7 @@ const store = {
             if (pb.authStore.model) {
                 this.currentUser = {
                     ...pb.authStore.model,
-                    username: pb.authStore.model.username || 'Usuario',
+                    username: pb.authStore.model.name || 'Usuario',
                     level: 0, xp: 0, tokens: 0
                 };
             }
@@ -68,7 +69,7 @@ const store = {
                 prompt: p.prompt,
                 negative_prompt: p.negative_prompt,
                 image: p.image_url || p.image, // Normalización de campo de imagen
-                author: p.author_name || p.expand?.author?.username || 'Explorador',
+                author: p.author_name || p.expand?.author?.name || 'Explorador',
                 author_id: p.author,
                 createdAt: new Date(p.created || p.created_at_original).getTime(),
                 created_at: p.created,
