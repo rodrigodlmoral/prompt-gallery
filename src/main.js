@@ -2808,6 +2808,21 @@ try {
     store.init().then(() => {
         render();
         console.log("MAIN JS INIT SUCCESS");
+
+        // Auto-refresh Top Creators every 10 seconds
+        setInterval(async () => {
+            const oldList = topCreatorsList;
+            topCreatorsList = await store.getTopCreators();
+
+            // Only re-render if on home page AND list actually changed
+            if (currentView === 'home' && filters.source === 'community') {
+                const hasChanged = JSON.stringify(oldList) !== JSON.stringify(topCreatorsList);
+                if (hasChanged) {
+                    console.log("🔄 Top Creators updated, re-rendering...");
+                    render();
+                }
+            }
+        }, 10000); // Every 10 seconds
     }).catch(err => {
         console.error("Init Error:", err);
         alert("Error de Inicio: " + err.message);

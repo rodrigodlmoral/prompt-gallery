@@ -233,22 +233,12 @@ const store = {
 
 
     async getTopCreators() {
-        // Calcular top creadores basado en:
-        // 1. Total tokens recibidos (disponible en profiles.tokens? NO, tokens es saldo actual)
-        // Necesitamos calcularlo. O simplificar usando 'level' y 'followers'.
-        // Plan: Usar una funcion RPC o calcular en cliente si son pocos.
-        // Hacemos calculo: Score = (Followers * 5) + (Level * 10). 
-        // O mejor: Fetch all profiles order by tokens desc (Rich list).
-
-        // Usaremos "Most PromptBits" como proxy de éxito por ahora, 
-        // aunque tokens es saldo gastable.
-        // Mejor: Order by level desc, followers desc.
-
+        // Top creadores basado en el número de prompts compartidos
         const { data, error } = await supabase
             .from('profiles')
             .select('*')
-            .order('level', { ascending: false })
-            .limit(5);
+            .order('prompts_count', { ascending: false })
+            .limit(10);
 
         if (data) {
             // Apply normalization
