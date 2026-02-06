@@ -39,18 +39,23 @@ const store = {
                 profile.avatar = profile.avatar_url || profile.avatar;
                 profile.username = profile.name; // PocketBase usa 'name', no 'username'
 
-                // --- DYNAMIC STATS INJECTION ---
+                // --- DYNAMIC AUTO-SYNC & ROBUSTNESS ---
                 try {
-                    const stats = await pb.collection('prompts').getList(1, 500, {
+                    const stats = await pb.collection('prompts').getList(1, 1, {
                         filter: `author = "${userId}"`,
-                        fields: 'id,copy_count'
+                        fields: 'id'
                     });
-                    profile.prompts_count = stats.totalItems || 0;
-                    profile.total_copies = stats.items.reduce((sum, p) => sum + (p.copy_count || 0), 0);
+                    const realPosts = stats.totalItems || 0;
+
+                    // Si el valor en DB es distinto al real, lo corregimos físicamente en la DB
+                    if (profile.prompts_count !== realPosts) {
+                        await pb.collection('users').update(userId, {
+                            prompts_count: realPosts
+                        });
+                        profile.prompts_count = realPosts;
+                    }
                 } catch (e) {
-                    console.warn("Error calculating dynamic stats:", e);
-                    profile.prompts_count = profile.prompts_count || 0;
-                    profile.total_copies = profile.total_copies || 0;
+                    console.warn("Auto-sync error:", e);
                 }
 
                 this.currentUser = profile;
@@ -61,7 +66,7 @@ const store = {
                 this.currentUser = {
                     ...pb.authStore.model,
                     username: pb.authStore.model.name || 'Usuario',
-                    level: 0, xp: 0, tokens: 0
+                    level: 0, xp: 0, tokens: 0, prompts_count: 0, total_copies: 0
                 };
             }
         }
@@ -125,17 +130,17 @@ const store = {
             if (record) {
                 const normalized = window.normalizeProfile ? window.normalizeProfile(record) : record;
 
-                // --- DYNAMIC STATS INJECTION FOR OTHER USERS ---
-                try {
-                    const stats = await pb.collection('prompts').getList(1, 500, {
-                        filter: `author = "${record.id}"`,
-                        fields: 'id,copy_count'
-                    });
-                    normalized.prompts_count = stats.totalItems || 0;
-                    normalized.total_copies = stats.items.reduce((sum, p) => sum + (p.copy_count || 0), 0);
-                } catch (e) {
-                    normalized.prompts_count = normalized.prompts_count || 0;
-                    normalized.total_copies = normalized.total_copies || 0;
+                // --- ROBUST STATS SYNC FOR OTHER USERS ---
+                if (normalized.prompts_count === undefined) {
+                    try {
+                        const stats = await pb.collection('prompts').getList(1, 1, {
+                            filter: `author = "${record.id}"`,
+                            fields: 'id'
+                        });
+                        normalized.prompts_count = stats.totalItems || 0;
+                    } catch (e) {
+                        normalized.prompts_count = 0;
+                    }
                 }
 
                 this.usersCache[username] = normalized;
@@ -327,8 +332,8 @@ const store = {
                 // Just regular reward (1 token per post)
                 await pb.collection('users').update(this.currentUser.id, {
                     tokens: (this.currentUser.tokens || 0) + 1,
-                    prompts_count: totalPosts,
-                    total_copies: totalCopies
+                    prompts_count: totalPosts, // Physical backup
+                    total_copies: totalCopies   // Physical backup
                 });
             }
 
