@@ -147,42 +147,37 @@ const store = {
     },
 
     async fetchUserProfileByUsername(username) {
+        if (!username) return null;
         if (this.usersCache[username] && (Date.now() - this.usersCache[username]._fetchedAt < 60000)) {
             return this.usersCache[username];
         }
-
+        console.error(`[ST_DEBUG] Buscando: "${username}"`);
         try {
-            console.log(`[STORE] fetchUserProfileByUsername: buscando name = "${username}"`);
-            // Usamos getList en lugar de getFirstListItem por estabilidad (evita errores 400 raros)
-            const result = await pb.collection('users').getList(1, 1, {
-                filter: `name = "${username}"`
-            });
-
-            const record = result.items[0];
-            if (record) {
-                console.log(`[STORE] fetchUserProfileByUsername: registro encontrado! ID:`, record.id);
-                const normalized = window.normalizeProfile ? window.normalizeProfile(record) : record;
-                console.log(`[STORE] fetchUserProfileByUsername: perfil normalizado como:`, normalized.username);
-
-                // --- ROBUST STATS SYNC FOR OTHER USERS ---
-                if (normalized.prompts_count === undefined) {
-                    try {
-                        const stats = await pb.collection('prompts').getList(1, 1, {
-                            filter: `author = "${record.id}"`,
-                            fields: 'id'
-                        });
-                        normalized.prompts_count = stats.totalItems || 0;
-                    } catch (e) {
-                        normalized.prompts_count = 0;
-                    }
-                }
-
+            // 1. Exacto
+            let res = await pb.collection('users').getList(1, 1, { filter: `name = "${username}"` });
+            // 2. ID
+            if (res.totalItems === 0 && username.length >= 10) {
+                try {
+                    const bId = await pb.collection('users').getOne(username);
+                    if (bId) res = { items: [bId], totalItems: 1 };
+                } catch (e) { }
+            }
+            // 3. Similar
+            if (res.totalItems === 0) {
+                res = await pb.collection('users').getList(1, 1, { filter: `name ~ "${username}"` });
+            }
+            const rec = res.items[0];
+            if (rec) {
+                console.error(`[ST_DEBUG] Encontrado: ${rec.id}`);
+                const normalized = window.normalizeProfile ? window.normalizeProfile(rec) : rec;
                 this.usersCache[username] = normalized;
                 this.usersCache[username]._fetchedAt = Date.now();
                 return this.usersCache[username];
             }
+            console.error(`[ST_DEBUG] Sin resultados.`);
         } catch (err) {
-            console.warn("Error fetching user profile:", err);
+            console.error(`[ST_DEBUG] ERROR PERFIL:`, err);
+            if (err.response) console.error(`[ST_DEBUG] SERVER_DATA:`, err.response);
         }
         return null;
     },
