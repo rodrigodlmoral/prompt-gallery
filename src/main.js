@@ -3,7 +3,7 @@ import './admin_fix.css' // Emergency CSS Fix for Admin Panel
 import { store, LEVEL_REQS, TOOLS, RATINGS, RATING_INFO, INFO_ICON } from './store-final.js'
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
-const MAINTENANCE_MODE = false;
+const MAINTENANCE_MODE = true;
 const MAINTENANCE_END_TIME = new Date('2026-02-05T04:35:00-06:00').getTime(); // 4:35 AM Local
 
 const renderMaintenance = () => {
