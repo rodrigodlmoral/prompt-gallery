@@ -180,8 +180,19 @@ const store = {
         };
 
         try {
-            // STRATEGY 1: REMOVED (Caused 400 Bad Request)
-            console.log("[ST_DEBUG] Strategy 1 (Filter) skipped due to 400 errors.");
+            // STRATEGY 1: DIRECT FILTER (The most accurate)
+            try {
+                const directRes = await pb.collection('users').getList(1, 1, {
+                    filter: `username = "${username}"`
+                });
+                if (directRes.items.length > 0) {
+                    console.log(`[ST_DEBUG] Strategy 1 Found: ${username}`);
+                    return this._cacheUser(username, directRes.items[0]);
+                }
+            } catch (err1) {
+                console.warn(`[ST_DEBUG] Strategy 1 failed for ${username}:`, err1.message);
+                // Continue to Strategy 2 (ID) and 3 (Nuclear)
+            }
 
             // STRATEGY 2: ID Check (If looks like ID)
             if (username.length === 15) {
