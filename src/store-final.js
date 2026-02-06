@@ -814,30 +814,45 @@ const store = {
             // 2. Filtramos solo los que NO tengan tu ID actual
             const ghostPosts = records.filter(r => r.author !== this.currentUser.id);
             console.log(`👻 Detectados ${ghostPosts.length} posts con tu nombre pero ID antiguo.`);
+            console.log(`👻 IDs detectados:`, ghostPosts.map(p => p.id));
 
             if (ghostPosts.length === 0) {
                 return { success: true, count: 0, msg: "No tienes posts fantasmas. ¡Todo en orden!" };
             }
 
+            // Preguntamos confirmación con el número exacto
+            if (!confirm(`Se han detectado ${ghostPosts.length} posts que te pertenecen pero tienen un ID de autor antiguo.\n\n¿Quieres intentar reclamarlos todos?`)) {
+                return { success: false, msg: "Operación cancelada" };
+            }
+
             // 3. Los reclamamos uno por uno
             let fixedCount = 0;
+            let errors = [];
             for (const p of ghostPosts) {
                 try {
                     await pb.collection('prompts').update(p.id, { author: this.currentUser.id });
                     fixedCount++;
                 } catch (err) {
                     console.error(`Error reclamando post ${p.id}:`, err);
+                    errors.push(`${p.id}: ${err.message}`);
                 }
             }
 
             await this.loadPrompts();
-            return { success: true, count: fixedCount, msg: `¡Éxito! Has recuperado ${fixedCount} posts.` };
+            if (fixedCount > 0 && errors.length === 0) {
+                return { success: true, count: fixedCount, msg: `¡Éxito! Has recuperado ${fixedCount} posts.` };
+            } else {
+                return {
+                    success: false,
+                    msg: `Se arreglaron ${fixedCount}, pero fallaron ${errors.length}. Probablemente por falta de Permisos (Rules) en PocketBase.`
+                };
+            }
 
         } catch (err) {
             console.error("Detailed Claim Error:", err);
             // Si es un error de PocketBase, tiene data y originalError
             const detail = err.data ? JSON.stringify(err.data) : (err.message || "Error desconocido");
-            return { success: false, msg: "Error: " + detail };
+            return { success: false, msg: "Error al buscar: " + detail };
         }
     },
 
