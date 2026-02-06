@@ -192,7 +192,8 @@ const store = {
                 });
                 if (resName.items.length > 0) directFound = resName.items[0];
             } catch (e1) {
-                if (e1.status !== 404) console.warn(`[ST_DEBUG] Strategy 1 (Name) Warn:`, e1);
+                console.warn(`[ST_DEBUG] Strategy 1 (Name) Warn:`, e1);
+                if (window.toast) window.toast(`Debug: Name search failed for '${username}'`, 'error');
             }
 
             // 1.2 Try Username (fallback)
