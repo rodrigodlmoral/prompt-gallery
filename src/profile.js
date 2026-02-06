@@ -395,10 +395,10 @@ window.doUpdate = async () => {
                 data.image = p.image;
                 const res = await store.updatePrompt(editingId, data);
                 if (res.success) finishUpdate();
-                else alert("Error: " + res.msg);
+                else if (window.toast) window.toast("Error: " + (res.msg || "Error desconocido"), "error");
             }
         } else {
-            alert("Edición de secuencias en mantenimiento en perfil. Por favor borra y crea de nuevo.");
+            if (window.toast) window.toast("Edición de secuencias en mantenimiento en perfil. Por favor borra y crea de nuevo.", "error");
             if (btn) { btn.innerText = "Actualizar"; }
         }
     } catch (e) { console.error(e); }
