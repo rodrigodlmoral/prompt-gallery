@@ -150,50 +150,63 @@ const store = {
         if (!rawUsername) return null;
 
         // --- SANITIZATION ---
-        const username = rawUsername.trim().replace(/['"]/g, ""); // Remove quotes and spaces
+        const username = rawUsername.trim().replace(/['"]/g, "");
 
         if (this.usersCache[username] && (Date.now() - this.usersCache[username]._fetchedAt < 60000)) {
             return this.usersCache[username];
         }
 
-        console.error(`[ST_DEBUG] Buscando: "${username}"`);
+        const logError = (msg) => {
+            console.error(`[ST_DEBUG] ${msg}`);
+            // INJECT ERROR INTO DOM (User requested visibility)
+            const banner = document.getElementById('debug-banner') || document.createElement('div');
+            banner.id = 'debug-banner';
+            banner.style.cssText = "position:fixed; top:0; left:0; width:100%; background:red; color:white; font-size:12px; z-index:99999; padding:5px; text-align:center;";
+            banner.innerText = msg;
+            document.body.appendChild(banner);
+            setTimeout(() => banner.remove(), 10000);
+        };
 
         try {
-            // 1. Exacto
-            let res = await pb.collection('users').getList(1, 1, { filter: `name = "${username}"` });
+            // STRATEGY 1: Standard Filter (Probable Cause of 400)
+            try {
+                const res = await pb.collection('users').getList(1, 1, { filter: `name = "${username}"` });
+                if (res.items.length > 0) return this._cacheUser(username, res.items[0]);
+            } catch (e) {
+                console.warn("[ST_DEBUG] Filter failed, trying Nuclear Fallback...");
+            }
 
-            // 2. ID
-            if (res.totalItems === 0 && username.length >= 10) {
+            // STRATEGY 2: ID Check (If looks like ID)
+            if (username.length === 15) {
                 try {
-                    const bId = await pb.collection('users').getOne(username);
-                    if (bId) res = { items: [bId], totalItems: 1 };
+                    const u = await pb.collection('users').getOne(username);
+                    return this._cacheUser(username, u);
                 } catch (e) { }
             }
 
-            // 3. Similar
-            if (res.totalItems === 0) {
-                res = await pb.collection('users').getList(1, 1, { filter: `name ~ "${username}"` });
+            // STRATEGY 3: NUCLEAR FALLBACK (Fetch updated users & filter in memory)
+            // This bypasses 'invalid filter' errors by doing no filter at DB level
+            const nuclearRes = await pb.collection('users').getList(1, 200, { sort: '-updated' });
+            const found = nuclearRes.items.find(u => u.name === username || u.username === username);
+
+            if (found) {
+                logError(`[SUCCESS] Found user '${username}' via Nuclear Search`);
+                return this._cacheUser(username, found);
             }
 
-            const rec = res.items[0];
-            if (rec) {
-                console.error(`[ST_DEBUG] Encontrado: ${rec.id}`);
-                const normalized = window.normalizeProfile ? window.normalizeProfile(rec) : rec;
-                this.usersCache[username] = normalized;
-                this.usersCache[username]._fetchedAt = Date.now();
-                return this.usersCache[username];
-            }
-
-            console.error(`[ST_DEBUG] Sin resultados.`);
+            logError(`[FAIL] Usuario '${username}' no encontrado tras búsqueda exhaustiva.`);
         } catch (err) {
-            console.error(`[ST_DEBUG] ERROR PERFIL:`, err);
-            // AGGRESSIVE USER ALERT FOR DEBUGGING
-            if (err.status === 400) {
-                alert(`ERROR 400 POCKETBASE:\nFiltro: name="${username}"\nRevisa la consola para más detalles.`);
-            }
-            if (err.response) console.error(`[ST_DEBUG] SERVER_DATA:`, err.response);
+            logError(`[CRITICAL] Error final: ${err.message}`);
         }
         return null;
+    },
+
+    _cacheUser(key, record) {
+        const normalized = window.normalizeProfile ? window.normalizeProfile(record) : record;
+        this.usersCache[key] = normalized;
+        this.usersCache[key]._fetchedAt = Date.now();
+        console.log(`[ST_DEBUG] Cached: ${key}`);
+        return normalized;
     },
 
     async logActivity(action, details = {}) {
