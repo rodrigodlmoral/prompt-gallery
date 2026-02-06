@@ -151,10 +151,13 @@ const Header = () => `
 </header>`;
 
 const ProfileHeader = () => {
+    console.log(`[PROFILE] ProfileHeader: profileUser="${profileUser}"`);
     if (!profileUser) return '';
     let user = (store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser))
         ? store.currentUser
         : (store.users.find(u => u.username === profileUser || u.name === profileUser) || store.usersCache[profileUser]);
+
+    console.log(`[PROFILE] ProfileHeader: user encontrado?`, user ? user.username : 'NO');
 
     if (!user) return `
         <div style="height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif">
@@ -247,6 +250,8 @@ const Gallery = () => {
     const user = (store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser))
         ? store.currentUser
         : (store.users.find(u => u.username === profileUser || u.name === profileUser) || store.usersCache[profileUser]);
+
+    console.log(`[PROFILE] Gallery: user encontrado?`, user ? user.username : 'NO');
 
     if (!user) return '<div class="container" style="padding:40px 0; color:#666">Cargando galería...</div>';
 

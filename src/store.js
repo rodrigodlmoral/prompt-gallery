@@ -152,10 +152,12 @@ const store = {
         }
 
         try {
-            // Buscamos solo por name (PocketBase usa name para los perfiles migrados)
+            console.log(`[STORE] fetchUserProfileByUsername: buscando name="${username}"`);
             const record = await pb.collection('users').getFirstListItem(`name="${username}"`);
+            console.log(`[STORE] fetchUserProfileByUsername: registro encontrado para ${username}`, record.id);
             if (record) {
                 const normalized = window.normalizeProfile ? window.normalizeProfile(record) : record;
+                console.log(`[STORE] fetchUserProfileByUsername: perfil normalizado`, normalized.username);
 
                 // --- ROBUST STATS SYNC FOR OTHER USERS ---
                 if (normalized.prompts_count === undefined) {
