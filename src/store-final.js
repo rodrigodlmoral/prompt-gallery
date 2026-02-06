@@ -497,6 +497,21 @@ const store = {
 
         if (!this.currentUser) return { success: false, msg: "Debes iniciar sesión" };
 
+        // --- DIAGNOSTIC: VERIFY OWNERSHIP (v8.9) ---
+        try {
+            const currentPost = await pb.collection('prompts').getOne(id);
+            if (currentPost.author !== this.currentUser.id) {
+                console.error(`[OWNERSHIP MISMATCH] PostAuthor: ${currentPost.author} vs User: ${this.currentUser.id}`);
+                return {
+                    success: false,
+                    msg: `⛔ Error de Propiedad: Este post pertenece a otro ID de usuario (${currentPost.author}). Tu ID actual es ${this.currentUser.id}.`
+                };
+            }
+        } catch (e) {
+            console.warn("Could not verify ownership before update:", e);
+        }
+        // ------------------------------------
+
         let imageUrl = data.image;
         try {
             if (data.image && data.image.startsWith('data:')) {
