@@ -164,8 +164,12 @@ const ProfileHeader = () => {
         </div>`;
     }
 
+    const isAdmin = user.role === 'admin' || user.username === 'rodrigodlmoral' || user.username === 'rodridomrock' || user.name === 'rodrigodlmoral';
     const isMe = store.currentUser && store.currentUser.id === user.id;
-    console.log(`[DEBUG_ADMIN] isMe:`, isMe);
+
+    console.log(`[DEBUG_ADMIN] Final isAdmin check:`, isAdmin);
+    console.log(`[DEBUG_ADMIN] user object keys:`, Object.keys(user));
+
     const getLevelInfo = (lvl) => LEVEL_REQS[lvl] || LEVEL_REQS[0];
     const lvlInfo = getLevelInfo(user.level || 0);
 
@@ -234,8 +238,8 @@ const ProfileHeader = () => {
             <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap">
                 <button class="btn-outline" onclick="window.openActivity()">📜 Actividad</button>
                 <button class="btn-outline" onclick="window.openSettings()">⚙️ Configurar</button>
-                ${(isMe && user.role === 'admin') ? `<button class="btn-sm" onclick="window.open('/admin.html', '_blank')" style="background:gold; color:black; font-weight:bold; box-shadow:0 0 10px gold; border:none">👑 PANEL ADMIN</button>` : ''}
-                ${(isMe && user.role === 'admin') ? `<button class="btn-sm" onclick="window.doClaimGhosts()" style="background:#ff4444; color:white; font-weight:bold; border:none">👻 FIX POSTS</button>` : ''}
+                ${(isMe && isAdmin) ? `<button class="btn-sm" id="btnAdminPanel" onclick="window.open('/admin.html', '_blank')" style="background:gold; color:black; font-weight:bold; box-shadow:0 0 10px gold; border:none">👑 PANEL ADMIN</button>` : ''}
+                ${(isMe && isAdmin) ? `<button class="btn-sm" id="btnFixPosts" onclick="window.doClaimGhosts()" style="background:#ff4444; color:white; font-weight:bold; border:none">👻 FIX POSTS</button>` : ''}
             </div>
             `}
                 </div>
