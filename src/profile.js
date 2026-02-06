@@ -145,11 +145,22 @@ const ProfileHeader = () => {
 
     console.log(`[PROFILE] ProfileHeader: user encontrado?`, user ? user.username : 'NO');
 
-    if (!user) return `
+    if (!user) {
+        // Si ya pasó un tiempo razonable y sigue sin cargar, asumimos error
+        if (window.initDone) {
+            return `
+             <div style="height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif">
+                 <div style="font-size:3rem">🤷‍♂️</div>
+                 <p style="margin-top:20px; letter-spacing:1px; font-size:0.9rem">USUARIO NO ENCONTRADO</p>
+                 <button class="btn-outline" onclick="window.location.href='/'" style="margin-top:20px">Volver al Inicio</button>
+             </div>`;
+        }
+        return `
         <div style="height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif">
             <div style="font-size:3rem; animation: pulse 1s infinite">✨</div>
             <p style="margin-top:20px; letter-spacing:1px; font-size:0.9rem">CARGANDO PERFIL...</p>
         </div>`;
+    }
 
     const isMe = store.currentUser && store.currentUser.id === user.id;
     const getLevelInfo = (lvl) => LEVEL_REQS[lvl] || LEVEL_REQS[0];
@@ -242,8 +253,9 @@ const Gallery = () => {
     if (!user) return '<div class="container" style="padding:40px 0; color:#666">Cargando galería...</div>';
 
     let list = [...store.prompts].filter(p => {
-        if (p.is_private && (!store.currentUser || store.currentUser.id !== p.author)) return false;
-        return profileTab === 'creations' ? p.author === user.id : p.savedBy?.includes(user.id);
+        if (p.is_private && (!store.currentUser || store.currentUser.id !== p.author_id)) return false;
+        // FIX v4.6: Compare ID with ID (p.author was username)
+        return profileTab === 'creations' ? p.author_id === user.id : p.savedBy?.includes(user.id);
     });
 
     if (list.length === 0) return `<div class="container" style="padding:100px; text-align:center; color:#666">No hay prompts aquí todavía.</div>`;
@@ -1799,6 +1811,7 @@ const init = async () => {
     if (profileUser) {
         await store.fetchUserProfileByUsername(profileUser);
     }
+    window.initDone = true;
     render();
 };
 
