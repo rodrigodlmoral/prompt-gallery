@@ -182,8 +182,9 @@ const store = {
         try {
             // STRATEGY 1: DIRECT FILTER (The most accurate)
             try {
+                // Fix v4.8: Search in both 'username' AND 'name' (case-sensitive at DB level, but better than nothing)
                 const directRes = await pb.collection('users').getList(1, 1, {
-                    filter: `username = "${username}"`
+                    filter: `username = "${username}" || name = "${username}"`
                 });
                 if (directRes.items.length > 0) {
                     console.log(`[ST_DEBUG] Strategy 1 Found: ${username}`);
