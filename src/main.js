@@ -63,7 +63,7 @@ window.openUserProfile = (username) => {
     window.location.href = `/profile.html?u=${encodeURIComponent(username)}`;
 };
 
-// --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist ---
+// --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist in Detail View ---
 setInterval(() => {
     document.querySelectorAll('.card-blurred').forEach(wrapper => {
         // Find or create overlay
@@ -74,15 +74,20 @@ setInterval(() => {
             wrapper.appendChild(overlay);
         }
 
-        // If overlay has NO button, force inject it
-        if (!overlay.querySelector('button')) {
-            const warningLabel = wrapper.dataset.warning || "NSFW";
-            const isModal = wrapper.closest('.view-modal-wrapper') || wrapper.id === 'detImgWrap';
+        const isModal = wrapper.closest('.view-modal-wrapper') || wrapper.id === 'detImgWrap';
+        const hasButton = overlay.querySelector('button');
+        const hasLabel = overlay.querySelector('span');
+        const warningLabel = wrapper.dataset.warning || "NSFW";
 
-            if (isModal) {
-                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
-            } else {
-                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:5px; background: rgba(255, 68, 68, 0.9); color: white; border:none; padding: 3px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; transform: translateY(-15px);" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar</button>`;
+        if (isModal) {
+            // Force inject button in MODAL detail
+            if (!hasButton) {
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; font-weight:700; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
+            }
+        } else {
+            // Dashboard / Collage: Only show Label, NO button
+            if (hasButton || !hasLabel) {
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span>`;
             }
         }
     });
@@ -1995,13 +2000,24 @@ window.openDetail = (id) => {
                 }
             }
         }
-        // Re-apply blurring logic if needed for single image context
+        // Re-apply blurring logic for single image context
         const detImgWrap = document.getElementById('detImgWrap');
         if (detImgWrap) {
+            // IMPORTANT: Clear previous reveal state by removing and re-adding class
+            detImgWrap.classList.remove('card-blurred');
             const { applyBlur, warningLabel } = getModeration(p);
-            detImgWrap.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
-            detImgWrap.dataset.warning = applyBlur ? warningLabel : '';
-            // No need to manually add overlay here, the setInterval handles it
+
+            if (applyBlur) {
+                detImgWrap.classList.add('card-blurred');
+                detImgWrap.dataset.warning = warningLabel;
+                // Clean existing overlay to force re-render with button
+                const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+                if (oldOverlay) oldOverlay.remove();
+            } else {
+                detImgWrap.dataset.warning = '';
+                const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+                if (oldOverlay) oldOverlay.remove();
+            }
         }
 
         const detCopyBadge = document.getElementById('detCopyBadge');
@@ -2070,10 +2086,19 @@ window.updateSeqDisplay = (p) => {
     const { applyBlur, warningLabel } = getModeration(p, step.rating);
     const detImgWrap = document.getElementById('detImgWrap');
     if (detImgWrap) {
-        detImgWrap.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
-        detImgWrap.dataset.warning = applyBlur ? warningLabel : '';
-        // If we switch steps, we might want to re-blur if it was revealed?
-        // Actually, the card-blurred class being added will trigger the setInterval
+        // IMPORTANT: Clear previous reveal state when switching steps
+        detImgWrap.classList.remove('card-blurred');
+        if (applyBlur) {
+            detImgWrap.classList.add('card-blurred');
+            detImgWrap.dataset.warning = warningLabel;
+            // Clean existing overlay to force re-render with button
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        } else {
+            detImgWrap.dataset.warning = '';
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        }
     }
 
     const detImg = document.getElementById('detImg');

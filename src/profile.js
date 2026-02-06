@@ -15,7 +15,7 @@ let seqStepCount = 0;
 let isEditing = false;
 let editingId = null;
 
-// --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist ---
+// --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist in Detail View ---
 setInterval(() => {
     document.querySelectorAll('.card-blurred').forEach(wrapper => {
         let overlay = wrapper.querySelector('.blur-overlay');
@@ -24,13 +24,19 @@ setInterval(() => {
             overlay.className = 'blur-overlay';
             wrapper.appendChild(overlay);
         }
-        if (!overlay.querySelector('button')) {
-            const warningLabel = wrapper.dataset.warning || "NSFW";
-            const isModal = wrapper.closest('.view-modal-wrapper') || wrapper.id === 'detImgWrap';
-            if (isModal) {
-                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
-            } else {
-                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:5px; background: rgba(255, 68, 68, 0.9); color: white; border:none; padding: 3px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; transform: translateY(-15px);" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar</button>`;
+
+        const isModal = wrapper.closest('.view-modal-wrapper') || wrapper.id === 'detImgWrap';
+        const hasButton = overlay.querySelector('button');
+        const hasLabel = overlay.querySelector('span');
+        const warningLabel = wrapper.dataset.warning || "NSFW";
+
+        if (isModal) {
+            if (!hasButton) {
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; font-weight:700; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
+            }
+        } else {
+            if (hasButton || !hasLabel) {
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span>`;
             }
         }
     });
@@ -820,9 +826,18 @@ window.openDetail = (id) => {
     // Blurring
     const detImgWrap = document.getElementById('detImgWrap');
     if (detImgWrap) {
+        detImgWrap.classList.remove('card-blurred');
         const { applyBlur, warningLabel } = getModeration(p);
-        detImgWrap.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
-        detImgWrap.dataset.warning = applyBlur ? warningLabel : '';
+        if (applyBlur) {
+            detImgWrap.classList.add('card-blurred');
+            detImgWrap.dataset.warning = warningLabel;
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        } else {
+            detImgWrap.dataset.warning = '';
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        }
     }
 
     const detCopyBadge = document.getElementById('detCopyBadge');
@@ -872,8 +887,17 @@ window.updateSeqDisplay = (p) => {
     const { applyBlur, warningLabel } = getModeration(p, step.rating);
     const detImgWrap = document.getElementById('detImgWrap');
     if (detImgWrap) {
-        detImgWrap.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
-        detImgWrap.dataset.warning = applyBlur ? warningLabel : '';
+        detImgWrap.classList.remove('card-blurred');
+        if (applyBlur) {
+            detImgWrap.classList.add('card-blurred');
+            detImgWrap.dataset.warning = warningLabel;
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        } else {
+            detImgWrap.dataset.warning = '';
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        }
     }
 
     const detImg = document.getElementById('detImg');
