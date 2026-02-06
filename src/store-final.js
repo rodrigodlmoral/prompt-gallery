@@ -804,21 +804,39 @@ const store = {
     async claimGhostPosts() {
         if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false, msg: "Requiere acceso Admin" };
         try {
-            console.log("👻 Buscando posts fantasmas para:", this.currentUser.username);
-            // 1. Buscamos todos los posts cuyo author_name sea IGUAL al tuyo
-            const filterStr = `author_name = '${this.currentUser.username}'`;
-            console.log("👻 PocketBase Search Filter:", filterStr);
-            const records = await pb.collection('prompts').getFullList({
-                filter: filterStr
-            });
+            // 1. Buscamos posts por varios criterios posibles
+            const possibleFilters = [
+                `author_name = '${this.currentUser.username}'`,
+                `username = '${this.currentUser.username}'`,
+                `name = '${this.currentUser.username}'`,
+                `author_name = '${this.currentUser.name}'`,
+                `username = '${this.currentUser.name}'`
+            ];
+
+            let allGhostRecords = [];
+            for (const filterStr of possibleFilters) {
+                try {
+                    console.log("👻 Probando filtro Nuclear:", filterStr);
+                    const partial = await pb.collection('prompts').getFullList({ filter: filterStr });
+                    allGhostRecords = [...allGhostRecords, ...partial];
+                } catch (e) {
+                    // Ignoramos si el campo no existe en esa colección específica
+                }
+            }
+
+            // Eliminar duplicados por ID
+            const uniqueRecords = Array.from(new Map(allGhostRecords.map(item => [item.id, item])).values());
 
             // 2. Filtramos solo los que NO tengan tu ID actual
-            const ghostPosts = records.filter(r => r.author !== this.currentUser.id);
-            console.log(`👻 Detectados ${ghostPosts.length} posts con tu nombre pero ID antiguo.`);
-            console.log(`👻 IDs detectados:`, ghostPosts.map(p => p.id));
+            const ghostPosts = uniqueRecords.filter(r => r.author !== this.currentUser.id);
+
+            console.log(`👻 [NUCLEAR] Detectados ${ghostPosts.length} posts únicos potenciales.`);
+            if (ghostPosts.length > 0) {
+                console.log(`👻 Muestra de Campos del primer post:`, Object.keys(ghostPosts[0]));
+            }
 
             if (ghostPosts.length === 0) {
-                return { success: true, count: 0, msg: "No tienes posts fantasmas. ¡Todo en orden!" };
+                return { success: true, count: 0, msg: "No se encontraron posts fantasmas ni con búsqueda Nuclear. ¿Seguro que los posts muestran tu nombre?" };
             }
 
             // Preguntamos confirmación con el número exacto
