@@ -787,15 +787,15 @@ window.openDetail = (id) => {
 
     const badgesEl = document.getElementById('detBadges');
     if (badgesEl) {
-        let bhtml = `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">🛠️ ${p.tool || 'Desconocido'}</span>`;
+        let bhtml = `<span class="badge-meta">🛠️ ${p.tool || 'Desconocido'}</span>`;
 
         // Add Rating Badge
         const r = p.rating || 'SFW / Apto';
         const icon = r.startsWith('SFW') ? '🟢' : '🔞';
-        bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
+        bhtml += `<span class="badge-meta">${icon} ${r}</span>`;
 
         const refText = p.needsReference ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
-        bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
+        bhtml += `<span class="badge-meta">${refText}</span>`;
 
         badgesEl.innerHTML = bhtml;
     }
