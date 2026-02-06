@@ -152,7 +152,8 @@ const store = {
         }
 
         try {
-            const record = await pb.collection('users').getFirstListItem(`username="${username}" || name="${username}"`);
+            // Buscamos solo por name (PocketBase usa name para los perfiles migrados)
+            const record = await pb.collection('users').getFirstListItem(`name="${username}"`);
             if (record) {
                 const normalized = window.normalizeProfile ? window.normalizeProfile(record) : record;
 
@@ -520,8 +521,8 @@ const store = {
     async followUser(targetUsername) {
         if (!this.currentUser) return { success: false };
         try {
-            // Find target user by name or username
-            const target = await pb.collection('users').getFirstListItem(`username="${targetUsername}" || name="${targetUsername}"`);
+            // Find target user by name (identificador real post-migración)
+            const target = await pb.collection('users').getFirstListItem(`name="${targetUsername}"`);
             if (!target) return { success: false };
 
             const following = [...(this.currentUser.following || [])];
