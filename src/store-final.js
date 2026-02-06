@@ -180,38 +180,35 @@ const store = {
         };
 
         try {
-            // STRATEGY 1: CLEAN STANDARD FETCH (v5.2)
+            // STRATEGY 1: FUZZY NAME SEARCH (v5.5)
+            // Fix: 'valentine' has no username, only name. Using fuzzy match '~' to be safe against spaces.
             let directFound = null;
 
-            // 1.1 Try strict Username
+            // 1.1 Try NAME first (using fuzzy match)
             try {
-                // Fix v5.2: Removed requestKey which was causing malformed query params (skipTotal=1:1)
-                // Using simple quotes for SQL safety and standard getList
-                const resUser = await pb.collection('users').getList(1, 1, {
-                    filter: `username='${username}'`
+                // filter="name~'val'" finds 'valentine'
+                const resName = await pb.collection('users').getList(1, 1, {
+                    filter: `name ~ '${username}'`
                 });
-                if (resUser.items.length > 0) directFound = resUser.items[0];
+                if (resName.items.length > 0) directFound = resName.items[0];
             } catch (e1) {
-                if (e1.status !== 404) {
-                    console.error(`[ST_DEBUG] Strategy 1 (Username) Error ${e1.status}:`, e1);
-                    if (e1.status === 400 && window.toast) window.toast(`Error 400 (User): ${e1.message}`, 'error');
-                }
+                if (e1.status !== 404) console.warn(`[ST_DEBUG] Strategy 1 (Name) Warn:`, e1);
             }
 
-            // 1.2 Try Name
+            // 1.2 Try Username (fallback)
             if (!directFound) {
                 try {
-                    const resName = await pb.collection('users').getList(1, 1, {
-                        filter: `name='${username}'`
+                    const resUser = await pb.collection('users').getList(1, 1, {
+                        filter: `username = '${username}'`
                     });
-                    if (resName.items.length > 0) directFound = resName.items[0];
+                    if (resUser.items.length > 0) directFound = resUser.items[0];
                 } catch (e2) {
-                    if (e2.status !== 404) console.error(`[ST_DEBUG] Strategy 1 (Name) Error ${e2.status}:`, e2);
+                    if (e2.status !== 404) console.warn(`[ST_DEBUG] Strategy 1 (User) Warn:`, e2);
                 }
             }
 
             if (directFound) {
-                console.log(`[ST_DEBUG] Strategy 1 Found: ${username}`);
+                console.log(`[ST_DEBUG] Strategy 1 Found: ${username} (ID: ${directFound.id})`);
                 return this._cacheUser(username, directFound);
             }
 
