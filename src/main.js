@@ -108,7 +108,7 @@ window.setFilter = (key, value) => {
         // but alerting is the main requirement).
         const el = event.target;
         if (el) el.value = filters[key]; // Revert visual change
-        return alert("Debes iniciar sesión para usar los filtros.");
+        if (window.toast) window.toast("Debes iniciar sesión para usar los filtros.", "warning"); return;
     }
     filters[key] = value;
     render();
@@ -1212,7 +1212,7 @@ window.doRegisterSubmit = async () => {
 
 window.doRecoverSubmit = async () => {
     const email = document.getElementById('recEmail').value;
-    if (!email) return alert("Por favor introduce tu email.");
+    if (!email) { if (window.toast) window.toast("Por favor introduce tu email.", "warning"); return; }
     const res = await store.recoverPassword(email);
     alert(res.msg);
     if (res.success) window.toggleAuth('log');
@@ -1223,7 +1223,7 @@ window.doActivateSubmit = async () => {
     const pass = document.getElementById('actPass').value;
     const token = new URLSearchParams(window.location.search).get('token');
 
-    if (!userOrEmail || !pass) return alert("Rellena todos los campos.");
+    if (!userOrEmail || !pass) { if (window.toast) window.toast("Rellena todos los campos.", "warning"); return; }
     if (!token) return alert("Token de activación no encontrado.");
 
     const res = await store.confirmResetPassword(token, pass, userOrEmail);
@@ -1376,9 +1376,9 @@ window.submitSupport = () => {
     const name = document.getElementById('supName').value;
     const email = document.getElementById('supEmail').value;
     const msg = document.getElementById('supMsg').value;
-    if (!name || !email || !msg) return alert("Por favor completa todos los campos.");
+    if (!name || !email || !msg) { if (window.toast) window.toast("Por favor completa todos los campos.", "warning"); return; }
     store.addSupportTicket({ name, email, message: msg });
-    alert("Ticket enviado correctamente. Te contactaremos pronto.");
+    if (window.toast) window.toast("Ticket enviado correctamente. Te contactaremos pronto.", "success");
     window.closeModals();
 };
 
@@ -1479,7 +1479,7 @@ window.addSeqStep = () => {
 
 window.openLevelProgress = () => {
     console.log("🚀 openLevelProgress triggered (Dynamic Mode)");
-    if (!store.currentUser) { alert("Error: No has iniciado sesión."); return; }
+    if (!store.currentUser) { if (window.toast) window.toast("Error: No has iniciado sesión.", "error"); return; }
 
     // Bloquear scroll del fondo
     document.body.style.overflow = 'hidden';
@@ -1683,7 +1683,7 @@ window.doPublish = () => {
         url: document.getElementById('upOrigUrl').value
     } : null;
 
-    if (!title) return alert("El título es obligatorio");
+    if (!title) { if (window.toast) window.toast("El título es obligatorio", "error"); return; }
     if (origCreatorType === 'other' && !origCreator.name) return alert("Falta el nombre del creador original");
 
     const extraConfig = [];
@@ -1697,7 +1697,7 @@ window.doPublish = () => {
 
     if (postType === 'single') {
         const file = document.getElementById('upFile').files[0];
-        if (!file) return alert("Imagen obligatoria");
+        if (!file) { if (window.toast) window.toast("Imagen obligatoria", "error"); return; }
         const negPrompt = document.getElementById('upNegPrompt').value; // NUEVO
         const reader = new FileReader();
         reader.onload = async () => {
@@ -1737,7 +1737,7 @@ window.doPublish = () => {
     } else {
         // Sequence
         const steps = Array.from(document.querySelectorAll('.seq-step'));
-        if (steps.length === 0) return alert("Añade al menos un paso");
+        if (steps.length === 0) { if (window.toast) window.toast("Añade al menos un paso", "warning"); return; }
 
         const content = [];
         let loaded = 0;

@@ -363,7 +363,7 @@ window.doUpdate = async () => {
     try {
         const title = document.getElementById('upTitle').value;
         const tool = document.getElementById('upTool').value;
-        if (!title) return alert("El título es obligatorio");
+        if (!title) { if (window.toast) window.toast("El título es obligatorio", "error"); return; }
 
         const p = store.prompts.find(x => String(x.id) === String(editingId));
         if (!p) return;
@@ -388,7 +388,7 @@ window.doUpdate = async () => {
                     data.image = reader.result;
                     const res = await store.updatePrompt(editingId, data);
                     if (res.success) finishUpdate();
-                    else alert("Error: " + res.msg);
+                    else if (window.toast) window.toast("Error: " + res.msg, "error");
                 };
                 reader.readAsDataURL(file);
             } else {
@@ -405,7 +405,7 @@ window.doUpdate = async () => {
 };
 
 const finishUpdate = () => {
-    alert("✅ Post actualizado");
+    if (window.toast) window.toast("✅ Post actualizado", "success");
     isEditing = false;
     editingId = null;
     window.closeModals();
@@ -433,7 +433,7 @@ window.doPromotePrompt = async (id) => {
     if (await window.askConfirm('¿Destacar este prompt por 1 semana (Costo: 50 PromptBits)?', '💎')) {
         const res = await store.promotePrompt(id);
         if (res.success) {
-            alert("🚀 ¡Prompt destacado con éxito!");
+            if (window.toast) window.toast("🚀 ¡Prompt destacado con éxito!", "success");
             render();
         } else {
             alert(res.msg);
@@ -937,7 +937,7 @@ window.toggleOptionsMenu = () => {
 };
 
 window.doSavePrompt = async () => {
-    if (!store.currentUser) return alert("Inicia sesión para guardar.");
+    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para guardar.", "warning"); return; }
     await store.savePrompt(currentId);
     render();
     window.toggleOptionsMenu();
@@ -977,7 +977,7 @@ window.doBlockUser = async () => {
 };
 
 window.doReact = async (type) => {
-    if (!store.currentUser) return alert("Inicia sesión para reaccionar.");
+    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para reaccionar.", "warning"); return; }
     await store.toggleReaction(currentId, type);
     const p = store.prompts.find(x => String(x.id) === String(currentId));
     window.openDetail(currentId); // Refresh modal
@@ -1060,7 +1060,7 @@ window.initCrystalSlider = () => {
 };
 
 window.postComm = async () => {
-    if (!store.currentUser) return alert("Inicia sesión.");
+    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión.", "warning"); return; }
     if (!window.sliderUnlocked) return alert("Desliza el diamante 💎 para comentar.");
     const text = document.getElementById('commInput').value;
     if (!text) return;
@@ -1076,7 +1076,7 @@ window.postComm = async () => {
 };
 
 window.openTip = (postId) => {
-    if (!store.currentUser) return alert("Inicia sesión para enviar propinas.");
+    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para enviar propinas.", "warning"); return; }
     currentTipPostId = postId;
     const p = store.prompts.find(x => String(x.id) === String(postId));
 
@@ -1140,7 +1140,7 @@ window.confirmResolve = (val) => {
 
 window.openCreate = () => {
     if (!store.currentUser) {
-        alert("Debes iniciar sesión para compartir prompts.");
+        if (window.toast) window.toast("Debes iniciar sesión para compartir prompts.", "warning");
         window.location.href = '/';
         return;
     }
@@ -1298,7 +1298,7 @@ window.doPublish = () => {
         const file = document.getElementById('upFile').files[0];
         if (!file) {
             if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
-            return alert("Imagen obligatoria");
+            if (window.toast) window.toast("Imagen obligatoria", "error"); return;
         }
         const negPrompt = document.getElementById('upNegPrompt').value;
         const reader = new FileReader();
@@ -1518,7 +1518,7 @@ window.saveSettings = async () => {
 
 window.doChangePassword = () => {
     const np = document.getElementById('newPassInput').value;
-    if (np.length < 6) return alert("Mínimo 6 chars");
+    if (np.length < 6) { if (window.toast) window.toast("Mínimo 6 chars", "error"); return; }
     store.changePassword(np);
 };
 
