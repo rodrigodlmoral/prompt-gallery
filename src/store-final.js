@@ -834,8 +834,10 @@ const store = {
             return { success: true, count: fixedCount, msg: `¡Éxito! Has recuperado ${fixedCount} posts.` };
 
         } catch (err) {
-            console.error("Claim error:", err);
-            return { success: false, msg: "Error: " + err.message };
+            console.error("Detailed Claim Error:", err);
+            // Si es un error de PocketBase, tiene data y originalError
+            const detail = err.data ? JSON.stringify(err.data) : (err.message || "Error desconocido");
+            return { success: false, msg: "Error: " + detail };
         }
     },
 
