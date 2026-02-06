@@ -57,6 +57,7 @@ const store = {
     currentUser: null,
     usersCache: {}, // { username: { ...profileData } }
     users: [],      // Admin list
+    nuclearCache: { items: [], lastFetch: 0 }, // Cache for mass user search
 
     async init() {
         if (pb.authStore.isValid && pb.authStore.model) {
@@ -191,11 +192,25 @@ const store = {
             }
 
             // STRATEGY 3: NUCLEAR FALLBACK (Fetch LARGER list & filter in memory case-insensitive)
-            console.log("[ST_DEBUG] Iniciando NUCLEAR SEARCH (1000 items)...");
-            const nuclearRes = await pb.collection('users').getList(1, 1000, { sort: '-updated' });
+            // CACHE CHECK (5 min validity)
+            let items = [];
+            const CACHE_TTL = 300000; // 5 min
+
+            if (this.nuclearCache.items.length > 0 && (Date.now() - this.nuclearCache.lastFetch < CACHE_TTL)) {
+                console.log("[ST_DEBUG] ⚡ Usando CACHÉ NUCLEAR (No se descarga nada)...");
+                items = this.nuclearCache.items;
+            } else {
+                console.log("[ST_DEBUG] ☢️ Iniciando NUCLEAR SEARCH (1000 items from DB)...");
+                const nuclearRes = await pb.collection('users').getList(1, 1000, { sort: '-updated' });
+                items = nuclearRes.items;
+
+                // Update Cache
+                this.nuclearCache.items = items;
+                this.nuclearCache.lastFetch = Date.now();
+            }
 
             const lowerQuery = username.toLowerCase();
-            const found = nuclearRes.items.find(u =>
+            const found = items.find(u =>
                 (u.name && u.name.toLowerCase() === lowerQuery) ||
                 (u.username && u.username.toLowerCase() === lowerQuery)
             );
