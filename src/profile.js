@@ -1272,7 +1272,83 @@ window.previewFile = (input, previewId) => {
 };
 
 window.doPublish = () => {
-    if (isEditing) return; // Not implemented for profile edit yet
+    if (isEditing) {
+        // --- UPDATE FLOW ---
+        const updateData = {
+            title,
+            tool,
+            isPrivate,
+            needsReference,
+            origCreator,
+            extraConfig,
+            rating: document.getElementById('upRating').value,
+            prompt: document.getElementById('upPrompt').value,
+            negative_prompt: document.getElementById('upNegPrompt')?.value || ''
+        };
+
+        if (postType === 'single') {
+            const file = document.getElementById('upFile').files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    updateData.image = reader.result;
+                    const res = await store.updatePrompt(editingId, updateData);
+                    handleUpdateResult(res);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                const existing = store.prompts.find(x => x.id === editingId);
+                updateData.image = existing?.image;
+                const res = await store.updatePrompt(editingId, updateData);
+                handleUpdateResult(res);
+            }
+        } else {
+            // Sequence Update
+            const steps = Array.from(document.querySelectorAll('.seq-step'));
+            const content = [];
+            let loaded = 0;
+            steps.forEach((step, idx) => {
+                const file = step.querySelector('.seqFile').files[0];
+                const prompt = step.querySelector('.seqPrompt').value;
+                const negPrompt = step.querySelector('.seqNegPrompt').value;
+                const rating = step.querySelector('.seqRating').value;
+                if (!file) {
+                    const existing = store.prompts.find(x => x.id === editingId);
+                    content[idx] = { image: existing?.content[idx]?.image, prompt, negative_prompt: negPrompt, rating };
+                    loaded++;
+                    if (loaded === steps.length) finalizeUpdate();
+                } else {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        content[idx] = { image: reader.result, prompt, negative_prompt: negPrompt, rating };
+                        loaded++;
+                        if (loaded === steps.length) finalizeUpdate();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            async function finalizeUpdate() {
+                updateData.type = 'sequence';
+                updateData.content = content;
+                const res = await store.updatePrompt(editingId, updateData);
+                handleUpdateResult(res);
+            }
+        }
+
+        async function handleUpdateResult(res) {
+            if (res.success) {
+                window.closeModals();
+                await store.init();
+                render();
+                window.toast("Prompt Actualizado", "success");
+            } else {
+                alert(res.msg);
+                if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Actualizar"; }
+            }
+        }
+        return;
+    }
 
     const postType = document.querySelector('input[name="postType"]:checked').value;
     const title = document.getElementById('upTitle').value;
