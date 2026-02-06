@@ -492,9 +492,21 @@ const store = {
     },
 
     async updatePrompt(id, data) {
-        // ... (auth check) ...
+        if (!this.currentUser) return { success: false, msg: "Debes iniciar sesión" };
 
-        // ... (image upload logic) ...
+        let imageUrl = data.image;
+        try {
+            if (data.image && data.image.startsWith('data:')) {
+                // Reutilizamos la lógica de uploadImage interna si es accesible, 
+                // o llamamos a _compressImage + uploadToCloudinary
+                const compressed = await this._compressImage(data.image);
+                const file = this._dataURLtoFile(compressed, 'update.webp');
+                imageUrl = await uploadToCloudinary(file);
+            }
+        } catch (uploadErr) {
+            console.error("Upload error:", uploadErr);
+            return { success: false, msg: "Error al subir imagen nueva" };
+        }
 
         try {
             await pb.collection('prompts').update(id, {
@@ -503,7 +515,7 @@ const store = {
                 negative_prompt: data.negative_prompt,
                 image: imageUrl,
                 is_private: data.isPrivate,
-                needs_reference: data.needsReference, // NEW: Update reference requirement
+                needs_reference: data.needsReference,
                 tool: data.tool,
                 rating: data.rating,
                 content: data.content
@@ -511,7 +523,8 @@ const store = {
             await this.loadPrompts();
             return { success: true };
         } catch (err) {
-            return { success: false };
+            console.error("Update error:", err);
+            return { success: false, msg: err.message || "Error al actualizar en BD" };
         }
     },
 
