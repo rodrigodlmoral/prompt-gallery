@@ -138,11 +138,15 @@ const store = {
                 rating: p.rating || 'SFW / Apto',
                 is_private: p.is_private === true || p.isPrivate === true,
                 copy_count: p.copy_count || 0,
+                needs_reference: p.needs_reference || false,
+                needsReference: p.needs_reference || false,
                 admin_featured: p.admin_featured || false,
                 is_featured: p.is_featured || false,
                 featured_until: p.featured_until || null,
                 tool: p.tool || 'ChatGPT',
                 content: p.content || [],
+                origCreator: p.orig_creator || null,
+                extraConfig: p.extra_config || [],
                 profiles: p.expand?.author ? {
                     username: p.expand.author.username,
                     avatar_url: p.expand.author.avatar_url,
@@ -429,6 +433,8 @@ const store = {
                 tool: data.tool,
                 rating: data.rating,
                 content: processedContent,
+                orig_creator: data.origCreator,
+                extra_config: data.extraConfig,
                 reactions: { like: 0, love: 0, fire: 0, funny: 0 },
                 comments: [],
                 saved_by: []
@@ -536,7 +542,9 @@ const store = {
                 needs_reference: data.needsReference,
                 tool: data.tool,
                 rating: data.rating,
-                content: data.content
+                content: data.content,
+                orig_creator: data.origCreator,
+                extra_config: data.extraConfig
             });
             await this.loadPrompts();
             return { success: true };
