@@ -184,17 +184,22 @@ const store = {
                 } catch (e) { }
             }
 
-            // STRATEGY 3: NUCLEAR FALLBACK (Fetch updated users & filter in memory)
-            // This bypasses 'invalid filter' errors by doing no filter at DB level
-            const nuclearRes = await pb.collection('users').getList(1, 200, { sort: '-updated' });
-            const found = nuclearRes.items.find(u => u.name === username || u.username === username);
+            // STRATEGY 3: NUCLEAR FALLBACK (Fetch LARGER list & filter in memory case-insensitive)
+            console.warn("[ST_DEBUG] Iniciando NUCLEAR SEARCH (1000 items)...");
+            const nuclearRes = await pb.collection('users').getList(1, 1000, { sort: '-updated' });
+
+            const lowerQuery = username.toLowerCase();
+            const found = nuclearRes.items.find(u =>
+                (u.name && u.name.toLowerCase() === lowerQuery) ||
+                (u.username && u.username.toLowerCase() === lowerQuery)
+            );
 
             if (found) {
-                logError(`[SUCCESS] Found user '${username}' via Nuclear Search`);
+                logError(`[SUCCESS] Found user '${found.username}' via Nuclear Search (Matches: ${username})`);
                 return this._cacheUser(username, found);
             }
 
-            logError(`[FAIL] Usuario '${username}' no encontrado tras búsqueda exhaustiva.`);
+            logError(`[FAIL] Usuario '${username}' no encontrado en los últimos 1000 registros.`);
         } catch (err) {
             logError(`[CRITICAL] Error final: ${err.message}`);
         }

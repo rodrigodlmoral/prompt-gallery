@@ -1806,7 +1806,7 @@ window.doSendDirectTip = async (recipientId, amount) => {
 const init = async () => {
     // FORCE VERSION CHECK TOAST
     setTimeout(() => {
-        if (window.toast) window.toast("Versión v3.3: NUCLEAR PROTOCOL ☢️", "warning");
+        if (window.toast) window.toast("Versión v3.4: NUCLEAR MAX ☢️☢️", "error");
     }, 1000);
 
     await store.init();
