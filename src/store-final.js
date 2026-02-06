@@ -180,15 +180,15 @@ const store = {
         };
 
         try {
-            // STRATEGY 1: SUPER SAFE FETCH (v5.1)
+            // STRATEGY 1: CLEAN STANDARD FETCH (v5.2)
             let directFound = null;
 
-            // 1.1 Try strict Username (using getList to avoid any getFirstListItem defaults)
+            // 1.1 Try strict Username
             try {
-                // NOTE: Using single quotes for value to be SQL-safe
+                // Fix v5.2: Removed requestKey which was causing malformed query params (skipTotal=1:1)
+                // Using simple quotes for SQL safety and standard getList
                 const resUser = await pb.collection('users').getList(1, 1, {
-                    filter: `username='${username}'`,
-                    requestKey: null
+                    filter: `username='${username}'`
                 });
                 if (resUser.items.length > 0) directFound = resUser.items[0];
             } catch (e1) {
@@ -202,8 +202,7 @@ const store = {
             if (!directFound) {
                 try {
                     const resName = await pb.collection('users').getList(1, 1, {
-                        filter: `name='${username}'`,
-                        requestKey: null
+                        filter: `name='${username}'`
                     });
                     if (resName.items.length > 0) directFound = resName.items[0];
                 } catch (e2) {
