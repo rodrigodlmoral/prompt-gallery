@@ -492,6 +492,9 @@ const store = {
     },
 
     async updatePrompt(id, data) {
+        console.log(`[DEBUG_V8.8] updatePrompt requested for ID: ${id}`);
+        console.log(`[DEBUG_V8.8] Current User ID: ${this.currentUser?.id}`);
+
         if (!this.currentUser) return { success: false, msg: "Debes iniciar sesión" };
 
         let imageUrl = data.image;
