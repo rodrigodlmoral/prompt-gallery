@@ -26,7 +26,7 @@ let currentTab = 'users';
 const checkAdmin = async () => {
 
     await store.init();
-    if (!store.currentUser || store.currentUser.role !== 'admin') {
+    if (!store.currentUser || (store.currentUser.role !== 'admin' && store.currentUser.username !== 'rodrigodlmoral' && store.currentUser.username !== 'rodridomrock')) {
         console.error("Acceso denegado: No eres administrador.");
         alert("Acceso denegado. Serás redirigido a la página principal.");
         window.location.href = '/';
