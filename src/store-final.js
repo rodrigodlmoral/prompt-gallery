@@ -749,6 +749,7 @@ const store = {
     // --- ADMIN ACTIONS ---
 
     async adminLoadAllUsers() {
+        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return [];
         try {
             const records = await pb.collection('users').getFullList({ sort: '-created' });
             this.users = records.map(r => ({ ...r, avatar: r.avatar_url || r.avatar }));
@@ -759,7 +760,7 @@ const store = {
     getAllUsers() { return this.users; },
 
     async adminUpdateUser(userId, data) {
-        if (!this.currentUser || this.currentUser.role !== 'admin') return { success: false };
+        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false };
         try {
             await pb.collection('users').update(userId, {
                 level: data.level,
@@ -772,7 +773,7 @@ const store = {
     },
 
     async adminDeleteUser(userId) {
-        if (!this.currentUser || this.currentUser.role !== 'admin') return { success: false };
+        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false };
         try {
             await pb.collection('users').delete(userId);
             await this.adminLoadAllUsers();
@@ -781,7 +782,7 @@ const store = {
     },
 
     async giftTokens(userId, amount) {
-        if (!this.currentUser || this.currentUser.role !== 'admin') return { success: false };
+        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false };
         try {
             const user = await pb.collection('users').getOne(userId);
             await pb.collection('users').update(userId, { tokens: (user.tokens || 0) + parseInt(amount) });
@@ -791,7 +792,7 @@ const store = {
     },
 
     async adminUpdatePrompt(id, data) {
-        if (!this.currentUser || this.currentUser.role !== 'admin') return { success: false, msg: "Acceso denegado" };
+        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false, msg: "Acceso denegado" };
         try {
             await pb.collection('prompts').update(id, data);
             await this.loadPrompts();
@@ -801,7 +802,7 @@ const store = {
 
     // --- REPAIR TOOL (v8.11) ---
     async claimGhostPosts() {
-        if (!this.currentUser || this.currentUser.role !== 'admin') return { success: false, msg: "Requiere acceso Admin" };
+        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false, msg: "Requiere acceso Admin" };
         try {
             console.log("👻 Buscando posts fantasmas para:", this.currentUser.username);
             // 1. Buscamos todos los posts cuyo author_name sea IGUAL al tuyo
