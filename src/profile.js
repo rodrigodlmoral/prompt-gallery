@@ -146,7 +146,6 @@ const ProfileHeader = () => {
     console.log(`[PROFILE] ProfileHeader: user encontrado?`, user ? user.username : 'NO');
     console.log(`[DEBUG_ADMIN] CurrentUserRole:`, store.currentUser?.role);
     console.log(`[DEBUG_ADMIN] ProfileUserRole:`, user?.role);
-    console.log(`[DEBUG_ADMIN] isMe:`, isMe);
 
     if (!user) {
         // Si ya pasó un tiempo razonable y sigue sin cargar, asumimos error
@@ -166,6 +165,7 @@ const ProfileHeader = () => {
     }
 
     const isMe = store.currentUser && store.currentUser.id === user.id;
+    console.log(`[DEBUG_ADMIN] isMe:`, isMe);
     const getLevelInfo = (lvl) => LEVEL_REQS[lvl] || LEVEL_REQS[0];
     const lvlInfo = getLevelInfo(user.level || 0);
 
