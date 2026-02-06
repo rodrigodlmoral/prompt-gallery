@@ -1802,10 +1802,8 @@ window.doSendDirectTip = async (recipientId, amount) => {
 };
 
 const init = async () => {
-    // FORCE VERSION CHECK TOAST v8.0
-    setTimeout(() => {
-        if (window.toast) window.toast(`v8.0: GHOST DELETED 👻 (Fix Real)`, "success");
-    }, 1000);
+    // Normal initialization
+    // setTimeout(() => { if (window.toast) window.toast("v8.1: Stable", "success"); }, 1000);
 
     await store.init();
     if (profileUser) {

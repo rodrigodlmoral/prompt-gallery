@@ -192,9 +192,9 @@ const store = {
                 });
                 if (resName.items.length > 0) directFound = resName.items[0];
             } catch (e1) {
+            } catch (e1) {
                 // 1.2 DRAGNET FALLBACK (If Filter Fails)
                 console.warn(`[ST_DEBUG] Strategy 1 Filter Failed (${e1.status}). Engaging DRAGNET...`);
-                if (window.toast) window.toast(`v7.0: Engaging DRAGNET Search... 🕸️`, 'info');
 
                 try {
                     // Fetch top 50 users WITHOUT FILTER (Bypass API bug)
