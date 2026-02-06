@@ -15,6 +15,7 @@ Este archivo registra todas las versiones de seguridad creadas para la App "Prom
 | **v2.0** | 2026-01-31 01:05 | **Admin Total & Sorting**: Migración Cloudinary OK, RLS Admin OK, Borrado de Usuarios y Reordenamiento Alfabético. | ✅ Realizada |
 | **v3.0** | 2026-02-03 20:40 | **Seguridad & Rewards**: Protección XSS, Crystal Slider Anti-Bot, Recompensas (+1), Cooldown (5m) y Límite Diario (10). | ✅ Realizada |
 | **v4.0** | 2026-02-04 15:34 | **Migración de Perfiles**: Conversión a MPA, perfiles en `/profile.html?u=...`, limpieza de lógica en `main.js`. | ✅ Realizada |
+| **v4.1** | 2026-02-05 16:52 | **Post-Review Backup**: Backup completo tras documentación exhaustiva del proyecto. Estado estable pre-correcciones. | ✅ Realizada |
 
 ---
 

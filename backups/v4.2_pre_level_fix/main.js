@@ -90,12 +90,12 @@ const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.
 const RATINGS = ['SFW / Apto', 'Sugestivo', 'NSFW / +18'];
 
 const LEVEL_REQS = [
-    { posts: 0, copies: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
-    { posts: 10, copies: 0, name: 'Novato', benefits: ['Publicar Secuencias (Multi-imagen)'], icon: '🌱', color: '#4caf50' },
-    { posts: 25, copies: 0, name: 'Creador Jr', benefits: ['Cambiar foto de perfil', 'Añadir redes sociales al perfil'], icon: '🎨', color: '#2196f3' },
-    { posts: 50, copies: 15, name: 'Creador', benefits: ['Sin cooldown en comentarios', 'Medalla especial de plata'], icon: '🏆', color: '#ff9800' },
-    { posts: 100, copies: 40, name: 'Artista', benefits: ['Destacar tus propios posts (Self-Promo)', 'Panel de estadísticas avanzado'], icon: '💎', color: '#9c27b0' },
-    { posts: 250, copies: 80, name: 'Maestro', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '👑', color: 'gold' }
+    { posts: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
+    { posts: 10, name: 'Iniciado', benefits: ['Publicar Secuencias (Multi-imagen)'], icon: '🎖️', color: '#4caf50' },
+    { posts: 25, name: 'Principiante', benefits: ['Cambiar foto de perfil', 'Añadir redes sociales al perfil'], icon: '🏅', color: '#2196f3' },
+    { posts: 50, name: 'Contribuidor', benefits: ['Sin cooldown en comentarios', 'Medalla especial de plata'], icon: '🥇', color: '#ff9800' },
+    { posts: 100, name: 'Autor', benefits: ['Destacar tus propios posts (Self-Promo)', 'Panel de estadísticas avanzado'], icon: '💎', color: '#9c27b0' },
+    { posts: 250, name: 'COLABORADOR', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '✨', color: 'gold' }
 ];
 
 const app = document.querySelector('#app');
@@ -1454,37 +1454,21 @@ window.openLevelProgress = () => {
     if (oldModal) oldModal.remove();
 
     const u = store.currentUser;
-    const postsCount = u.prompts_count || 0;
-    const copiesCount = u.total_copies || 0;
+    const count = u.prompts_count || 0;
     const currentLvl = u.level || 0;
 
-    // Find next level requirements
-    const nextLvlIdx = Math.min(currentLvl + 1, LEVEL_REQS.length - 1);
-    const nextLvlReq = LEVEL_REQS[nextLvlIdx];
-    const isMax = currentLvl >= LEVEL_REQS.length - 1;
+    // Find next level
+    const nextLvlReq = LEVEL_REQS.find(l => l.posts > count) || LEVEL_REQS[LEVEL_REQS.length - 1];
+    const isMax = count >= LEVEL_REQS[LEVEL_REQS.length - 1].posts;
 
-    // Calcular progreso
-    let progressPosts = 0;
-    let progressCopies = 0;
-
-    if (!isMax) {
-        const prevReqPosts = LEVEL_REQS[currentLvl].posts;
-        const nextReqPosts = nextLvlReq.posts;
-        progressPosts = Math.min(100, Math.max(0, ((postsCount - prevReqPosts) / (nextReqPosts - prevReqPosts)) * 100));
-
-        if (nextLvlReq.copies > 0) {
-            const prevReqCopies = LEVEL_REQS[currentLvl].copies || 0;
-            const nextReqCopies = nextLvlReq.copies;
-            progressCopies = Math.min(100, Math.max(0, ((copiesCount - prevReqCopies) / (nextReqCopies - prevReqCopies)) * 100));
-        } else {
-            progressCopies = 100;
-        }
+    let progressPercent = 0;
+    if (isMax) {
+        progressPercent = 100;
     } else {
-        progressPosts = 100;
-        progressCopies = 100;
+        const prevReq = LEVEL_REQS[currentLvl].posts;
+        const nextReq = nextLvlReq.posts;
+        progressPercent = Math.min(100, Math.max(0, ((count - prevReq) / (nextReq - prevReq)) * 100));
     }
-
-    const needsCopies = nextLvlReq.copies > 0;
 
     const html = `
         <div style="text-align:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #222">
@@ -1495,29 +1479,13 @@ window.openLevelProgress = () => {
 
         <div style="background:#000; padding:25px; border-radius:16px; border:1px solid #333; margin-bottom:25px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5)">
             <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
-                <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Progreso de Posts'}</span>
-                <span style="color:#2563eb">${postsCount} / ${isMax ? '∞' : nextLvlReq.posts}</span>
+                <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Hacia Nivel ' + (currentLvl + 1)}</span>
+                <span style="color:#2563eb">${count} / ${isMax ? '∞' : nextLvlReq.posts} Posts</span>
             </div>
-            <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333; margin-bottom:15px">
-                <div style="width:${progressPosts}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1s ease"></div>
+            <div style="width:100%; height:16px; background:#222; border-radius:8px; overflow:hidden; border:1px solid #333">
+                <div style="width:${progressPercent}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1.5s cubic-bezier(0.19, 1, 0.22, 1)"></div>
             </div>
-
-            ${needsCopies ? `
-            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
-                <span style="color:#888">Progreso de Copias</span>
-                <span style="color:#f1c40f">${copiesCount} / ${nextLvlReq.copies}</span>
-            </div>
-            <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333">
-                <div style="width:${progressCopies}%; height:100%; background:linear-gradient(90deg, #f1c40f, #e67e22); transition:width 1s ease"></div>
-            </div>
-            ` : ''}
-
-            ${!isMax ? `
-                <p style="font-size:0.85rem; color:#888; margin-top:15px; text-align:center">
-                    ${postsCount < nextLvlReq.posts ? `Te faltan <strong>${nextLvlReq.posts - postsCount}</strong> posts. ` : ''}
-                    ${needsCopies && copiesCount < nextLvlReq.copies ? `Te faltan <strong>${nextLvlReq.copies - copiesCount}</strong> copias recibidas.` : ''}
-                </p>
-            ` : ''}
+            ${!isMax ? `<p style="font-size:0.9rem; color:#888; margin-top:12px; text-align:center">¡Sigue así! Te faltan <strong>${nextLvlReq.posts - count}</strong> publicaciones para subir de rango.</p>` : ''}
         </div>
 
         <h3 style="font-size:1.2rem; margin-bottom:18px; color:#fff; display:flex; align-items:center; gap:10px">
@@ -1527,7 +1495,7 @@ window.openLevelProgress = () => {
         
         <div style="display:flex; flex-direction:column; gap:12px">
             ${LEVEL_REQS.map((l, idx) => {
-        const isUnlocked = postsCount >= l.posts && copiesCount >= (l.copies || 0);
+        const isUnlocked = count >= l.posts;
         const isCurrent = currentLvl === idx;
         return `
                 <div style="display:flex; gap:15px; align-items:start; padding:15px; border-radius:12px; border:1px solid ${isCurrent ? '#2563eb' : (isUnlocked ? '#333' : '#1a1a1a')}; background:${isCurrent ? 'rgba(37, 99, 235, 0.1)' : (isUnlocked ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.3)')}; opacity:${isUnlocked ? 1 : 0.4}; transition:0.3s">
@@ -1535,7 +1503,7 @@ window.openLevelProgress = () => {
                     <div style="flex:1">
                         <div style="display:flex; justify-content:space-between; align-items:center">
                             <strong style="color:${l.color}; font-size:1.05rem;">Nivel ${idx}: ${l.name}</strong>
-                            <span style="font-size:0.75rem; background:#333; color:#fff; padding:3px 10px; border-radius:100px; font-weight:700">${l.posts} Posts ${l.copies > 0 ? `+ ${l.copies} Copias` : ''}</span>
+                            <span style="font-size:0.75rem; background:#333; color:#fff; padding:3px 10px; border-radius:100px; font-weight:700">${l.posts} Posts</span>
                         </div>
                         <ul style="margin:8px 0 0 0; padding-left:18px; font-size:0.9rem; color:#999; line-height:1.4">
                             ${l.benefits.map(b => `<li>${b}</li>`).join('')}

@@ -10,12 +10,12 @@ window.trackEvent = (name, params = {}) => {
 };
 
 const LEVEL_REQS = [
-    { posts: 0, copies: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
-    { posts: 10, copies: 0, name: 'Novato', benefits: ['Publicar Secuencias (Multi-imagen)'], icon: '🌱', color: '#4caf50' },
-    { posts: 25, copies: 0, name: 'Creador Jr', benefits: ['Cambiar foto de perfil', 'Añadir redes sociales al perfil'], icon: '🎨', color: '#2196f3' },
-    { posts: 50, copies: 15, name: 'Creador', benefits: ['Sin cooldown en comentarios', 'Medalla especial de plata'], icon: '🏆', color: '#ff9800' },
-    { posts: 100, copies: 40, name: 'Artista', benefits: ['Destacar tus propios posts (Self-Promo)', 'Panel de estadísticas avanzado'], icon: '💎', color: '#9c27b0' },
-    { posts: 250, copies: 80, name: 'Maestro', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '👑', color: 'gold' }
+    { posts: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
+    { posts: 10, name: 'Iniciado', benefits: ['Publicar Secuencias (Multi-imagen)'], icon: '🎖️', color: '#4caf50' },
+    { posts: 25, name: 'Principiante', benefits: ['Cambiar foto de perfil', 'Añadir redes sociales al perfil'], icon: '🏅', color: '#2196f3' },
+    { posts: 50, name: 'Contribuidor', benefits: ['Sin cooldown en comentarios', 'Medalla especial de plata'], icon: '🥇', color: '#ff9800' },
+    { posts: 100, name: 'Autor', benefits: ['Destacar tus propios posts (Self-Promo)', 'Panel de estadísticas avanzado'], icon: '💎', color: '#9c27b0' },
+    { posts: 250, name: 'COLABORADOR', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '✨', color: 'gold' }
 ];
 
 // STORE (Estado global simple)
@@ -262,27 +262,18 @@ const store = {
                 saved_by: []
             });
 
-            // --- LEVEL UP LOGIC (POSTS + COPIAS) ---
+            // --- LEVEL UP LOGIC ---
             const oldLevel = this.currentUser.level || 0;
-
-            // Obtener total de posts
+            // Fetch total prompts count from DB for accuracy
             const userPrompts = await pb.collection('prompts').getList(1, 1, {
                 filter: `author = "${this.currentUser.id}"`
             });
             const totalPosts = userPrompts.totalItems;
 
-            // Obtener total de copias de TODOS los prompts del usuario
-            const allPrompts = await pb.collection('prompts').getFullList({
-                filter: `author = "${this.currentUser.id}"`
-            });
-            const totalCopies = allPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
-
-            // Calcular nivel (considerando posts Y copias)
+            // Calculate new level
             let newLevel = 0;
             LEVEL_REQS.forEach((req, idx) => {
-                if (totalPosts >= req.posts && totalCopies >= req.copies) {
-                    newLevel = idx;
-                }
+                if (totalPosts >= req.posts) newLevel = idx;
             });
 
             let leveledUp = false;
@@ -290,16 +281,12 @@ const store = {
                 leveledUp = true;
                 await pb.collection('users').update(this.currentUser.id, {
                     level: newLevel,
-                    prompts_count: totalPosts,
-                    total_copies: totalCopies,
                     tokens: (this.currentUser.tokens || 0) + 10 // Bonus for level up
                 });
             } else {
                 // Just regular reward (1 token per post)
                 await pb.collection('users').update(this.currentUser.id, {
-                    tokens: (this.currentUser.tokens || 0) + 1,
-                    prompts_count: totalPosts,
-                    total_copies: totalCopies
+                    tokens: (this.currentUser.tokens || 0) + 1
                 });
             }
 
@@ -643,85 +630,6 @@ const store = {
             bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
         while (n--) { u8arr[n] = bstr.charCodeAt(n); }
         return new File([u8arr], filename, { type: mime });
-    },
-
-    // --- COPY COUNT TRACKING CON ANTI-SPAM ---
-    async incrementCopyCount(promptId) {
-        const COPY_COOLDOWN = 10000; // 10 segundos
-        const now = Date.now();
-        const userId = this.currentUser?.id || 'anon';
-        const key = `${userId}_${promptId}`;
-
-        // Cooldown anti-spam
-        if (!window._lastCopyTime) window._lastCopyTime = {};
-        if (window._lastCopyTime[key] && (now - window._lastCopyTime[key]) < COPY_COOLDOWN) {
-            console.warn('⏱️ Cooldown activo para copias (10s)');
-            return { success: false, msg: 'Espera unos segundos antes de copiar de nuevo' };
-        }
-
-        window._lastCopyTime[key] = now;
-
-        try {
-            const prompt = await pb.collection('prompts').getOne(promptId);
-
-            // Anti-spam: No incrementar si el autor copia su propio prompt
-            if (this.currentUser && prompt.author === this.currentUser.id) {
-                console.log('🚫 Auto-copia detectada, no se incrementa contador');
-                return { success: true, selfCopy: true };
-            }
-
-            const newCount = (prompt.copy_count || 0) + 1;
-            await pb.collection('prompts').update(promptId, {
-                copy_count: newCount
-            });
-
-            // Verificar si el autor debe subir de nivel
-            await this._checkAuthorLevelUp(prompt.author);
-
-            console.log(`✅ Copy count incrementado: ${newCount}`);
-            return { success: true, count: newCount };
-        } catch (err) {
-            console.error('❌ Error incrementando copy_count:', err);
-            return { success: false, msg: err.message };
-        }
-    },
-
-    // --- VERIFICACIÓN AUTOMÁTICA DE NIVEL DEL AUTOR ---
-    async _checkAuthorLevelUp(authorId) {
-        try {
-            // Obtener todos los prompts del autor
-            const authorPrompts = await pb.collection('prompts').getFullList({
-                filter: `author = "${authorId}"`
-            });
-
-            const totalPosts = authorPrompts.length;
-            const totalCopies = authorPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
-
-            // Calcular nivel correcto basado en posts Y copias
-            let newLevel = 0;
-            LEVEL_REQS.forEach((req, idx) => {
-                if (totalPosts >= req.posts && totalCopies >= req.copies) {
-                    newLevel = idx;
-                }
-            });
-
-            // Obtener nivel actual del autor
-            const author = await pb.collection('users').getOne(authorId);
-
-            // Si el nivel, posts o copias cambiaron, actualizar
-            if (newLevel > (author.level || 0) || author.prompts_count !== totalPosts || author.total_copies !== totalCopies) {
-                await pb.collection('users').update(authorId, {
-                    level: Math.max(newLevel, author.level || 0),
-                    prompts_count: totalPosts,
-                    total_copies: totalCopies
-                });
-                if (newLevel > (author.level || 0)) {
-                    console.log(`🎉 Usuario ${author.username} subió a Nivel ${newLevel} (${LEVEL_REQS[newLevel].name})!`);
-                }
-            }
-        } catch (err) {
-            console.warn('⚠️ Error checking author level:', err);
-        }
     }
 };
 
