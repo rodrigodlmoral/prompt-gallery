@@ -152,12 +152,17 @@ const store = {
         }
 
         try {
-            console.log(`[STORE] fetchUserProfileByUsername: buscando name="${username}"`);
-            const record = await pb.collection('users').getFirstListItem(`name="${username}"`);
-            console.log(`[STORE] fetchUserProfileByUsername: registro encontrado para ${username}`, record.id);
+            console.log(`[STORE] fetchUserProfileByUsername: buscando name = "${username}"`);
+            // Usamos getList en lugar de getFirstListItem por estabilidad (evita errores 400 raros)
+            const result = await pb.collection('users').getList(1, 1, {
+                filter: `name = "${username}"`
+            });
+
+            const record = result.items[0];
             if (record) {
+                console.log(`[STORE] fetchUserProfileByUsername: registro encontrado! ID:`, record.id);
                 const normalized = window.normalizeProfile ? window.normalizeProfile(record) : record;
-                console.log(`[STORE] fetchUserProfileByUsername: perfil normalizado`, normalized.username);
+                console.log(`[STORE] fetchUserProfileByUsername: perfil normalizado como:`, normalized.username);
 
                 // --- ROBUST STATS SYNC FOR OTHER USERS ---
                 if (normalized.prompts_count === undefined) {
