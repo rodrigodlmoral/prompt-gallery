@@ -180,20 +180,20 @@ const store = {
         };
 
         try {
-            // STRATEGY 1: FUZZY NAME SEARCH (v5.5)
-            // Fix: 'valentine' has no username, only name. Using fuzzy match '~' to be safe against spaces.
+            // STRATEGY 1: STRICT NAME SEARCH (v6.0 - Fix 400 Error)
+            // Reverted fuzzy match '~' because it causes 400 Bad Request. Using strict '='.
             let directFound = null;
 
-            // 1.1 Try NAME first (using fuzzy match)
+            // 1.1 Try NAME first (Exact Match)
             try {
-                // filter="name~'val'" finds 'valentine'
+                // filter="name='valentine'"
                 const resName = await pb.collection('users').getList(1, 1, {
-                    filter: `name ~ '${username}'`
+                    filter: `name = '${username}'`
                 });
                 if (resName.items.length > 0) directFound = resName.items[0];
             } catch (e1) {
                 console.warn(`[ST_DEBUG] Strategy 1 (Name) Warn:`, e1);
-                if (window.toast) window.toast(`Debug: Name search failed for '${username}'`, 'error');
+                if (window.toast) window.toast(`Debug: Name search failed for '${username}' (Status: ${e1.status})`, 'error');
             }
 
             // 1.2 Try Username (fallback)
