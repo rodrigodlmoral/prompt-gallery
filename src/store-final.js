@@ -40,7 +40,7 @@ export const LEVEL_REQS = [
     { posts: 250, copies: 80, name: 'Maestro', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '👑', color: 'gold' }
 ];
 
-export const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.0', 'SDXL', 'Flux', 'Midjourney', 'Huggingface', 'Fooocus', 'ComfyUI', 'Perchance', 'Otro'];
+export const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.0', 'SDXL', 'Flux', 'Midjourney', 'Whisk', 'Huggingface', 'Fooocus', 'ComfyUI', 'Perchance', 'Otro'];
 export const RATINGS = ['SFW / Apto', 'Sugestivo', 'NSFW / +18'];
 
 export const RATING_INFO = `SFW / Apto (Safe for Work): Imágenes aptas para todo público. No contienen violencia, desnudez ni contenido sexual.
