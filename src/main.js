@@ -1,6 +1,39 @@
 import './style.css'
 import './admin_fix.css' // Emergency CSS Fix for Admin Panel
-import { store } from './store.js'
+import { store } from './store-final.js'
+
+// --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
+const MAINTENANCE_MODE = false;
+const MAINTENANCE_END_TIME = new Date('2026-02-05T04:35:00-06:00').getTime(); // 4:35 AM Local
+
+const renderMaintenance = () => {
+    document.body.innerHTML = `
+        <div style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0a0a0a; color:white; font-family: 'Inter', sans-serif; text-align:center; padding:20px">
+            <div style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); padding: 50px; border-radius: 32px; border: 1px solid rgba(255, 255, 255, 0.12); max-width: 500px; box-shadow: 0 20px 50px rgba(0,0,0,0.5)">
+                <div style="font-size: 5rem; margin-bottom: 25px; animation: float 3s ease-in-out infinite">🏗️</div>
+                <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 15px; background: linear-gradient(135deg, #fff 0%, #888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -1px">Estamos Mejorando</h1>
+                <p style="color: #aaa; line-height: 1.6; font-size: 1.1rem; font-weight: 300">
+                    Prompt Gallery se encuentra en proceso de migración para ofrecerte una experiencia más rápida y estable.
+                </p>
+                <div style="margin-top: 35px; padding: 25px; background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.15)">
+                    <p style="font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 3px; font-weight: 700">Estado del Sistema</p>
+                    <div style="font-size: 1.8rem; font-weight: 700; margin: 15px 0; color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.1)">Migración en Progreso</div>
+                    <p style="font-size: 0.85rem; color: #555">Regresaremos lo antes posible</p>
+                </div>
+                <p style="margin-top: 35px; font-size: 0.8rem; color: #444; font-style: italic">Gracias por tu infinita paciencia.</p>
+            </div>
+            <style>
+                @keyframes float {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-10px); }
+                }
+                body { margin: 0; overflow: hidden; background: #050505; }
+            </style>
+        </div>
+    `;
+
+    // Temporizador removido por solicitud del usuario
+};
 
 
 // --- SECURITY HELPERS ---
@@ -30,24 +63,31 @@ window.openUserProfile = (username) => {
     window.location.href = `/profile.html?u=${encodeURIComponent(username)}`;
 };
 
-// --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist ---
+// --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist in Detail View ---
 setInterval(() => {
-    document.querySelectorAll('.blur-overlay').forEach(overlay => {
-        // If overlay has NO button, force inject it
-        if (!overlay.querySelector('button')) {
-            const text = overlay.innerText || "🔞 NSFW";
+    document.querySelectorAll('.card-blurred').forEach(wrapper => {
+        // Find or create overlay
+        let overlay = wrapper.querySelector('.blur-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'blur-overlay';
+            wrapper.appendChild(overlay);
+        }
 
-            // Detect context: Modal vs Card
-            const isModal = overlay.closest('.view-modal') || overlay.closest('#viewModal');
+        const isModal = wrapper.closest('.view-modal-wrapper') || wrapper.id === 'detImgWrap';
+        const hasButton = overlay.querySelector('button');
+        const hasLabel = overlay.querySelector('span');
+        const warningLabel = wrapper.dataset.warning || "NSFW";
 
-            if (isModal) {
-                // MODAL: Standard Big Button (No changes)
-                overlay.innerHTML = `<span>${text}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
-            } else {
-                // CARD: Discrete & Higher Up
-                // transform: translateY(-30%) moves it up significantly
-                // padding: 4px 8px & font-size: 0.7rem makes it smaller/discrete
-                overlay.innerHTML = `<span>${text}</span><button class="btn" style="margin-top:5px; background: rgba(255, 68, 68, 0.9); color: white; border:none; padding: 3px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; transform: translateY(-15px);" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar</button>`;
+        if (isModal) {
+            // Force inject button in MODAL detail
+            if (!hasButton) {
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; font-weight:700; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
+            }
+        } else {
+            // Dashboard / Collage: Only show Label, NO button
+            if (hasButton || !hasLabel) {
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span>`;
             }
         }
     });
@@ -57,12 +97,12 @@ const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.
 const RATINGS = ['SFW / Apto', 'Sugestivo', 'NSFW / +18'];
 
 const LEVEL_REQS = [
-    { posts: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
-    { posts: 10, name: 'Iniciado', benefits: ['Publicar Secuencias (Multi-imagen)'], icon: '🎖️', color: '#4caf50' },
-    { posts: 25, name: 'Principiante', benefits: ['Cambiar foto de perfil', 'Añadir redes sociales al perfil'], icon: '🏅', color: '#2196f3' },
-    { posts: 50, name: 'Contribuidor', benefits: ['Sin cooldown en comentarios', 'Medalla especial de plata'], icon: '🥇', color: '#ff9800' },
-    { posts: 100, name: 'Autor', benefits: ['Destacar tus propios posts (Self-Promo)', 'Panel de estadísticas avanzado'], icon: '💎', color: '#9c27b0' },
-    { posts: 250, name: 'COLABORADOR', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '✨', color: 'gold' }
+    { posts: 0, copies: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
+    { posts: 10, copies: 0, name: 'Novato', benefits: ['Publicar Secuencias (Multi-imagen)'], icon: '🌱', color: '#4caf50' },
+    { posts: 25, copies: 0, name: 'Creador Jr', benefits: ['Cambiar foto de perfil', 'Añadir redes sociales al perfil'], icon: '🎨', color: '#2196f3' },
+    { posts: 50, copies: 15, name: 'Creador', benefits: ['Sin cooldown en comentarios', 'Medalla especial de plata'], icon: '🏆', color: '#ff9800' },
+    { posts: 100, copies: 40, name: 'Artista', benefits: ['Destacar tus propios posts (Self-Promo)', 'Panel de estadísticas avanzado'], icon: '💎', color: '#9c27b0' },
+    { posts: 250, copies: 80, name: 'Maestro', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '👑', color: 'gold' }
 ];
 
 const app = document.querySelector('#app');
@@ -124,7 +164,7 @@ const renderCollage = (p, isHero = false) => {
         }
 
         return `
-            <div class="collage-item ${applyBlur ? 'card-blurred' : ''}" style="${spanStyle}">
+            <div class="collage-item ${applyBlur ? 'card-blurred' : ''}" data-warning="${applyBlur ? warningLabel : ''}" style="${spanStyle}">
                 <img src="${step.image}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">
             </div>`;
     }).join('')}
@@ -207,14 +247,26 @@ const LEGAL_TEXTS = {
 const TopBar = () => `<div class="top-bar"><div class="container top-bar-inner"><div class="top-bar-links"><span onclick="window.openInfo('tos')">Términos</span><span onclick="window.openInfo('privacy')">Privacidad</span><span onclick="window.openInfo('safety')">Seguridad</span><span onclick="window.openInfo('faq')">Preguntas</span></div><button class="support-btn" onclick="window.openInfo('support')">💬 Soporte</button></div></div>`;
 
 const getModeration = (p, forcedRating) => {
+    // Si no hay rating, asumimos SFW por defecto
     let rating = forcedRating || p.rating || 'SFW / Apto';
     if (!forcedRating && p.type === 'sequence' && p.content && p.content.length > 0) {
         rating = p.content[0].rating || 'SFW / Apto';
     }
+
+    // Obtener preferencias del usuario logueado (moderation ahora es un campo oficial)
     const mod = store.currentUser?.moderation || { suggestive: 'ON', nsfw: 'BLUR' };
-    let applyBlur = false; let warningLabel = '';
-    if (rating === 'Sugestivo' && mod.suggestive === 'BLUR') { applyBlur = true; warningLabel = 'SUGESTIVO'; }
-    if (rating === 'NSFW / +18' && mod.nsfw === 'BLUR') { applyBlur = true; warningLabel = 'NSFW'; }
+    let applyBlur = false;
+    let warningLabel = '';
+
+    if (rating === 'Sugestivo' && mod.suggestive === 'BLUR') {
+        applyBlur = true;
+        warningLabel = 'SUGESTIVO';
+    }
+    if (rating === 'NSFW / +18' && mod.nsfw === 'BLUR') {
+        applyBlur = true;
+        warningLabel = 'NSFW';
+    }
+
     return { applyBlur, warningLabel };
 };
 
@@ -231,21 +283,20 @@ const getFilteredPrompts = () => {
     if (currentView === 'profile') {
         // En perfil, el filtro 'user' es implícito o forzado
         list = list.filter(p => {
-            // CRITICAL FIX: Hide private posts unless viewer is the author
-            if (p.isPrivate) {
-                if (!store.currentUser || store.currentUser.username !== p.author) return false;
+            // UNIFICACIÓN DE PRIVACIDAD: is_private es la clave oficial
+            const isPrivate = p.is_private === true || p.isPrivate === true;
+            if (isPrivate) {
+                // Solo el autor puede ver sus propios posts privados
+                if (!store.currentUser || store.currentUser.id !== p.author_id) return false;
             }
-            return profileTab === 'creations' ? p.author === profileUser : p.savedBy?.includes(profileUser);
+            return profileTab === 'creations' ? p.author_id === profileUser : p.savedBy?.includes(profileUser);
         });
     } else {
-        // Main Feed Filtering
-        list = list.filter(p => !p.isPrivate);
+        // En el Dashboard público, ocultar TODO lo privado de raíz
+        list = list.filter(p => !(p.is_private === true || p.isPrivate === true));
         if (filters.source === 'following' && store.currentUser) {
             const myFollowing = store.currentUser.following || [];
-            list = list.filter(p => {
-                const authorUser = null; // Fix: store.users no existe
-                return authorUser ? myFollowing.includes(authorUser.id) : false;
-            });
+            list = list.filter(p => myFollowing.includes(p.author_id));
         } else if (filters.source === 'user' && store.currentUser) {
             // "Tus Prompts" en Home (librería propia)
             list = list.filter(p => p.author === store.currentUser.username);
@@ -494,7 +545,7 @@ const ProfileHeader = () => {
     </div>`;
 
     const isMe = store.currentUser && store.currentUser.username.toLowerCase() === user.username.toLowerCase();
-    if (isMe) console.log("✅ Profile detected as OWNER:", user.username);
+
 
     const getLevelInfo = (lvl) => {
         return LEVEL_REQS[lvl] || LEVEL_REQS[0];
@@ -600,23 +651,27 @@ const renderTopCreators = (details) => {
                 <div class="tc-title">⭐ Top Creadores</div>
                 <div class="tc-subtitle">Cuadro de Honor • Los 10 Mejores</div>
             </div>
-            <!-- Button Removed as requested -->
         </div>
         <div class="tc-grid">
-            ${details.map((u, idx) => `
-            <div class="tc-card" onclick="window.openUserProfile('${u.username}')">
+            ${details.map((u, idx) => {
+        const username = u.username || u.name || 'Usuario';
+        const avatar = u.avatar || u.avatar_url || `https://robohash.org/${encodeURIComponent(username)}?set=set4`;
+
+        return `
+            <div class="tc-card" onclick="window.openUserProfile('${username}')">
                 <div class="tc-rank">#${idx + 1}</div>
-                <img src="${u.avatar_url || 'https://via.placeholder.com/150'}" class="tc-avatar" loading="lazy">
-                <div class="tc-name">${u.username}</div>
+                <img src="${avatar}" class="tc-avatar" loading="lazy" onerror="this.src='https://robohash.org/${encodeURIComponent(username)}?set=set4'">
+                <div class="tc-name">${username}</div>
                 <div class="tc-stats" style="background:linear-gradient(90deg, #ccc, #777); -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-weight:700; font-size:0.7rem; letter-spacing:0.5px">${u.prompts_count || 0} PROMPTS</div>
                 <div class="tc-level">Nivel ${u.level || 0}</div>
-            </div>`).join('')}
+            </div>`;
+    }).join('')}
         </div>
     </div>`;
 };
 
 const loadTopCreators = async () => {
-    console.log("🏆 Loading Top Creators...");
+
     topCreatorsList = await store.getTopCreators();
     if (currentView === 'home' && filters.source === 'community') render(); // Re-render if on home
 };
@@ -657,9 +712,8 @@ const Gallery = () => {
         const totalReacts = Object.values(reactions).reduce((a, b) => a + b, 0);
 
         const card = `<div class="card">
-                <div class="card-img-wrap ${p.type !== 'sequence' && applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" style="height:100%; cursor:pointer">
+                <div class="card-img-wrap ${p.type !== 'sequence' && applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" data-warning="${applyBlur ? warningLabel : ''}" style="height:100%; cursor:pointer">
                     ${renderCollage(p)}
-                    ${p.type !== 'sequence' && applyBlur ? `<div class="blur-overlay"><span>🔞 ${warningLabel}</span></div>` : ''}
                 </div>
                 <div class="card-overlay" data-post-id="${p.id}" style="cursor:pointer">
                     <div style="font-weight:700; font-size:0.9rem; margin-bottom:5px">${window.escapeHTML(p.title)}</div>
@@ -779,6 +833,16 @@ const AuthModal = () => `
             <a href="#" onclick="window.toggleAuth('log')" style="color:#666">Volver al Login</a>
         </p>
     </div>
+    <div id="activateForm" style="display:none;">
+        <h2>Activar Cuenta</h2>
+        <p style="margin-bottom:15px; color:#a29bfe; font-size:0.85rem; font-weight:700">¡Bienvenido! Elige tu nueva contraseña para activar tu perfil.</p>
+        <input type="text" id="actUser" class="form-input" placeholder="Usuario o Email">
+        <div style="position:relative">
+            <input type="password" id="actPass" class="form-input" placeholder="Nueva Contraseña" style="padding-right:40px">
+            <span onclick="window.togglePass('actPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+        </div>
+        <button class="btn" style="width:100%" onclick="window.doActivateSubmit()">Activar y Entrar</button>
+    </div>
     <button class="btn-outline" style="width:100%; border:none; margin-top:10px" onclick="window.closeModals()">Cancelar</button>
 </div></div>`;
 
@@ -889,7 +953,7 @@ const DetailModal = () => `
     <div class="view-modal-wrapper">
         <div class="view-modal">
             <button class="modal-close-x" onclick="window.closeModals()">✕</button>
-            <div class="view-img-side">
+            <div class="view-img-side" id="detImgWrap">
                 <div id="detCopyBadge" style="position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.7); padding:4px 10px; border-radius:15px; font-size:0.7rem; color:var(--accent); font-weight:700; border:1px solid var(--accent); display:none; z-index:10">📋 Copiado 0 veces</div>
                 <img id="detImg" src="" alt="Post Image">
                 <button class="fullscreen-btn" onclick="window.doFullScreen()">🔍 Ver Pantalla Completa</button>
@@ -1147,6 +1211,8 @@ window.toggleAuth = (m) => {
     document.getElementById('regForm').style.display = m === 'reg' ? 'block' : 'none';
     const recForm = document.getElementById('recoverForm');
     if (recForm) recForm.style.display = m === 'rec' ? 'block' : 'none';
+    const actForm = document.getElementById('activateForm');
+    if (actForm) actForm.style.display = m === 'act' ? 'block' : 'none';
 };
 
 window.doLoginSubmit = async () => {
@@ -1165,6 +1231,23 @@ window.doRecoverSubmit = async () => {
     const res = await store.recoverPassword(email);
     alert(res.msg);
     if (res.success) window.toggleAuth('log');
+};
+
+window.doActivateSubmit = async () => {
+    const userOrEmail = document.getElementById('actUser').value;
+    const pass = document.getElementById('actPass').value;
+    const token = new URLSearchParams(window.location.search).get('token');
+
+    if (!userOrEmail || !pass) return alert("Rellena todos los campos.");
+    if (!token) return alert("Token de activación no encontrado.");
+
+    const res = await store.confirmResetPassword(token, pass, userOrEmail);
+    if (res.success) {
+        alert("¡Cuenta activada con éxito! Bienvenido.");
+        window.location.href = '/';
+    } else {
+        alert(res.msg);
+    }
 };
 
 window.doLogout = () => {
@@ -1421,21 +1504,37 @@ window.openLevelProgress = () => {
     if (oldModal) oldModal.remove();
 
     const u = store.currentUser;
-    const count = u.prompts_count || 0;
+    const postsCount = u.prompts_count || 0;
+    const copiesCount = u.total_copies || 0;
     const currentLvl = u.level || 0;
 
-    // Find next level
-    const nextLvlReq = LEVEL_REQS.find(l => l.posts > count) || LEVEL_REQS[LEVEL_REQS.length - 1];
-    const isMax = count >= LEVEL_REQS[LEVEL_REQS.length - 1].posts;
+    // Find next level requirements
+    const nextLvlIdx = Math.min(currentLvl + 1, LEVEL_REQS.length - 1);
+    const nextLvlReq = LEVEL_REQS[nextLvlIdx];
+    const isMax = currentLvl >= LEVEL_REQS.length - 1;
 
-    let progressPercent = 0;
-    if (isMax) {
-        progressPercent = 100;
+    // Calcular progreso
+    let progressPosts = 0;
+    let progressCopies = 0;
+
+    if (!isMax) {
+        const prevReqPosts = LEVEL_REQS[currentLvl].posts;
+        const nextReqPosts = nextLvlReq.posts;
+        progressPosts = Math.min(100, Math.max(0, ((postsCount - prevReqPosts) / (nextReqPosts - prevReqPosts)) * 100));
+
+        if (nextLvlReq.copies > 0) {
+            const prevReqCopies = LEVEL_REQS[currentLvl].copies || 0;
+            const nextReqCopies = nextLvlReq.copies;
+            progressCopies = Math.min(100, Math.max(0, ((copiesCount - prevReqCopies) / (nextReqCopies - prevReqCopies)) * 100));
+        } else {
+            progressCopies = 100;
+        }
     } else {
-        const prevReq = LEVEL_REQS[currentLvl].posts;
-        const nextReq = nextLvlReq.posts;
-        progressPercent = Math.min(100, Math.max(0, ((count - prevReq) / (nextReq - prevReq)) * 100));
+        progressPosts = 100;
+        progressCopies = 100;
     }
+
+    const needsCopies = nextLvlReq.copies > 0;
 
     const html = `
         <div style="text-align:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #222">
@@ -1446,13 +1545,29 @@ window.openLevelProgress = () => {
 
         <div style="background:#000; padding:25px; border-radius:16px; border:1px solid #333; margin-bottom:25px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5)">
             <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
-                <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Hacia Nivel ' + (currentLvl + 1)}</span>
-                <span style="color:#2563eb">${count} / ${isMax ? '∞' : nextLvlReq.posts} Posts</span>
+                <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Progreso de Posts'}</span>
+                <span style="color:#2563eb">${postsCount} / ${isMax ? '∞' : nextLvlReq.posts}</span>
             </div>
-            <div style="width:100%; height:16px; background:#222; border-radius:8px; overflow:hidden; border:1px solid #333">
-                <div style="width:${progressPercent}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1.5s cubic-bezier(0.19, 1, 0.22, 1)"></div>
+            <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333; margin-bottom:15px">
+                <div style="width:${progressPosts}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1s ease"></div>
             </div>
-            ${!isMax ? `<p style="font-size:0.9rem; color:#888; margin-top:12px; text-align:center">¡Sigue así! Te faltan <strong>${nextLvlReq.posts - count}</strong> publicaciones para subir de rango.</p>` : ''}
+
+            ${needsCopies ? `
+            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
+                <span style="color:#888">Progreso de Copias</span>
+                <span style="color:#f1c40f">${copiesCount} / ${nextLvlReq.copies}</span>
+            </div>
+            <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333">
+                <div style="width:${progressCopies}%; height:100%; background:linear-gradient(90deg, #f1c40f, #e67e22); transition:width 1s ease"></div>
+            </div>
+            ` : ''}
+
+            ${!isMax ? `
+                <p style="font-size:0.85rem; color:#888; margin-top:15px; text-align:center">
+                    ${postsCount < nextLvlReq.posts ? `Te faltan <strong>${nextLvlReq.posts - postsCount}</strong> posts. ` : ''}
+                    ${needsCopies && copiesCount < nextLvlReq.copies ? `Te faltan <strong>${nextLvlReq.copies - copiesCount}</strong> copias recibidas.` : ''}
+                </p>
+            ` : ''}
         </div>
 
         <h3 style="font-size:1.2rem; margin-bottom:18px; color:#fff; display:flex; align-items:center; gap:10px">
@@ -1462,7 +1577,7 @@ window.openLevelProgress = () => {
         
         <div style="display:flex; flex-direction:column; gap:12px">
             ${LEVEL_REQS.map((l, idx) => {
-        const isUnlocked = count >= l.posts;
+        const isUnlocked = postsCount >= l.posts && copiesCount >= (l.copies || 0);
         const isCurrent = currentLvl === idx;
         return `
                 <div style="display:flex; gap:15px; align-items:start; padding:15px; border-radius:12px; border:1px solid ${isCurrent ? '#2563eb' : (isUnlocked ? '#333' : '#1a1a1a')}; background:${isCurrent ? 'rgba(37, 99, 235, 0.1)' : (isUnlocked ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.3)')}; opacity:${isUnlocked ? 1 : 0.4}; transition:0.3s">
@@ -1470,7 +1585,7 @@ window.openLevelProgress = () => {
                     <div style="flex:1">
                         <div style="display:flex; justify-content:space-between; align-items:center">
                             <strong style="color:${l.color}; font-size:1.05rem;">Nivel ${idx}: ${l.name}</strong>
-                            <span style="font-size:0.75rem; background:#333; color:#fff; padding:3px 10px; border-radius:100px; font-weight:700">${l.posts} Posts</span>
+                            <span style="font-size:0.75rem; background:#333; color:#fff; padding:3px 10px; border-radius:100px; font-weight:700">${l.posts} Posts ${l.copies > 0 ? `+ ${l.copies} Copias` : ''}</span>
                         </div>
                         <ul style="margin:8px 0 0 0; padding-left:18px; font-size:0.9rem; color:#999; line-height:1.4">
                             ${l.benefits.map(b => `<li>${b}</li>`).join('')}
@@ -1889,20 +2004,23 @@ window.openDetail = (id) => {
                 }
             }
         }
-        // Re-apply blurring logic if needed for single image context
-        if (detImg) {
+        // Re-apply blurring logic for single image context
+        const detImgWrap = document.getElementById('detImgWrap');
+        if (detImgWrap) {
+            // IMPORTANT: Clear previous reveal state by removing and re-adding class
+            detImgWrap.classList.remove('card-blurred');
             const { applyBlur, warningLabel } = getModeration(p);
-            detImg.parentElement.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
-            let blurOverlay = detImg.parentElement.querySelector('.blur-overlay');
+
             if (applyBlur) {
-                if (!blurOverlay) {
-                    blurOverlay = document.createElement('div');
-                    blurOverlay.className = 'blur-overlay';
-                    detImg.parentElement.appendChild(blurOverlay);
-                }
-                blurOverlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
-            } else if (blurOverlay) {
-                blurOverlay.remove();
+                detImgWrap.classList.add('card-blurred');
+                detImgWrap.dataset.warning = warningLabel;
+                // Clean existing overlay to force re-render with button
+                const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+                if (oldOverlay) oldOverlay.remove();
+            } else {
+                detImgWrap.dataset.warning = '';
+                const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+                if (oldOverlay) oldOverlay.remove();
             }
         }
 
@@ -1968,7 +2086,25 @@ window.updateSeqDisplay = (p) => {
     if (!p || !p.content || p.content.length === 0) return;
     const step = p.content[currentSeqStep];
 
-    // Find elements anywhere in DOM (since modal might be in body now)
+    // Blurring for current step
+    const { applyBlur, warningLabel } = getModeration(p, step.rating);
+    const detImgWrap = document.getElementById('detImgWrap');
+    if (detImgWrap) {
+        // IMPORTANT: Clear previous reveal state when switching steps
+        detImgWrap.classList.remove('card-blurred');
+        if (applyBlur) {
+            detImgWrap.classList.add('card-blurred');
+            detImgWrap.dataset.warning = warningLabel;
+            // Clean existing overlay to force re-render with button
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        } else {
+            detImgWrap.dataset.warning = '';
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        }
+    }
+
     const detImg = document.getElementById('detImg');
     const detPrompt = document.getElementById('detPrompt');
     const detSeqCount = document.getElementById('detSeqCount');
@@ -2872,36 +3008,17 @@ window.doSendTip = async (amount) => {
 let currentTipPostId = null;
 
 // Initial Render
-try {
-    store.init().then(() => {
-        render();
-        console.log("MAIN JS INIT SUCCESS");
-
-        // Auto-refresh Top Creators every 10 seconds
-        setInterval(async () => {
-            const oldList = topCreatorsList;
-            topCreatorsList = await store.getTopCreators();
-
-            // Only re-render if on home page AND list actually changed
-            if (currentView === 'home' && filters.source === 'community') {
-                const hasChanged = JSON.stringify(oldList) !== JSON.stringify(topCreatorsList);
-                if (hasChanged) {
-                    console.log("🔄 Top Creators updated, re-rendering...");
-                    render();
-                }
-            }
-        }, 10000); // Every 10 seconds
-    }).catch(err => {
-        console.error("Init Error:", err);
-        alert("Error de Inicio: " + err.message);
-    });
-} catch (e) {
-    console.error("Critical Render Error", e);
-    app.innerHTML = `<div style="color:red; padding:50px; text-align:center">
-        <h1>Error Crítico de Carga</h1>
-        <p>${e.message}</p>
-        <button class="btn" onclick="location.reload()">Recargar</button>
-    </div>`;
+if (MAINTENANCE_MODE) {
+    renderMaintenance();
+} else {
+    try {
+        store.init().then(() => {
+            render();
+            console.log("MAIN JS INIT SUCCESS");
+        });
+    } catch (e) {
+        // ... err handling
+    }
 }
 
 // Handle browser back button basic simulation
@@ -2989,5 +3106,19 @@ setTimeout(() => {
     loadTopCreators();
 }, 1000);
 
+// --- PASSWORD RESET TOKEN DETECTION ---
+window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
 
-
+    // Si el usuario viene con un token de reset, abrimos el modal de actvación
+    if (token) {
+        console.log("🔐 Token de activación detectado. Abriendo modal...");
+        setTimeout(() => {
+            if (document.getElementById('authModal')) {
+                document.getElementById('authModal').style.display = 'flex';
+                window.toggleAuth('act');
+            }
+        }, 800);
+    }
+});

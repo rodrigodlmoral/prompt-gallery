@@ -12,6 +12,6 @@
     "vite": "^7.2.4"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.93.2"
+    "pocketbase": "^0.22.0"
   }
 }

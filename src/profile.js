@@ -1,5 +1,5 @@
 import './style.css'
-import { store } from './store.js'
+import { store } from './store-final.js'
 
 const app = document.getElementById('profile-app');
 
@@ -14,6 +14,33 @@ window.sliderUnlocked = false;
 let seqStepCount = 0;
 let isEditing = false;
 let editingId = null;
+
+// --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist in Detail View ---
+setInterval(() => {
+    document.querySelectorAll('.card-blurred').forEach(wrapper => {
+        let overlay = wrapper.querySelector('.blur-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'blur-overlay';
+            wrapper.appendChild(overlay);
+        }
+
+        const isModal = wrapper.closest('.view-modal-wrapper') || wrapper.id === 'detImgWrap';
+        const hasButton = overlay.querySelector('button');
+        const hasLabel = overlay.querySelector('span');
+        const warningLabel = wrapper.dataset.warning || "NSFW";
+
+        if (isModal) {
+            if (!hasButton) {
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; font-weight:700; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
+            }
+        } else {
+            if (hasButton || !hasLabel) {
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span>`;
+            }
+        }
+    });
+}, 500);
 
 // --- CONSTANTS ---
 const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.0', 'SDXL', 'Flux', 'Midjourney', 'Huggingface', 'Fooocus', 'ComfyUI', 'Perchance', 'Otro'];
@@ -61,12 +88,12 @@ const getModeration = (p, forcedRating) => {
 
 // --- CONSTANTS ---
 const LEVEL_REQS = [
-    { posts: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
-    { posts: 10, name: 'Iniciado', benefits: ['Publicar Secuencias (Multi-imagen)'], icon: '🎖️', color: '#4caf50' },
-    { posts: 25, name: 'Principiante', benefits: ['Cambiar foto de perfil', 'Añadir redes sociales al perfil'], icon: '🏅', color: '#2196f3' },
-    { posts: 50, name: 'Contribuidor', benefits: ['Sin cooldown en comentarios', 'Medalla especial de plata'], icon: '🥇', color: '#ff9800' },
-    { posts: 100, name: 'Autor', benefits: ['Destacar tus propios posts (Self-Promo)', 'Panel de estadísticas avanzado'], icon: '💎', color: '#9c27b0' },
-    { posts: 250, name: 'COLABORADOR', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '✨', color: 'gold' }
+    { posts: 0, copies: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
+    { posts: 10, copies: 0, name: 'Novato', benefits: ['Publicar Secuencias (Multi-imagen)'], icon: '🌱', color: '#4caf50' },
+    { posts: 25, copies: 0, name: 'Creador Jr', benefits: ['Cambiar foto de perfil', 'Añadir redes sociales al perfil'], icon: '🎨', color: '#2196f3' },
+    { posts: 50, copies: 15, name: 'Creador', benefits: ['Sin cooldown en comentarios', 'Medalla especial de plata'], icon: '🏆', color: '#ff9800' },
+    { posts: 100, copies: 40, name: 'Artista', benefits: ['Destacar tus propios posts (Self-Promo)', 'Panel de estadísticas avanzado'], icon: '💎', color: '#9c27b0' },
+    { posts: 250, copies: 80, name: 'Maestro', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '👑', color: 'gold' }
 ];
 
 const renderCollage = (p) => {
@@ -94,7 +121,7 @@ const renderCollage = (p) => {
             else spanStyle = 'grid-column: span 2;';
         }
         return `
-            <div class="collage-item ${applyBlur ? 'card-blurred' : ''}" style="${spanStyle}">
+            <div class="collage-item ${applyBlur ? 'card-blurred' : ''}" data-warning="${applyBlur ? warningLabel : ''}" style="${spanStyle}">
                 <img src="${step.image}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">
             </div>`;
     }).join('')}
@@ -124,10 +151,13 @@ const Header = () => `
 </header>`;
 
 const ProfileHeader = () => {
+    console.log(`[PROFILE] ProfileHeader: profileUser="${profileUser}"`);
     if (!profileUser) return '';
-    let user = (store.currentUser && store.currentUser.username === profileUser)
+    let user = (store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser))
         ? store.currentUser
-        : store.users.find(u => u.username === profileUser);
+        : (store.users.find(u => u.username === profileUser || u.name === profileUser) || store.usersCache[profileUser]);
+
+    console.log(`[PROFILE] ProfileHeader: user encontrado?`, user ? user.username : 'NO');
 
     if (!user) return `
         <div style="height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif">
@@ -135,7 +165,7 @@ const ProfileHeader = () => {
             <p style="margin-top:20px; letter-spacing:1px; font-size:0.9rem">CARGANDO PERFIL...</p>
         </div>`;
 
-    const isMe = store.currentUser && store.currentUser.username === user.username;
+    const isMe = store.currentUser && store.currentUser.id === user.id;
     const getLevelInfo = (lvl) => LEVEL_REQS[lvl] || LEVEL_REQS[0];
     const lvlInfo = getLevelInfo(user.level || 0);
 
@@ -150,16 +180,16 @@ const ProfileHeader = () => {
                         
                         <!-- Level Badge -->
                         <span class="level-badge tier-${user.level || 0}" 
-                              title="${isMe ? 'Haz clic para ver tu progreso' : 'Nivel ' + (user.level || 0)}"
-                              style="${isMe ? 'cursor:pointer' : ''}"
-                              ${isMe ? 'onclick="window.openLevelProgress()"' : ''}>
+                               title="${isMe ? 'Haz clic para ver tu progreso' : 'Nivel ' + (user.level || 0)}"
+                               style="${isMe ? 'cursor:pointer' : ''}"
+                               ${isMe ? 'onclick="window.openLevelProgress()"' : ''}>
                             ${lvlInfo.icon} NIVEL ${user.level || 0} - ${lvlInfo.name}
                         </span>
                     </div>
 
                     <!-- Badges Container -->
                     <div class="badge-container">
-                        ${(user.username === 'rodrigodlmoral' || user.username === 'rodridomrock') ? `
+                        ${(user.username === 'rodrigodlmoral' || user.username === 'rodridomrock' || user.name === 'rodrigodlmoral') ? `
                         <div class="founder-badge">
                             <span class="badge-text">👑 Administrador - Fundador</span>
                         </div>
@@ -217,9 +247,17 @@ const ProfileHeader = () => {
 };
 
 const Gallery = () => {
+    const user = (store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser))
+        ? store.currentUser
+        : (store.users.find(u => u.username === profileUser || u.name === profileUser) || store.usersCache[profileUser]);
+
+    console.log(`[PROFILE] Gallery: user encontrado?`, user ? user.username : 'NO');
+
+    if (!user) return '<div class="container" style="padding:40px 0; color:#666">Cargando galería...</div>';
+
     let list = [...store.prompts].filter(p => {
-        if (p.isPrivate && (!store.currentUser || store.currentUser.username !== p.author)) return false;
-        return profileTab === 'creations' ? p.author === profileUser : p.savedBy?.includes(profileUser);
+        if (p.is_private && (!store.currentUser || store.currentUser.id !== p.author)) return false;
+        return profileTab === 'creations' ? p.author === user.id : p.savedBy?.includes(user.id);
     });
 
     if (list.length === 0) return `<div class="container" style="padding:100px; text-align:center; color:#666">No hay prompts aquí todavía.</div>`;
@@ -231,9 +269,8 @@ const Gallery = () => {
         const reactions = p.reactions || { like: 0 };
         return `
             <div class="card">
-                <div class="card-img-wrap ${applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" style="height:100%; cursor:pointer">
+                <div class="card-img-wrap ${applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" data-warning="${applyBlur ? warningLabel : ''}" style="height:100%; cursor:pointer">
                     ${renderCollage(p)}
-                    ${applyBlur ? `<div class="blur-overlay"><span>🔞 ${warningLabel}</span></div>` : ''}
                 </div>
                 <div class="card-overlay" data-post-id="${p.id}" style="cursor:pointer">
                     <div style="font-weight:700; font-size:0.9rem; margin-bottom:5px">${window.escapeHTML(p.title)}</div>
@@ -411,7 +448,7 @@ const DetailModalTemplate = () => `
     <div class="view-modal-wrapper">
         <div class="view-modal">
             <button class="modal-close-x" onclick="window.closeModals()">✕</button>
-            <div class="view-img-side">
+            <div class="view-img-side" id="detImgWrap">
                 <div id="detCopyBadge" style="position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.7); padding:4px 10px; border-radius:15px; font-size:0.7rem; color:var(--accent); font-weight:700; border:1px solid var(--accent); display:none; z-index:10">📋 Copiado 0 veces</div>
                 <img id="detImg" src="" alt="Post Image">
                 <button class="fullscreen-btn" onclick="window.doFullScreen()">🔍 Ver Pantalla Completa</button>
@@ -797,20 +834,20 @@ window.openDetail = (id) => {
         if (detPrompt) detPrompt.innerText = p.prompt || '';
     }
 
-    // Blurred image handling
-    if (detImg) {
+    // Blurring
+    const detImgWrap = document.getElementById('detImgWrap');
+    if (detImgWrap) {
+        detImgWrap.classList.remove('card-blurred');
         const { applyBlur, warningLabel } = getModeration(p);
-        detImg.parentElement.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
-        let blurOverlay = detImg.parentElement.querySelector('.blur-overlay');
         if (applyBlur) {
-            if (!blurOverlay) {
-                blurOverlay = document.createElement('div');
-                blurOverlay.className = 'blur-overlay';
-                detImg.parentElement.appendChild(blurOverlay);
-            }
-            blurOverlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
-        } else if (blurOverlay) {
-            blurOverlay.remove();
+            detImgWrap.classList.add('card-blurred');
+            detImgWrap.dataset.warning = warningLabel;
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        } else {
+            detImgWrap.dataset.warning = '';
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
         }
     }
 
@@ -856,6 +893,24 @@ window.openDetail = (id) => {
 window.updateSeqDisplay = (p) => {
     const step = p.content[currentSeqStep];
     if (!step) return;
+
+    // Blurring for current step
+    const { applyBlur, warningLabel } = getModeration(p, step.rating);
+    const detImgWrap = document.getElementById('detImgWrap');
+    if (detImgWrap) {
+        detImgWrap.classList.remove('card-blurred');
+        if (applyBlur) {
+            detImgWrap.classList.add('card-blurred');
+            detImgWrap.dataset.warning = warningLabel;
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        } else {
+            detImgWrap.dataset.warning = '';
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        }
+    }
+
     const detImg = document.getElementById('detImg');
     const detPrompt = document.getElementById('detPrompt');
     const seqCount = document.getElementById('detSeqCount');
@@ -1486,7 +1541,7 @@ window.togglePass = (id, btn) => {
 };
 
 window.openLevelProgress = () => {
-    console.log("🚀 openLevelProgress triggered (Profile Mode)");
+
     if (!store.currentUser) { alert("Error: No has iniciado sesión."); return; }
 
     // Bloquear scroll del fondo
@@ -1497,21 +1552,40 @@ window.openLevelProgress = () => {
     if (oldModal) oldModal.remove();
 
     const u = store.currentUser;
-    const count = u.prompts_count || 0;
+    const postsCount = u.prompts_count || 0;
+    const copiesCount = u.total_copies || 0;
     const currentLvl = u.level || 0;
 
-    // Find next level
-    const nextLvlReq = LEVEL_REQS.find(l => l.posts > count) || LEVEL_REQS[LEVEL_REQS.length - 1];
-    const isMax = count >= LEVEL_REQS[LEVEL_REQS.length - 1].posts;
+    // Find next level requirements
+    const nextLvlIdx = Math.min(currentLvl + 1, LEVEL_REQS.length - 1);
+    const nextLvlReq = LEVEL_REQS[nextLvlIdx];
+    const isMax = currentLvl >= LEVEL_REQS.length - 1;
 
-    let progressPercent = 0;
-    if (isMax) {
-        progressPercent = 100;
+    // Calcular progreso
+    let progressPosts = 0;
+    let progressCopies = 0;
+
+    if (!isMax) {
+        const prevReqPosts = LEVEL_REQS[currentLvl].posts;
+        const nextReqPosts = nextLvlReq.posts;
+        progressPosts = Math.min(100, Math.max(0, ((postsCount - prevReqPosts) / (nextReqPosts - prevReqPosts)) * 100));
+
+        if (nextLvlReq.copies > 0) {
+            const prevReqCopies = LEVEL_REQS[currentLvl].copies || 0;
+            const nextReqCopies = nextLvlReq.copies;
+            progressCopies = Math.min(100, Math.max(0, ((copiesCount - prevReqCopies) / (nextReqCopies - prevReqCopies)) * 100));
+        } else {
+            progressCopies = 100; // Si no pide copias, está al 100%
+        }
     } else {
-        const prevReq = LEVEL_REQS[currentLvl].posts;
-        const nextReq = nextLvlReq.posts;
-        progressPercent = Math.min(100, Math.max(0, ((count - prevReq) / (nextReq - prevReq)) * 100));
+        progressPosts = 100;
+        progressCopies = 100;
     }
+
+    // El progreso real es el MÍNIMO de ambos (el que falte más)
+    const totalProgress = isMax ? 100 : (progressPosts + progressCopies) / 2;
+    // O mejor, mostrar ambas barras si el nivel pide ambas
+    const needsCopies = nextLvlReq.copies > 0;
 
     const html = `
         <div style="text-align:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #222">
@@ -1522,13 +1596,29 @@ window.openLevelProgress = () => {
 
         <div style="background:#000; padding:25px; border-radius:16px; border:1px solid #333; margin-bottom:25px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5)">
             <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
-                <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Hacia Nivel ' + (currentLvl + 1)}</span>
-                <span style="color:#2563eb">${count} / ${isMax ? '∞' : nextLvlReq.posts} Posts</span>
+                <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Progreso de Posts'}</span>
+                <span style="color:#2563eb">${postsCount} / ${isMax ? '∞' : nextLvlReq.posts}</span>
             </div>
-            <div style="width:100%; height:16px; background:#222; border-radius:8px; overflow:hidden; border:1px solid #333">
-                <div style="width:${progressPercent}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1.5s cubic-bezier(0.19, 1, 0.22, 1)"></div>
+            <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333; margin-bottom:15px">
+                <div style="width:${progressPosts}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1s ease"></div>
             </div>
-            ${!isMax ? `<p style="font-size:0.9rem; color:#888; margin-top:12px; text-align:center">¡Sigue así! Te faltan <strong>${nextLvlReq.posts - count}</strong> publicaciones para subir de rango.</p>` : ''}
+
+            ${needsCopies ? `
+            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
+                <span style="color:#888">Progreso de Copias</span>
+                <span style="color:#f1c40f">${copiesCount} / ${nextLvlReq.copies}</span>
+            </div>
+            <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333">
+                <div style="width:${progressCopies}%; height:100%; background:linear-gradient(90deg, #f1c40f, #e67e22); transition:width 1s ease"></div>
+            </div>
+            ` : ''}
+
+            ${!isMax ? `
+                <p style="font-size:0.85rem; color:#888; margin-top:15px; text-align:center">
+                    ${postsCount < nextLvlReq.posts ? `Te faltan <strong>${nextLvlReq.posts - postsCount}</strong> posts. ` : ''}
+                    ${needsCopies && copiesCount < nextLvlReq.copies ? `Te faltan <strong>${nextLvlReq.copies - copiesCount}</strong> copias recibidas.` : ''}
+                </p>
+            ` : ''}
         </div>
 
         <h3 style="font-size:1.2rem; margin-bottom:18px; color:#fff; display:flex; align-items:center; gap:10px">
@@ -1538,7 +1628,7 @@ window.openLevelProgress = () => {
         
         <div style="display:flex; flex-direction:column; gap:12px">
             ${LEVEL_REQS.map((l, idx) => {
-        const isUnlocked = count >= l.posts;
+        const isUnlocked = postsCount >= l.posts && copiesCount >= (l.copies || 0);
         const isCurrent = currentLvl === idx;
         return `
                 <div style="display:flex; gap:15px; align-items:start; padding:15px; border-radius:12px; border:1px solid ${isCurrent ? '#2563eb' : (isUnlocked ? '#333' : '#1a1a1a')}; background:${isCurrent ? 'rgba(37, 99, 235, 0.1)' : (isUnlocked ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.3)')}; opacity:${isUnlocked ? 1 : 0.4}; transition:0.3s">
@@ -1546,7 +1636,7 @@ window.openLevelProgress = () => {
                     <div style="flex:1">
                         <div style="display:flex; justify-content:space-between; align-items:center">
                             <strong style="color:${l.color}; font-size:1.05rem;">Nivel ${idx}: ${l.name}</strong>
-                            <span style="font-size:0.75rem; background:#333; color:#fff; padding:3px 10px; border-radius:100px; font-weight:700">${l.posts} Posts</span>
+                            <span style="font-size:0.75rem; background:#333; color:#fff; padding:3px 10px; border-radius:100px; font-weight:700">${l.posts} Posts ${l.copies > 0 ? `+ ${l.copies} Copias` : ''}</span>
                         </div>
                         <ul style="margin:8px 0 0 0; padding-left:18px; font-size:0.9rem; color:#999; line-height:1.4">
                             ${l.benefits.map(b => `<li>${b}</li>`).join('')}
@@ -1714,6 +1804,11 @@ window.doSendDirectTip = async (recipientId, amount) => {
 };
 
 const init = async () => {
+    // FORCE VERSION CHECK TOAST
+    setTimeout(() => {
+        if (window.toast) window.toast("Versión v3.5: NUCLEAR ONLY ☢️", "success");
+    }, 1000);
+
     await store.init();
     if (profileUser) {
         await store.fetchUserProfileByUsername(profileUser);

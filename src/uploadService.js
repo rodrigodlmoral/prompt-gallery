@@ -15,7 +15,7 @@ export async function uploadToCloudinary(file) {
     if (!file) throw new Error('No se proporcionó ningún archivo');
 
     try {
-        console.log('📤 Subiendo imagen a Cloudinary...');
+
 
         const formData = new FormData();
         formData.append('file', file);
@@ -36,7 +36,7 @@ export async function uploadToCloudinary(file) {
         }
 
         const data = await response.json();
-        console.log('✅ Carga exitosa:', data.secure_url);
+
 
         return data.secure_url.replace('/upload/', '/upload/f_auto,q_auto/');
     } catch (error) {

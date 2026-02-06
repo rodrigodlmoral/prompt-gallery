@@ -1,6 +1,6 @@
 import './style.css'
 import './admin_fix.css'
-import { store } from './store.js'
+import { store } from './store-final.js'
 
 const app = document.getElementById('admin-app');
 
@@ -24,7 +24,7 @@ let currentTab = 'users';
 
 // --- SECURITY CHECK ---
 const checkAdmin = async () => {
-    console.log("Admin: Checking session...");
+
     await store.init();
     if (!store.currentUser || store.currentUser.role !== 'admin') {
         console.error("Acceso denegado: No eres administrador.");
@@ -78,6 +78,13 @@ const AdminLayout = () => `
                     <select id="editUserBadge" class="form-input" style="padding:6px; font-size:0.8rem">
                         <option value="none">Sin Medalla</option>
                         <option value="creator_founder">CREADOR FUNDADOR</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label" style="font-size:0.75rem">Rol</label>
+                    <select id="editUserRole" class="form-input" style="padding:6px; font-size:0.8rem">
+                        <option value="user">Usuario (User)</option>
+                        <option value="admin">Administrador (Admin)</option>
                     </select>
                 </div>
                 <div>
@@ -180,7 +187,7 @@ const renderUsersTab = async (container) => {
                             <td style="text-align:center; color:#a29bfe; font-weight:bold">💎 ${u.tokens || 0}</td>
                             <td>
                                 <div style="display:flex; gap:5px">
-                                    <button class="btn-outline" style="padding:4px 8px; font-size:0.7rem; border-color:gold; color:gold" onclick="window.adminOpenUserMgmt('${u.id}', '${u.username}', ${u.level || 0})">Gestionar</button>
+                                    <button class="btn-outline" style="padding:4px 8px; font-size:0.7rem; border-color:gold; color:gold" onclick="window.adminOpenUserMgmt('${u.id}', '${u.username}', ${u.level || 0}, '${u.role || 'user'}')">Gestionar</button>
                                     ${(u.id !== store.currentUser?.id && u.id !== 'MASTER_ADMIN_ID') ? `<button class="btn-outline" style="padding:4px 8px; font-size:0.7rem; border-color:#ff4444; color:#ff4444" onclick="window.adminDeleteUser('${u.id}')">Borrar</button>` : ''}
                                 </div>
                             </td>
@@ -325,11 +332,12 @@ window.toggleAdminSort = (col) => {
     renderAdmin();
 };
 
-window.adminOpenUserMgmt = (id, name, level) => {
+window.adminOpenUserMgmt = (id, name, level, role) => {
     window.editingUserId = id;
     document.getElementById('editUserName').innerText = `Gestionar @${name}`;
     document.getElementById('editUserLevel').value = level || 0;
     document.getElementById('editUserBadge').value = 'none';
+    document.getElementById('editUserRole').value = role || 'user';
     document.getElementById('adminUserEditBox').style.display = 'block';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -337,7 +345,8 @@ window.adminOpenUserMgmt = (id, name, level) => {
 window.adminSubmitUserUpdate = async () => {
     const level = parseInt(document.getElementById('editUserLevel').value);
     const badge = document.getElementById('editUserBadge').value;
-    const res = await store.adminUpdateUser(window.editingUserId, { level, badge });
+    const role = document.getElementById('editUserRole').value;
+    const res = await store.adminUpdateUser(window.editingUserId, { level, badge, role });
     if (res.success) {
         alert("✅ Usuario actualizado");
         document.getElementById('adminUserEditBox').style.display = 'none';
