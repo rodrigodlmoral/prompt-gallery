@@ -791,12 +791,51 @@ const store = {
     },
 
     async adminUpdatePrompt(id, data) {
-        if (!this.currentUser || this.currentUser.role !== 'admin') return { success: false };
+        if (!this.currentUser || this.currentUser.role !== 'admin') return { success: false, msg: "Acceso denegado" };
         try {
             await pb.collection('prompts').update(id, data);
             await this.loadPrompts();
             return { success: true };
         } catch (err) { return { success: false, msg: err.message }; }
+    },
+
+    // --- REPAIR TOOL (v8.11) ---
+    async claimGhostPosts() {
+        if (!this.currentUser || this.currentUser.role !== 'admin') return { success: false, msg: "Requiere acceso Admin" };
+        try {
+            console.log("👻 Buscando posts fantasmas para:", this.currentUser.username);
+            // 1. Buscamos todos los posts cuyo author_name sea IGUAL al tuyo
+            const records = await pb.collection('prompts').getFullList({
+                filter: `author_name = "${this.currentUser.username}"`,
+                sort: '-created'
+            });
+
+            // 2. Filtramos solo los que NO tengan tu ID actual
+            const ghostPosts = records.filter(r => r.author !== this.currentUser.id);
+            console.log(`👻 Detectados ${ghostPosts.length} posts con tu nombre pero ID antiguo.`);
+
+            if (ghostPosts.length === 0) {
+                return { success: true, count: 0, msg: "No tienes posts fantasmas. ¡Todo en orden!" };
+            }
+
+            // 3. Los reclamamos uno por uno
+            let fixedCount = 0;
+            for (const p of ghostPosts) {
+                try {
+                    await pb.collection('prompts').update(p.id, { author: this.currentUser.id });
+                    fixedCount++;
+                } catch (err) {
+                    console.error(`Error reclamando post ${p.id}:`, err);
+                }
+            }
+
+            await this.loadPrompts();
+            return { success: true, count: fixedCount, msg: `¡Éxito! Has recuperado ${fixedCount} posts.` };
+
+        } catch (err) {
+            console.error("Claim error:", err);
+            return { success: false, msg: "Error: " + err.message };
+        }
     },
 
     // --- AUTH ---

@@ -228,9 +228,11 @@ const ProfileHeader = () => {
 
                     ${!isMe ? `<button class="btn" style="margin-top:15px" onclick="window.doFollow('${user.username}')">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
             : `
-            <div style="display:flex; gap:10px; margin-top:15px">
+            <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap">
                 <button class="btn-outline" onclick="window.openActivity()">📜 Actividad</button>
                 <button class="btn-outline" onclick="window.openSettings()">⚙️ Configurar</button>
+                ${(isMe && user.role === 'admin') ? `<button class="btn-sm" onclick="window.open('/admin.html', '_blank')" style="background:gold; color:black; font-weight:bold; box-shadow:0 0 10px gold; border:none">👑 PANEL ADMIN</button>` : ''}
+                ${(isMe && user.role === 'admin') ? `<button class="btn-sm" onclick="window.doClaimGhosts()" style="background:#ff4444; color:white; font-weight:bold; border:none">👻 FIX POSTS</button>` : ''}
             </div>
             `}
                 </div>
@@ -480,9 +482,6 @@ const DetailModalTemplate = () => `
                     <div style="position:relative">
                         <div id="detPrompt" class="prompt-area"></div>
                         <div id="detNegPrompt" class="prompt-area" style="display:none; margin-top:10px; border-color:#ff4444; background:rgba(255,0,0,0.05); color:#ff6666"></div>
-                            ${isMe ? `<button class="btn-sm" onclick="window.location.href='/ajustes.html'" style="background:var(--secondary); color:white">⚙️ Editar Perfil</button>` : ''}
-                            ${(isMe && user.role === 'admin') ? `<button class="btn-sm" onclick="window.open('/admin.html', '_blank')" style="background:gold; color:black; font-weight:bold; box-shadow:0 0 10px gold">👑 PANEL ADMIN</button>` : ''}
-                            ${(isMe && user.role === 'admin') ? `<button class="btn-sm" onclick="window.doClaimGhosts()" style="background:#ff4444; color:white; font-weight:bold">👻 FIX POSTS</button>` : ''}
                         <button class="btn-outline" onclick="window.doCopyPrompt()" style="width:100%; margin-top:10px">📋 Copiar Prompt</button>
                     </div>
                     
@@ -1926,6 +1925,26 @@ const renderActivityLogs = (logs) => {
     }
 
     container.innerHTML = logs.map(createLogItemHtml).join('');
+};
+
+// --- ADMIN ACTIONS ---
+window.doClaimGhosts = async () => {
+    if (!confirm("Esto buscará todos los posts antiguos con tu nombre y actualizará su ID al actual. ¿Continuar?")) return;
+    if (window.toast) window.toast("Iniciando reparación...", "info");
+
+    try {
+        const res = await store.claimGhostPosts();
+        if (res.success) {
+            if (window.toast) window.toast(res.msg, "success");
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            if (window.toast) window.toast(res.msg, "error");
+            else alert(res.msg);
+        }
+    } catch (err) {
+        console.error("Claim handler error:", err);
+        alert("Error crítico en la reparación");
+    }
 };
 
 init();
