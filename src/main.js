@@ -65,22 +65,24 @@ window.openUserProfile = (username) => {
 
 // --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist ---
 setInterval(() => {
-    document.querySelectorAll('.blur-overlay').forEach(overlay => {
+    document.querySelectorAll('.card-blurred').forEach(wrapper => {
+        // Find or create overlay
+        let overlay = wrapper.querySelector('.blur-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'blur-overlay';
+            wrapper.appendChild(overlay);
+        }
+
         // If overlay has NO button, force inject it
         if (!overlay.querySelector('button')) {
-            const text = overlay.innerText || "🔞 NSFW";
-
-            // Detect context: Modal vs Card
-            const isModal = overlay.closest('.view-modal') || overlay.closest('#viewModal');
+            const warningLabel = wrapper.dataset.warning || "NSFW";
+            const isModal = wrapper.closest('.view-modal-wrapper') || wrapper.id === 'detImgWrap';
 
             if (isModal) {
-                // MODAL: Standard Big Button (No changes)
-                overlay.innerHTML = `<span>${text}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
             } else {
-                // CARD: Discrete & Higher Up
-                // transform: translateY(-30%) moves it up significantly
-                // padding: 4px 8px & font-size: 0.7rem makes it smaller/discrete
-                overlay.innerHTML = `<span>${text}</span><button class="btn" style="margin-top:5px; background: rgba(255, 68, 68, 0.9); color: white; border:none; padding: 3px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; transform: translateY(-15px);" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar</button>`;
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:5px; background: rgba(255, 68, 68, 0.9); color: white; border:none; padding: 3px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; transform: translateY(-15px);" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar</button>`;
             }
         }
     });
@@ -157,7 +159,7 @@ const renderCollage = (p, isHero = false) => {
         }
 
         return `
-            <div class="collage-item ${applyBlur ? 'card-blurred' : ''}" style="${spanStyle}">
+            <div class="collage-item ${applyBlur ? 'card-blurred' : ''}" data-warning="${applyBlur ? warningLabel : ''}" style="${spanStyle}">
                 <img src="${step.image}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">
             </div>`;
     }).join('')}
@@ -240,14 +242,26 @@ const LEGAL_TEXTS = {
 const TopBar = () => `<div class="top-bar"><div class="container top-bar-inner"><div class="top-bar-links"><span onclick="window.openInfo('tos')">Términos</span><span onclick="window.openInfo('privacy')">Privacidad</span><span onclick="window.openInfo('safety')">Seguridad</span><span onclick="window.openInfo('faq')">Preguntas</span></div><button class="support-btn" onclick="window.openInfo('support')">💬 Soporte</button></div></div>`;
 
 const getModeration = (p, forcedRating) => {
+    // Si no hay rating, asumimos SFW por defecto
     let rating = forcedRating || p.rating || 'SFW / Apto';
     if (!forcedRating && p.type === 'sequence' && p.content && p.content.length > 0) {
         rating = p.content[0].rating || 'SFW / Apto';
     }
+
+    // Obtener preferencias del usuario logueado (moderation ahora es un campo oficial)
     const mod = store.currentUser?.moderation || { suggestive: 'ON', nsfw: 'BLUR' };
-    let applyBlur = false; let warningLabel = '';
-    if (rating === 'Sugestivo' && mod.suggestive === 'BLUR') { applyBlur = true; warningLabel = 'SUGESTIVO'; }
-    if (rating === 'NSFW / +18' && mod.nsfw === 'BLUR') { applyBlur = true; warningLabel = 'NSFW'; }
+    let applyBlur = false;
+    let warningLabel = '';
+
+    if (rating === 'Sugestivo' && mod.suggestive === 'BLUR') {
+        applyBlur = true;
+        warningLabel = 'SUGESTIVO';
+    }
+    if (rating === 'NSFW / +18' && mod.nsfw === 'BLUR') {
+        applyBlur = true;
+        warningLabel = 'NSFW';
+    }
+
     return { applyBlur, warningLabel };
 };
 
@@ -264,21 +278,20 @@ const getFilteredPrompts = () => {
     if (currentView === 'profile') {
         // En perfil, el filtro 'user' es implícito o forzado
         list = list.filter(p => {
-            // CRITICAL FIX: Hide private posts unless viewer is the author
-            if (p.isPrivate || p.is_private) {
-                if (!store.currentUser || store.currentUser.username !== p.author) return false;
+            // UNIFICACIÓN DE PRIVACIDAD: is_private es la clave oficial
+            const isPrivate = p.is_private === true || p.isPrivate === true;
+            if (isPrivate) {
+                // Solo el autor puede ver sus propios posts privados
+                if (!store.currentUser || store.currentUser.id !== p.author_id) return false;
             }
-            return profileTab === 'creations' ? p.author === profileUser : p.savedBy?.includes(profileUser);
+            return profileTab === 'creations' ? p.author_id === profileUser : p.savedBy?.includes(profileUser);
         });
     } else {
-        // Main Feed Filtering
-        list = list.filter(p => !(p.isPrivate || p.is_private));
+        // En el Dashboard público, ocultar TODO lo privado de raíz
+        list = list.filter(p => !(p.is_private === true || p.isPrivate === true));
         if (filters.source === 'following' && store.currentUser) {
             const myFollowing = store.currentUser.following || [];
-            list = list.filter(p => {
-                const authorUser = null; // Fix: store.users no existe
-                return authorUser ? myFollowing.includes(authorUser.id) : false;
-            });
+            list = list.filter(p => myFollowing.includes(p.author_id));
         } else if (filters.source === 'user' && store.currentUser) {
             // "Tus Prompts" en Home (librería propia)
             list = list.filter(p => p.author === store.currentUser.username);
@@ -690,9 +703,8 @@ const Gallery = () => {
         const totalReacts = Object.values(reactions).reduce((a, b) => a + b, 0);
 
         const card = `<div class="card">
-                <div class="card-img-wrap ${p.type !== 'sequence' && applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" style="height:100%; cursor:pointer">
+                <div class="card-img-wrap ${p.type !== 'sequence' && applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" data-warning="${applyBlur ? warningLabel : ''}" style="height:100%; cursor:pointer">
                     ${renderCollage(p)}
-                    ${p.type !== 'sequence' && applyBlur ? `<div class="blur-overlay"><span>🔞 ${warningLabel}</span></div>` : ''}
                 </div>
                 <div class="card-overlay" data-post-id="${p.id}" style="cursor:pointer">
                     <div style="font-weight:700; font-size:0.9rem; margin-bottom:5px">${window.escapeHTML(p.title)}</div>
@@ -812,6 +824,16 @@ const AuthModal = () => `
             <a href="#" onclick="window.toggleAuth('log')" style="color:#666">Volver al Login</a>
         </p>
     </div>
+    <div id="activateForm" style="display:none;">
+        <h2>Activar Cuenta</h2>
+        <p style="margin-bottom:15px; color:#a29bfe; font-size:0.85rem; font-weight:700">¡Bienvenido! Elige tu nueva contraseña para activar tu perfil.</p>
+        <input type="text" id="actUser" class="form-input" placeholder="Usuario o Email">
+        <div style="position:relative">
+            <input type="password" id="actPass" class="form-input" placeholder="Nueva Contraseña" style="padding-right:40px">
+            <span onclick="window.togglePass('actPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+        </div>
+        <button class="btn" style="width:100%" onclick="window.doActivateSubmit()">Activar y Entrar</button>
+    </div>
     <button class="btn-outline" style="width:100%; border:none; margin-top:10px" onclick="window.closeModals()">Cancelar</button>
 </div></div>`;
 
@@ -922,7 +944,7 @@ const DetailModal = () => `
     <div class="view-modal-wrapper">
         <div class="view-modal">
             <button class="modal-close-x" onclick="window.closeModals()">✕</button>
-            <div class="view-img-side">
+            <div class="view-img-side" id="detImgWrap">
                 <div id="detCopyBadge" style="position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.7); padding:4px 10px; border-radius:15px; font-size:0.7rem; color:var(--accent); font-weight:700; border:1px solid var(--accent); display:none; z-index:10">📋 Copiado 0 veces</div>
                 <img id="detImg" src="" alt="Post Image">
                 <button class="fullscreen-btn" onclick="window.doFullScreen()">🔍 Ver Pantalla Completa</button>
@@ -1180,6 +1202,8 @@ window.toggleAuth = (m) => {
     document.getElementById('regForm').style.display = m === 'reg' ? 'block' : 'none';
     const recForm = document.getElementById('recoverForm');
     if (recForm) recForm.style.display = m === 'rec' ? 'block' : 'none';
+    const actForm = document.getElementById('activateForm');
+    if (actForm) actForm.style.display = m === 'act' ? 'block' : 'none';
 };
 
 window.doLoginSubmit = async () => {
@@ -1198,6 +1222,23 @@ window.doRecoverSubmit = async () => {
     const res = await store.recoverPassword(email);
     alert(res.msg);
     if (res.success) window.toggleAuth('log');
+};
+
+window.doActivateSubmit = async () => {
+    const userOrEmail = document.getElementById('actUser').value;
+    const pass = document.getElementById('actPass').value;
+    const token = new URLSearchParams(window.location.search).get('token');
+
+    if (!userOrEmail || !pass) return alert("Rellena todos los campos.");
+    if (!token) return alert("Token de activación no encontrado.");
+
+    const res = await store.confirmResetPassword(token, pass, userOrEmail);
+    if (res.success) {
+        alert("¡Cuenta activada con éxito! Bienvenido.");
+        window.location.href = '/';
+    } else {
+        alert(res.msg);
+    }
 };
 
 window.doLogout = () => {
@@ -1955,20 +1996,12 @@ window.openDetail = (id) => {
             }
         }
         // Re-apply blurring logic if needed for single image context
-        if (detImg) {
+        const detImgWrap = document.getElementById('detImgWrap');
+        if (detImgWrap) {
             const { applyBlur, warningLabel } = getModeration(p);
-            detImg.parentElement.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
-            let blurOverlay = detImg.parentElement.querySelector('.blur-overlay');
-            if (applyBlur) {
-                if (!blurOverlay) {
-                    blurOverlay = document.createElement('div');
-                    blurOverlay.className = 'blur-overlay';
-                    detImg.parentElement.appendChild(blurOverlay);
-                }
-                blurOverlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
-            } else if (blurOverlay) {
-                blurOverlay.remove();
-            }
+            detImgWrap.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
+            detImgWrap.dataset.warning = applyBlur ? warningLabel : '';
+            // No need to manually add overlay here, the setInterval handles it
         }
 
         const detCopyBadge = document.getElementById('detCopyBadge');
@@ -2033,7 +2066,16 @@ window.updateSeqDisplay = (p) => {
     if (!p || !p.content || p.content.length === 0) return;
     const step = p.content[currentSeqStep];
 
-    // Find elements anywhere in DOM (since modal might be in body now)
+    // Blurring for current step
+    const { applyBlur, warningLabel } = getModeration(p, step.rating);
+    const detImgWrap = document.getElementById('detImgWrap');
+    if (detImgWrap) {
+        detImgWrap.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
+        detImgWrap.dataset.warning = applyBlur ? warningLabel : '';
+        // If we switch steps, we might want to re-blur if it was revealed?
+        // Actually, the card-blurred class being added will trigger the setInterval
+    }
+
     const detImg = document.getElementById('detImg');
     const detPrompt = document.getElementById('detPrompt');
     const detSeqCount = document.getElementById('detSeqCount');
@@ -3035,5 +3077,19 @@ setTimeout(() => {
     loadTopCreators();
 }, 1000);
 
+// --- PASSWORD RESET TOKEN DETECTION ---
+window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
 
-
+    // Si el usuario viene con un token de reset, abrimos el modal de actvación
+    if (token) {
+        console.log("🔐 Token de activación detectado. Abriendo modal...");
+        setTimeout(() => {
+            if (document.getElementById('authModal')) {
+                document.getElementById('authModal').style.display = 'flex';
+                window.toggleAuth('act');
+            }
+        }, 800);
+    }
+});

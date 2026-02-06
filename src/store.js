@@ -98,12 +98,17 @@ const store = {
                 savedBy: p.saved_by || [],
                 saved_by: p.saved_by || [],
                 type: p.type || 'single',
-                isPrivate: p.is_private || p.isPrivate || false, // Normalización de privacidad
+                content: p.content || [],
+
+                // NUEVOS CAMPOS POST-MIGRACIÓN
+                tokens_received: p.tokens_received || 0,
+                rating: p.rating || 'SFW / Apto',
+                is_private: p.is_private === true || p.isPrivate === true,
+                copy_count: p.copy_count || 0,
                 admin_featured: p.admin_featured || false,
                 is_featured: p.is_featured || false,
                 featured_until: p.featured_until || null,
                 tool: p.tool || 'ChatGPT',
-                rating: p.rating || 'SFW / Apto',
                 content: p.content || [],
                 profiles: p.expand?.author ? {
                     username: p.expand.author.username,
@@ -649,8 +654,24 @@ const store = {
     },
 
     async recoverPassword(email) {
-        try { await pb.collection('users').requestPasswordReset(email); return { success: true }; }
-        catch (err) { return { success: false }; }
+        try {
+            await pb.collection('users').requestPasswordReset(email);
+            return { success: true, msg: "Instrucciones enviadas a tu correo." };
+        }
+        catch (err) { return { success: false, msg: "Error al enviar correo." }; }
+    },
+
+    async confirmResetPassword(token, password, userOrEmail) {
+        try {
+            // 1. Confirmar el cambio de contraseña
+            await pb.collection('users').confirmPasswordReset(token, password, password);
+
+            // 2. Login automático inmediatamente
+            return await this.login(userOrEmail, password);
+        } catch (err) {
+            console.error("Reset error:", err);
+            return { success: false, msg: "El link ha expirado o es inválido." };
+        }
     },
 
     // --- HELPERS ---

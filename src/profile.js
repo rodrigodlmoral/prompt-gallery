@@ -15,6 +15,27 @@ let seqStepCount = 0;
 let isEditing = false;
 let editingId = null;
 
+// --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist ---
+setInterval(() => {
+    document.querySelectorAll('.card-blurred').forEach(wrapper => {
+        let overlay = wrapper.querySelector('.blur-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'blur-overlay';
+            wrapper.appendChild(overlay);
+        }
+        if (!overlay.querySelector('button')) {
+            const warningLabel = wrapper.dataset.warning || "NSFW";
+            const isModal = wrapper.closest('.view-modal-wrapper') || wrapper.id === 'detImgWrap';
+            if (isModal) {
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
+            } else {
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:5px; background: rgba(255, 68, 68, 0.9); color: white; border:none; padding: 3px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; transform: translateY(-15px);" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar</button>`;
+            }
+        }
+    });
+}, 500);
+
 // --- CONSTANTS ---
 const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.0', 'SDXL', 'Flux', 'Midjourney', 'Huggingface', 'Fooocus', 'ComfyUI', 'Perchance', 'Otro'];
 const RATINGS = ['SFW / Apto', 'Sugestivo', 'NSFW / +18'];
@@ -94,7 +115,7 @@ const renderCollage = (p) => {
             else spanStyle = 'grid-column: span 2;';
         }
         return `
-            <div class="collage-item ${applyBlur ? 'card-blurred' : ''}" style="${spanStyle}">
+            <div class="collage-item ${applyBlur ? 'card-blurred' : ''}" data-warning="${applyBlur ? warningLabel : ''}" style="${spanStyle}">
                 <img src="${step.image}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">
             </div>`;
     }).join('')}
@@ -218,7 +239,7 @@ const ProfileHeader = () => {
 
 const Gallery = () => {
     let list = [...store.prompts].filter(p => {
-        if (p.isPrivate && (!store.currentUser || store.currentUser.username !== p.author)) return false;
+        if (p.is_private && (!store.currentUser || store.currentUser.username !== p.author)) return false;
         return profileTab === 'creations' ? p.author === profileUser : p.savedBy?.includes(profileUser);
     });
 
@@ -231,9 +252,8 @@ const Gallery = () => {
         const reactions = p.reactions || { like: 0 };
         return `
             <div class="card">
-                <div class="card-img-wrap ${applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" style="height:100%; cursor:pointer">
+                <div class="card-img-wrap ${applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" data-warning="${applyBlur ? warningLabel : ''}" style="height:100%; cursor:pointer">
                     ${renderCollage(p)}
-                    ${applyBlur ? `<div class="blur-overlay"><span>🔞 ${warningLabel}</span></div>` : ''}
                 </div>
                 <div class="card-overlay" data-post-id="${p.id}" style="cursor:pointer">
                     <div style="font-weight:700; font-size:0.9rem; margin-bottom:5px">${window.escapeHTML(p.title)}</div>
@@ -411,7 +431,7 @@ const DetailModalTemplate = () => `
     <div class="view-modal-wrapper">
         <div class="view-modal">
             <button class="modal-close-x" onclick="window.closeModals()">✕</button>
-            <div class="view-img-side">
+            <div class="view-img-side" id="detImgWrap">
                 <div id="detCopyBadge" style="position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.7); padding:4px 10px; border-radius:15px; font-size:0.7rem; color:var(--accent); font-weight:700; border:1px solid var(--accent); display:none; z-index:10">📋 Copiado 0 veces</div>
                 <img id="detImg" src="" alt="Post Image">
                 <button class="fullscreen-btn" onclick="window.doFullScreen()">🔍 Ver Pantalla Completa</button>
@@ -797,21 +817,12 @@ window.openDetail = (id) => {
         if (detPrompt) detPrompt.innerText = p.prompt || '';
     }
 
-    // Blurred image handling
-    if (detImg) {
+    // Blurring
+    const detImgWrap = document.getElementById('detImgWrap');
+    if (detImgWrap) {
         const { applyBlur, warningLabel } = getModeration(p);
-        detImg.parentElement.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
-        let blurOverlay = detImg.parentElement.querySelector('.blur-overlay');
-        if (applyBlur) {
-            if (!blurOverlay) {
-                blurOverlay = document.createElement('div');
-                blurOverlay.className = 'blur-overlay';
-                detImg.parentElement.appendChild(blurOverlay);
-            }
-            blurOverlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
-        } else if (blurOverlay) {
-            blurOverlay.remove();
-        }
+        detImgWrap.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
+        detImgWrap.dataset.warning = applyBlur ? warningLabel : '';
     }
 
     const detCopyBadge = document.getElementById('detCopyBadge');
@@ -856,6 +867,15 @@ window.openDetail = (id) => {
 window.updateSeqDisplay = (p) => {
     const step = p.content[currentSeqStep];
     if (!step) return;
+
+    // Blurring for current step
+    const { applyBlur, warningLabel } = getModeration(p, step.rating);
+    const detImgWrap = document.getElementById('detImgWrap');
+    if (detImgWrap) {
+        detImgWrap.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
+        detImgWrap.dataset.warning = applyBlur ? warningLabel : '';
+    }
+
     const detImg = document.getElementById('detImg');
     const detPrompt = document.getElementById('detPrompt');
     const seqCount = document.getElementById('detSeqCount');
