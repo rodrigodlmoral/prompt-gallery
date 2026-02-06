@@ -239,7 +239,6 @@ const ProfileHeader = () => {
                 <button class="btn-outline" onclick="window.openActivity()">📜 Actividad</button>
                 <button class="btn-outline" onclick="window.openSettings()">⚙️ Configurar</button>
                 ${(isMe && isAdmin) ? `<button class="btn-sm" id="btnAdminPanel" onclick="window.open('/admin.html', '_blank')" style="background:gold; color:black; font-weight:bold; box-shadow:0 0 10px gold; border:none">👑 PANEL ADMIN</button>` : ''}
-                ${(isMe && isAdmin) ? `<button class="btn-sm" id="btnFixPosts" onclick="window.doClaimGhosts()" style="background:#ff4444; color:white; font-weight:bold; border:none">👻 FIX POSTS</button>` : ''}
             </div>
             `}
                 </div>
@@ -1900,8 +1899,6 @@ window.doSendDirectTip = async (recipientId, amount) => {
 
 const init = async () => {
     // Normal initialization
-    setTimeout(() => { if (window.toast) window.toast("v8.4: Data Fix", "success"); }, 1000);
-
     await store.init();
     if (profileUser) {
         await store.fetchUserProfileByUsername(profileUser);

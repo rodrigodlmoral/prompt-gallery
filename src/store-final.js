@@ -174,13 +174,7 @@ const store = {
 
         const logError = (msg) => {
             console.error(`[ST_DEBUG] ${msg}`);
-            // INJECT ERROR INTO DOM (User requested visibility)
-            const banner = document.getElementById('debug-banner') || document.createElement('div');
-            banner.id = 'debug-banner';
-            banner.style.cssText = "position:fixed; top:0; left:0; width:100%; background:red; color:white; font-size:12px; z-index:99999; padding:5px; text-align:center;";
-            banner.innerText = msg;
-            document.body.appendChild(banner);
-            setTimeout(() => banner.remove(), 10000);
+            // Banner disabled to avoid UI clutter
         };
 
         try {
@@ -259,7 +253,6 @@ const store = {
                 console.log("[ST_DEBUG] ⚡ Usando CACHÉ NUCLEAR (No se descarga nada)...");
                 items = this.nuclearCache.items;
             } else {
-                console.log("[ST_DEBUG] ☢️ Iniciando NUCLEAR SEARCH (1000 items from DB)...");
                 const nuclearRes = await pb.collection('users').getList(1, 1000, { sort: '-updated' });
                 items = nuclearRes.items;
 
@@ -275,7 +268,7 @@ const store = {
             );
 
             if (found) {
-                logError(`[SUCCESS] Found user '${found.username}' via Nuclear Search (Matches: ${username})`);
+                console.log(`[SUCCESS] Found user '${found.username}' via Nuclear Search (Matches: ${username})`);
                 return this._cacheUser(username, found);
             }
 
