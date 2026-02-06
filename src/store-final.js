@@ -168,13 +168,8 @@ const store = {
         };
 
         try {
-            // STRATEGY 1: Standard Filter (Probable Cause of 400)
-            try {
-                const res = await pb.collection('users').getList(1, 1, { filter: `name = "${username}"` });
-                if (res.items.length > 0) return this._cacheUser(username, res.items[0]);
-            } catch (e) {
-                console.warn("[ST_DEBUG] Filter failed, trying Nuclear Fallback...");
-            }
+            // STRATEGY 1: REMOVED (Caused 400 Bad Request)
+            console.log("[ST_DEBUG] Strategy 1 (Filter) skipped due to 400 errors.");
 
             // STRATEGY 2: ID Check (If looks like ID)
             if (username.length === 15) {
@@ -185,7 +180,7 @@ const store = {
             }
 
             // STRATEGY 3: NUCLEAR FALLBACK (Fetch LARGER list & filter in memory case-insensitive)
-            console.warn("[ST_DEBUG] Iniciando NUCLEAR SEARCH (1000 items)...");
+            console.log("[ST_DEBUG] Iniciando NUCLEAR SEARCH (1000 items)...");
             const nuclearRes = await pb.collection('users').getList(1, 1000, { sort: '-updated' });
 
             const lowerQuery = username.toLowerCase();
