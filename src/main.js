@@ -1940,15 +1940,15 @@ window.openDetail = (id) => {
         // Setup Badges
         const badgesEl = document.getElementById('detBadges');
         if (badgesEl) {
-            let bhtml = `<span class="badge-meta">🛠️ ${p.tool || 'Desconocido'}</span>`;
+            let bhtml = `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">🛠️ ${p.tool || 'Desconocido'}</span>`;
             if (p.type !== 'sequence') {
                 const r = p.rating || 'SFW / Apto';
                 const icon = r.startsWith('SFW') ? '🟢' : '🔞';
-                bhtml += `<span class="badge-meta">${icon} ${r}</span>`;
+                bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
             }
 
             const refText = p.needsReference ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
-            bhtml += `<span class="badge-meta">${refText}</span>`;
+            bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
 
             badgesEl.innerHTML = bhtml;
 
@@ -2161,15 +2161,15 @@ window.updateSeqDisplay = (p) => {
     // Update Meta Badges for the current step in sequence
     const badgesEl = document.getElementById('detBadges');
     if (badgesEl) {
-        let bhtml = `<span class="badge-meta">🛠️ ${p.tool || 'Desconocido'}</span>`;
+        let bhtml = `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">🛠️ ${p.tool || 'Desconocido'}</span>`;
 
         const r = step.rating || 'SFW / Apto';
         const icon = r.startsWith('SFW') ? '🟢' : '🔞';
-        bhtml += `<span class="badge-meta">${icon} ${r}</span>`;
+        bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
 
         // Referencia (Global del post original)
         const refText = p.needsReference ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
-        bhtml += `<span class="badge-meta">${refText}</span>`;
+        bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
 
         badgesEl.innerHTML = bhtml;
     }
