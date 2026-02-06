@@ -38,6 +38,21 @@ const store = {
             if (profile) {
                 profile.avatar = profile.avatar_url || profile.avatar;
                 profile.username = profile.name; // PocketBase usa 'name', no 'username'
+
+                // --- DYNAMIC STATS INJECTION ---
+                try {
+                    const stats = await pb.collection('prompts').getList(1, 500, {
+                        filter: `author = "${userId}"`,
+                        fields: 'id,copy_count'
+                    });
+                    profile.prompts_count = stats.totalItems || 0;
+                    profile.total_copies = stats.items.reduce((sum, p) => sum + (p.copy_count || 0), 0);
+                } catch (e) {
+                    console.warn("Error calculating dynamic stats:", e);
+                    profile.prompts_count = profile.prompts_count || 0;
+                    profile.total_copies = profile.total_copies || 0;
+                }
+
                 this.currentUser = profile;
             }
         } catch (error) {
@@ -109,6 +124,20 @@ const store = {
             const record = await pb.collection('users').getFirstListItem(`username="${username}"`);
             if (record) {
                 const normalized = window.normalizeProfile ? window.normalizeProfile(record) : record;
+
+                // --- DYNAMIC STATS INJECTION FOR OTHER USERS ---
+                try {
+                    const stats = await pb.collection('prompts').getList(1, 500, {
+                        filter: `author = "${record.id}"`,
+                        fields: 'id,copy_count'
+                    });
+                    normalized.prompts_count = stats.totalItems || 0;
+                    normalized.total_copies = stats.items.reduce((sum, p) => sum + (p.copy_count || 0), 0);
+                } catch (e) {
+                    normalized.prompts_count = normalized.prompts_count || 0;
+                    normalized.total_copies = normalized.total_copies || 0;
+                }
+
                 this.usersCache[username] = normalized;
                 this.usersCache[username]._fetchedAt = Date.now();
                 return this.usersCache[username];
