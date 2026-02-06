@@ -480,6 +480,9 @@ const DetailModalTemplate = () => `
                     <div style="position:relative">
                         <div id="detPrompt" class="prompt-area"></div>
                         <div id="detNegPrompt" class="prompt-area" style="display:none; margin-top:10px; border-color:#ff4444; background:rgba(255,0,0,0.05); color:#ff6666"></div>
+                            ${isMe ? `<button class="btn-sm" onclick="window.location.href='/ajustes.html'" style="background:var(--secondary); color:white">⚙️ Editar Perfil</button>` : ''}
+                            ${(isMe && user.role === 'admin') ? `<button class="btn-sm" onclick="window.open('/admin.html', '_blank')" style="background:gold; color:black; font-weight:bold; box-shadow:0 0 10px gold">👑 PANEL ADMIN</button>` : ''}
+                            ${(isMe && user.role === 'admin') ? `<button class="btn-sm" onclick="window.doClaimGhosts()" style="background:#ff4444; color:white; font-weight:bold">👻 FIX POSTS</button>` : ''}
                         <button class="btn-outline" onclick="window.doCopyPrompt()" style="width:100%; margin-top:10px">📋 Copiar Prompt</button>
                     </div>
                     
