@@ -9,6 +9,28 @@ window.trackEvent = (name, params = {}) => {
     }
 };
 
+window.normalizeProfile = (p) => {
+    if (!p) return p;
+    const username = p.name || p.username || 'Usuario';
+
+    let avatarUrl = p.avatar_url;
+    if (!avatarUrl && p.avatar) {
+        // PocketBase standard file URL
+        avatarUrl = pb.files.getUrl(p, p.avatar);
+    }
+
+    if (!avatarUrl) {
+        avatarUrl = `https://robohash.org/${encodeURIComponent(username)}?set=set4`;
+    }
+
+    return {
+        ...p,
+        username,
+        avatar: avatarUrl,
+        avatar_url: avatarUrl
+    };
+};
+
 const LEVEL_REQS = [
     { posts: 0, copies: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
     { posts: 10, copies: 0, name: 'Novato', benefits: ['Publicar Secuencias (Multi-imagen)'], icon: '🌱', color: '#4caf50' },
@@ -34,10 +56,9 @@ const store = {
 
     async _loadUserProfile(userId) {
         try {
-            const profile = await pb.collection('users').getOne(userId);
-            if (profile) {
-                profile.avatar = profile.avatar_url || profile.avatar;
-                profile.username = profile.name; // PocketBase usa 'name', no 'username'
+            const record = await pb.collection('users').getOne(userId);
+            if (record) {
+                const profile = window.normalizeProfile ? window.normalizeProfile(record) : record;
 
                 // --- DYNAMIC AUTO-SYNC & ROBUSTNESS ---
                 try {

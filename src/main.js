@@ -651,17 +651,21 @@ const renderTopCreators = (details) => {
                 <div class="tc-title">⭐ Top Creadores</div>
                 <div class="tc-subtitle">Cuadro de Honor • Los 10 Mejores</div>
             </div>
-            <!-- Button Removed as requested -->
         </div>
         <div class="tc-grid">
-            ${details.map((u, idx) => `
-            <div class="tc-card" onclick="window.openUserProfile('${u.username}')">
+            ${details.map((u, idx) => {
+        const username = u.username || u.name || 'Usuario';
+        const avatar = u.avatar || u.avatar_url || `https://robohash.org/${encodeURIComponent(username)}?set=set4`;
+
+        return `
+            <div class="tc-card" onclick="window.openUserProfile('${username}')">
                 <div class="tc-rank">#${idx + 1}</div>
-                <img src="${u.avatar_url || 'https://via.placeholder.com/150'}" class="tc-avatar" loading="lazy">
-                <div class="tc-name">${u.username}</div>
+                <img src="${avatar}" class="tc-avatar" loading="lazy" onerror="this.src='https://robohash.org/${encodeURIComponent(username)}?set=set4'">
+                <div class="tc-name">${username}</div>
                 <div class="tc-stats" style="background:linear-gradient(90deg, #ccc, #777); -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-weight:700; font-size:0.7rem; letter-spacing:0.5px">${u.prompts_count || 0} PROMPTS</div>
                 <div class="tc-level">Nivel ${u.level || 0}</div>
-            </div>`).join('')}
+            </div>`;
+    }).join('')}
         </div>
     </div>`;
 };
