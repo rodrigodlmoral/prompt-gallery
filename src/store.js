@@ -152,7 +152,7 @@ const store = {
         }
 
         try {
-            const record = await pb.collection('users').getFirstListItem(`username="${username}"`);
+            const record = await pb.collection('users').getFirstListItem(`username="${username}" || name="${username}"`);
             if (record) {
                 const normalized = window.normalizeProfile ? window.normalizeProfile(record) : record;
 
@@ -520,8 +520,8 @@ const store = {
     async followUser(targetUsername) {
         if (!this.currentUser) return { success: false };
         try {
-            // Find target user
-            const target = await pb.collection('users').getFirstListItem(`username="${targetUsername}"`);
+            // Find target user by name or username
+            const target = await pb.collection('users').getFirstListItem(`username="${targetUsername}" || name="${targetUsername}"`);
             if (!target) return { success: false };
 
             const following = [...(this.currentUser.following || [])];

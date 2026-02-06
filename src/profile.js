@@ -152,9 +152,9 @@ const Header = () => `
 
 const ProfileHeader = () => {
     if (!profileUser) return '';
-    let user = (store.currentUser && store.currentUser.username === profileUser)
+    let user = (store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser))
         ? store.currentUser
-        : store.users.find(u => u.username === profileUser);
+        : (store.users.find(u => u.username === profileUser || u.name === profileUser) || store.usersCache[profileUser]);
 
     if (!user) return `
         <div style="height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif">
@@ -162,7 +162,7 @@ const ProfileHeader = () => {
             <p style="margin-top:20px; letter-spacing:1px; font-size:0.9rem">CARGANDO PERFIL...</p>
         </div>`;
 
-    const isMe = store.currentUser && store.currentUser.username === user.username;
+    const isMe = store.currentUser && store.currentUser.id === user.id;
     const getLevelInfo = (lvl) => LEVEL_REQS[lvl] || LEVEL_REQS[0];
     const lvlInfo = getLevelInfo(user.level || 0);
 
@@ -177,16 +177,16 @@ const ProfileHeader = () => {
                         
                         <!-- Level Badge -->
                         <span class="level-badge tier-${user.level || 0}" 
-                              title="${isMe ? 'Haz clic para ver tu progreso' : 'Nivel ' + (user.level || 0)}"
-                              style="${isMe ? 'cursor:pointer' : ''}"
-                              ${isMe ? 'onclick="window.openLevelProgress()"' : ''}>
+                               title="${isMe ? 'Haz clic para ver tu progreso' : 'Nivel ' + (user.level || 0)}"
+                               style="${isMe ? 'cursor:pointer' : ''}"
+                               ${isMe ? 'onclick="window.openLevelProgress()"' : ''}>
                             ${lvlInfo.icon} NIVEL ${user.level || 0} - ${lvlInfo.name}
                         </span>
                     </div>
 
                     <!-- Badges Container -->
                     <div class="badge-container">
-                        ${(user.username === 'rodrigodlmoral' || user.username === 'rodridomrock') ? `
+                        ${(user.username === 'rodrigodlmoral' || user.username === 'rodridomrock' || user.name === 'rodrigodlmoral') ? `
                         <div class="founder-badge">
                             <span class="badge-text">👑 Administrador - Fundador</span>
                         </div>
@@ -244,9 +244,15 @@ const ProfileHeader = () => {
 };
 
 const Gallery = () => {
+    const user = (store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser))
+        ? store.currentUser
+        : (store.users.find(u => u.username === profileUser || u.name === profileUser) || store.usersCache[profileUser]);
+
+    if (!user) return '<div class="container" style="padding:40px 0; color:#666">Cargando galería...</div>';
+
     let list = [...store.prompts].filter(p => {
-        if (p.is_private && (!store.currentUser || store.currentUser.username !== p.author)) return false;
-        return profileTab === 'creations' ? p.author === profileUser : p.savedBy?.includes(profileUser);
+        if (p.is_private && (!store.currentUser || store.currentUser.id !== p.author)) return false;
+        return profileTab === 'creations' ? p.author === user.id : p.savedBy?.includes(user.id);
     });
 
     if (list.length === 0) return `<div class="container" style="padding:100px; text-align:center; color:#666">No hay prompts aquí todavía.</div>`;
