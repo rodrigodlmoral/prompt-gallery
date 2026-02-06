@@ -1,5 +1,5 @@
 import './style.css'
-import { store } from './store-v2.js'
+import { store } from './store-final.js'
 
 const app = document.getElementById('profile-app');
 
