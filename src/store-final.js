@@ -809,8 +809,7 @@ const store = {
             const filterStr = `author_name = '${this.currentUser.username}'`;
             console.log("👻 PocketBase Search Filter:", filterStr);
             const records = await pb.collection('prompts').getFullList({
-                filter: filterStr,
-                sort: '-created'
+                filter: filterStr
             });
 
             // 2. Filtramos solo los que NO tengan tu ID actual
