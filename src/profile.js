@@ -1802,9 +1802,9 @@ window.doSendDirectTip = async (recipientId, amount) => {
 };
 
 const init = async () => {
-    // FORCE VERSION CHECK TOAST
+    // FORCE VERSION CHECK TOAST v5.4
     setTimeout(() => {
-        if (window.toast) window.toast("Versión v3.5: NUCLEAR ONLY ☢️", "success");
+        if (window.toast) window.toast("Versión v5.4: REAL FIX [NAME Search] 🔍", "success");
     }, 1000);
 
     await store.init();
