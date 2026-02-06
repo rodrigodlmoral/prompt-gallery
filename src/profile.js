@@ -1272,6 +1272,31 @@ window.previewFile = (input, previewId) => {
 };
 
 window.doPublish = () => {
+    const postType = document.querySelector('input[name="postType"]:checked')?.value || 'single';
+    const title = document.getElementById('upTitle').value;
+    const tool = document.getElementById('upTool').value;
+    const isPrivate = document.getElementById('upPrivate').checked;
+    const needsReference = document.getElementById('upReference').checked;
+    const origCreatorType = document.querySelector('input[name="origCreator"]:checked')?.value || 'me';
+    const origCreator = origCreatorType === 'other' ? {
+        name: document.getElementById('upOrigName').value,
+        url: document.getElementById('upOrigUrl').value
+    } : null;
+
+    if (!title) return alert("El título es obligatorio");
+    if (origCreatorType === 'other' && !origCreator.name) return alert("Falta el nombre del creador original");
+
+    const extraConfig = [];
+    document.querySelectorAll('.extra-config-row').forEach(row => {
+        const type = row.querySelector('.extra-type').value;
+        const val = row.querySelector('.extra-val').value;
+        if (val.trim()) {
+            extraConfig.push({ type, val: val.trim() });
+        }
+    });
+
+    const pubBtn = document.getElementById('pubBtn');
+
     if (isEditing) {
         // --- UPDATE FLOW ---
         const updateData = {
@@ -1286,6 +1311,11 @@ window.doPublish = () => {
             negative_prompt: document.getElementById('upNegPrompt')?.value || ''
         };
 
+        if (pubBtn) {
+            pubBtn.disabled = true;
+            pubBtn.innerText = "Actualizando...";
+        }
+
         if (postType === 'single') {
             const file = document.getElementById('upFile').files[0];
             if (file) {
@@ -1299,14 +1329,20 @@ window.doPublish = () => {
             } else {
                 const existing = store.prompts.find(x => x.id === editingId);
                 updateData.image = existing?.image;
-                const res = await store.updatePrompt(editingId, updateData);
-                handleUpdateResult(res);
+                (async () => {
+                    const res = await store.updatePrompt(editingId, updateData);
+                    handleUpdateResult(res);
+                })();
             }
         } else {
             // Sequence Update
             const steps = Array.from(document.querySelectorAll('.seq-step'));
             const content = [];
             let loaded = 0;
+            if (steps.length === 0) {
+                if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Actualizar"; }
+                return alert("Añade al menos un paso");
+            }
             steps.forEach((step, idx) => {
                 const file = step.querySelector('.seqFile').files[0];
                 const prompt = step.querySelector('.seqPrompt').value;
@@ -1319,10 +1355,10 @@ window.doPublish = () => {
                     if (loaded === steps.length) finalizeUpdate();
                 } else {
                     const reader = new FileReader();
-                    reader.onload = () => {
+                    reader.onload = async () => {
                         content[idx] = { image: reader.result, prompt, negative_prompt: negPrompt, rating };
                         loaded++;
-                        if (loaded === steps.length) finalizeUpdate();
+                        if (loaded === steps.length) await finalizeUpdate();
                     };
                     reader.readAsDataURL(file);
                 }
@@ -1330,7 +1366,7 @@ window.doPublish = () => {
 
             async function finalizeUpdate() {
                 updateData.type = 'sequence';
-                updateData.content = content;
+                updateData.content = content.filter(c => c); // Remove empty slots
                 const res = await store.updatePrompt(editingId, updateData);
                 handleUpdateResult(res);
             }
@@ -1350,30 +1386,6 @@ window.doPublish = () => {
         return;
     }
 
-    const postType = document.querySelector('input[name="postType"]:checked').value;
-    const title = document.getElementById('upTitle').value;
-    const tool = document.getElementById('upTool').value;
-    const isPrivate = document.getElementById('upPrivate').checked;
-    const needsReference = document.getElementById('upReference').checked;
-    const origCreatorType = document.querySelector('input[name="origCreator"]:checked').value;
-    const origCreator = origCreatorType === 'other' ? {
-        name: document.getElementById('upOrigName').value,
-        url: document.getElementById('upOrigUrl').value
-    } : null;
-
-    if (!title) return alert("El título es obligatorio");
-    if (origCreatorType === 'other' && !origCreator.name) return alert("Falta el nombre del creador original");
-
-    const extraConfig = [];
-    document.querySelectorAll('.extra-config-row').forEach(row => {
-        const type = row.querySelector('.extra-type').value;
-        const val = row.querySelector('.extra-val').value;
-        if (val.trim()) {
-            extraConfig.push({ type, val: val.trim() });
-        }
-    });
-
-    const pubBtn = document.getElementById('pubBtn');
     if (pubBtn) {
         pubBtn.disabled = true;
         pubBtn.innerText = "Publicando...";
