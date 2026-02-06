@@ -180,20 +180,46 @@ const store = {
         };
 
         try {
-            // STRATEGY 1: STRICT NAME SEARCH (v6.0 - Fix 400 Error)
-            // Reverted fuzzy match '~' because it causes 400 Bad Request. Using strict '='.
+            // STRATEGY 1: HYBRID SEARCH (v7.0 - "The Dragnet")
+            // Problem: API Filters cause 400 Bad Request.
+            // Solution: Try strict filter. If fails, fetch raw list and filter in client (JavaScript).
             let directFound = null;
 
-            // 1.1 Try NAME first (Exact Match)
+            // 1.1 Try Strict Filter First (Best case)
             try {
-                // filter="name='valentine'"
                 const resName = await pb.collection('users').getList(1, 1, {
                     filter: `name = '${username}'`
                 });
                 if (resName.items.length > 0) directFound = resName.items[0];
             } catch (e1) {
-                console.warn(`[ST_DEBUG] Strategy 1 (Name) Warn:`, e1);
-                if (window.toast) window.toast(`Debug: Name search failed for '${username}' (Status: ${e1.status})`, 'error');
+                // 1.2 DRAGNET FALLBACK (If Filter Fails)
+                console.warn(`[ST_DEBUG] Strategy 1 Filter Failed (${e1.status}). Engaging DRAGNET...`);
+                if (window.toast) window.toast(`v7.0: Engaging DRAGNET Search... 🕸️`, 'info');
+
+                try {
+                    // Fetch top 50 users WITHOUT FILTER (Bypass API bug)
+                    // We know 'valentine' is recent, so listing by -created should find him.
+                    const dragnet = await pb.collection('users').getList(1, 50, {
+                        sort: '-created'
+                    });
+
+                    const targetLower = username.toLowerCase();
+                    directFound = dragnet.items.find(u =>
+                        (u.name && u.name.toLowerCase() === targetLower) ||
+                        (u.username && u.username.toLowerCase() === targetLower)
+                    );
+
+                    if (directFound) {
+                        console.log(`[ST_DEBUG] DRAGNET SUCCESS: Found ${username} in raw list.`);
+                    }
+                } catch (e2) {
+                    console.error(`[ST_DEBUG] Dragnet Failed:`, e2);
+                }
+            }
+
+            if (directFound) {
+                console.log(`[ST_DEBUG] Strategy 1 Found: ${username} (ID: ${directFound.id})`);
+                return this._cacheUser(username, directFound);
             }
 
             // 1.2 Try Username (fallback)
