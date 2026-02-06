@@ -144,6 +144,9 @@ const ProfileHeader = () => {
         : (store.users.find(u => u.username === profileUser || u.name === profileUser) || store.usersCache[profileUser]);
 
     console.log(`[PROFILE] ProfileHeader: user encontrado?`, user ? user.username : 'NO');
+    console.log(`[DEBUG_ADMIN] CurrentUserRole:`, store.currentUser?.role);
+    console.log(`[DEBUG_ADMIN] ProfileUserRole:`, user?.role);
+    console.log(`[DEBUG_ADMIN] isMe:`, isMe);
 
     if (!user) {
         // Si ya pasó un tiempo razonable y sigue sin cargar, asumimos error
