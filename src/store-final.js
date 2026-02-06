@@ -180,21 +180,29 @@ const store = {
         };
 
         try {
-            // STRATEGY 1: DIRECT SEQUENTIAL SEARCH (Avoids "OR" syntax errors)
+            // STRATEGY 1: ROBUST DIRECT FETCH (v5.0)
             let directFound = null;
-
-            // 1.1 Try strict Username
             try {
-                const resUser = await pb.collection('users').getList(1, 1, { filter: `username = "${username}"` });
-                if (resUser.items.length > 0) directFound = resUser.items[0];
-            } catch (ignore) { }
+                // 1.1 Try strict Username (Disable cancellation)
+                directFound = await pb.collection('users').getFirstListItem(`username="${username}"`, { requestKey: null });
+            } catch (e1) {
+                // Ignore 404 (Not Found) -> Proceed to Name check
+                // If it's NOT 404 (e.g. 400), we must log it to Debug
+                if (e1.status !== 404) {
+                    console.error(`[ST_DEBUG] Strategy 1 (Username) Error ${e1.status}:`, e1);
+                    // Critical: If this is a 400, show it to user to diagnose
+                    if (e1.status === 400 && window.toast) window.toast(`Error API (User): ${e1.message}`, 'error');
+                }
 
-            // 1.2 If not found, try Name (Legacy users)
-            if (!directFound) {
-                try {
-                    const resName = await pb.collection('users').getList(1, 1, { filter: `name = "${username}"` });
-                    if (resName.items.length > 0) directFound = resName.items[0];
-                } catch (ignore) { }
+                // 1.2 Try Name (only if username failed)
+                if (!directFound) {
+                    try {
+                        directFound = await pb.collection('users').getFirstListItem(`name="${username}"`, { requestKey: null });
+                    } catch (e2) {
+                        // Ignore 404
+                        if (e2.status !== 404) console.error(`[ST_DEBUG] Strategy 1 (Name) Error ${e2.status}:`, e2);
+                    }
+                }
             }
 
             if (directFound) {
