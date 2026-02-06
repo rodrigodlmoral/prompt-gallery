@@ -16,6 +16,8 @@ Este archivo registra todas las versiones de seguridad creadas para la App "Prom
 | **v3.0** | 2026-02-03 20:40 | **Seguridad & Rewards**: Protección XSS, Crystal Slider Anti-Bot, Recompensas (+1), Cooldown (5m) y Límite Diario (10). | ✅ Realizada |
 | **v4.0** | 2026-02-04 15:34 | **Migración de Perfiles**: Conversión a MPA, perfiles en `/profile.html?u=...`, limpieza de lógica en `main.js`. | ✅ Realizada |
 | **v4.1** | 2026-02-05 16:52 | **Post-Review Backup**: Backup completo tras documentación exhaustiva del proyecto. Estado estable pre-correcciones. | ✅ Realizada |
+| **v4.2** | 2026-02-06 10:45 | **Reactivación**: Desactivación del Modo Mantenimiento. Web accesible nuevamente. | ✅ Activa |
+| **v4.3** | 2026-02-06 10:55 | **Refactor DRY**: Centralización de constantes (`TOOLS`, `LEVELS`, `RATINGS`) en `store-final.js` para evitar duplicidad. | ✅ Desplegando |
 
 ---
 

@@ -12,6 +12,15 @@ echo.
 set "ORIGEN=c:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2"
 set "DESTINO=C:\Users\dquiroz\Documents\GitHub\prompt-gallery"
 
+echo [0/4] Sincronizando con GitHub...
+if exist "%DESTINO%" (
+    cd /d "%DESTINO%"
+    echo Hard resetting to clean previous failed attempts...
+    git reset --hard
+    git pull origin main
+    cd /d "%ORIGEN%"
+)
+
 echo [1/4] Limpiando carpeta de destino (Borrando src antiguo)...
 if exist "%DESTINO%\src" rmdir /s /q "%DESTINO%\src"
 echo OK.
