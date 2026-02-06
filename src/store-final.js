@@ -806,8 +806,10 @@ const store = {
         try {
             console.log("👻 Buscando posts fantasmas para:", this.currentUser.username);
             // 1. Buscamos todos los posts cuyo author_name sea IGUAL al tuyo
+            const filterStr = `author_name = '${this.currentUser.username}'`;
+            console.log("👻 PocketBase Search Filter:", filterStr);
             const records = await pb.collection('prompts').getFullList({
-                filter: `author_name = "${this.currentUser.username}"`,
+                filter: filterStr,
                 sort: '-created'
             });
 
