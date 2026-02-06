@@ -31,7 +31,7 @@ window.normalizeProfile = (p) => {
     };
 };
 
-const LEVEL_REQS = [
+export const LEVEL_REQS = [
     { posts: 0, copies: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
     { posts: 10, copies: 0, name: 'Novato', benefits: ['Publicar Secuencias (Multi-imagen)'], icon: '🌱', color: '#4caf50' },
     { posts: 25, copies: 0, name: 'Creador Jr', benefits: ['Cambiar foto de perfil', 'Añadir redes sociales al perfil'], icon: '🎨', color: '#2196f3' },
@@ -39,6 +39,17 @@ const LEVEL_REQS = [
     { posts: 100, copies: 40, name: 'Artista', benefits: ['Destacar tus propios posts (Self-Promo)', 'Panel de estadísticas avanzado'], icon: '💎', color: '#9c27b0' },
     { posts: 250, copies: 80, name: 'Maestro', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '👑', color: 'gold' }
 ];
+
+export const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.0', 'SDXL', 'Flux', 'Midjourney', 'Huggingface', 'Fooocus', 'ComfyUI', 'Perchance', 'Otro'];
+export const RATINGS = ['SFW / Apto', 'Sugestivo', 'NSFW / +18'];
+
+export const RATING_INFO = `SFW / Apto (Safe for Work): Imágenes aptas para todo público. No contienen violencia, desnudez ni contenido sexual.
+
+Sugestivo: Imágenes que insinúan, pero no muestran desnudez explícita ni actos sexuales. Puede incluir ropa reveladora, lenceria, ropa interior o posturas insinuantes. Se considera inapropiado para el trabajo pero no adulto en su totalidad.
+
+NSFW / +18 (No Safe for Work): La categoría máxima. Imágenes que muestran desnudez total, actos sexuales, pornografía. No apto para menores.`;
+
+export const INFO_ICON = `<span title='${RATING_INFO}' style="text-decoration:none; color:white; background:#0070ba; width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; margin-left:8px; font-weight:bold; cursor:default; font-size:12px">¡</span>`;
 
 // STORE (Estado global simple)
 const store = {
