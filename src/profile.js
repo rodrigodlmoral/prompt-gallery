@@ -1802,9 +1802,9 @@ window.doSendDirectTip = async (recipientId, amount) => {
 };
 
 const init = async () => {
-    // FORCE VERSION CHECK TOAST v7.0
+    // FORCE VERSION CHECK TOAST v8.0
     setTimeout(() => {
-        if (window.toast) window.toast(`v7.0: DRAGNET SEARCH ACTIVE 🕸️`, "success");
+        if (window.toast) window.toast(`v8.0: GHOST DELETED 👻 (Fix Real)`, "success");
     }, 1000);
 
     await store.init();

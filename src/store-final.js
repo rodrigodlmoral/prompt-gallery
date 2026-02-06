@@ -662,12 +662,7 @@ const store = {
         } catch (err) { return { success: false }; }
     },
 
-    async fetchUserProfileByUsername(username) {
-        try {
-            const user = await pb.collection('users').getFirstListItem(`username="${username}"`);
-            return window.normalizeProfile ? window.normalizeProfile(user) : user;
-        } catch (err) { return null; }
-    },
+
 
     async updateUserSettings(data) {
         if (!this.currentUser) return { success: false };
