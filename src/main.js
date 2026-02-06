@@ -1,6 +1,6 @@
 import './style.css'
 import './admin_fix.css' // Emergency CSS Fix for Admin Panel
-import { store } from './store-v2.js'
+import { store } from './store-final.js'
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;

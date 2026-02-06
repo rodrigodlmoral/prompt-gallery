@@ -146,15 +146,22 @@ const store = {
         return this.prompts;
     },
 
-    async fetchUserProfileByUsername(username) {
-        if (!username) return null;
+    async fetchUserProfileByUsername(rawUsername) {
+        if (!rawUsername) return null;
+
+        // --- SANITIZATION ---
+        const username = rawUsername.trim().replace(/['"]/g, ""); // Remove quotes and spaces
+
         if (this.usersCache[username] && (Date.now() - this.usersCache[username]._fetchedAt < 60000)) {
             return this.usersCache[username];
         }
+
         console.error(`[ST_DEBUG] Buscando: "${username}"`);
+
         try {
             // 1. Exacto
             let res = await pb.collection('users').getList(1, 1, { filter: `name = "${username}"` });
+
             // 2. ID
             if (res.totalItems === 0 && username.length >= 10) {
                 try {
@@ -162,10 +169,12 @@ const store = {
                     if (bId) res = { items: [bId], totalItems: 1 };
                 } catch (e) { }
             }
+
             // 3. Similar
             if (res.totalItems === 0) {
                 res = await pb.collection('users').getList(1, 1, { filter: `name ~ "${username}"` });
             }
+
             const rec = res.items[0];
             if (rec) {
                 console.error(`[ST_DEBUG] Encontrado: ${rec.id}`);
@@ -174,9 +183,14 @@ const store = {
                 this.usersCache[username]._fetchedAt = Date.now();
                 return this.usersCache[username];
             }
+
             console.error(`[ST_DEBUG] Sin resultados.`);
         } catch (err) {
             console.error(`[ST_DEBUG] ERROR PERFIL:`, err);
+            // AGGRESSIVE USER ALERT FOR DEBUGGING
+            if (err.status === 400) {
+                alert(`ERROR 400 POCKETBASE:\nFiltro: name="${username}"\nRevisa la consola para más detalles.`);
+            }
             if (err.response) console.error(`[ST_DEBUG] SERVER_DATA:`, err.response);
         }
         return null;
