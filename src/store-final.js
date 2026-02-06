@@ -525,6 +525,29 @@ const store = {
     async removePrompt(id) {
         try {
             await pb.collection('prompts').delete(id);
+
+            // --- FIX: AUTO-DECREMENT COUNT ---
+            try {
+                // Get real count from DB to be 100% accurate
+                const countRes = await pb.collection('prompts').getList(1, 1, {
+                    filter: `author = "${this.currentUser.id}"`,
+                    fields: 'id'
+                });
+                const newCount = countRes.totalItems;
+
+                // Update User Profile
+                await pb.collection('users').update(this.currentUser.id, {
+                    prompts_count: newCount
+                });
+
+                // Update Local State
+                this.currentUser.prompts_count = newCount;
+                console.log(`[STORE] Count updated to ${newCount}`);
+            } catch (countErr) {
+                console.warn("Failed to update count:", countErr);
+            }
+            // ---------------------------------
+
             this.prompts = this.prompts.filter(p => p.id !== id);
             if (window.render) window.render();
             return { success: true };

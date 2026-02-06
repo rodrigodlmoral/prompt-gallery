@@ -1803,7 +1803,7 @@ window.doSendDirectTip = async (recipientId, amount) => {
 
 const init = async () => {
     // Normal initialization
-    // setTimeout(() => { if (window.toast) window.toast("v8.1: Stable", "success"); }, 1000);
+    setTimeout(() => { if (window.toast) window.toast("v8.2: Auto-Count Fix", "success"); }, 1000);
 
     await store.init();
     if (profileUser) {
