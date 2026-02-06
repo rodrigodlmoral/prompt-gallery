@@ -2335,7 +2335,7 @@ window.doEditPrompt = (id) => {
     document.getElementById('upRating').value = p.rating || 'SFW / Apto';
     document.getElementById('upPrompt').value = p.prompt || '';
     document.getElementById('upPrivate').checked = p.isPrivate;
-    document.getElementById('upReference').checked = p.needsReference;
+    document.getElementById('upReference').checked = p.needsReference || p.needs_reference;
 
     // Handle Creator
     if (p.origCreator) {

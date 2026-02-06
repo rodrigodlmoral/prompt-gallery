@@ -308,7 +308,7 @@ window.doEditPrompt = (id) => {
         document.getElementById('upNegPrompt').value = p.negative_prompt || '';
     }
     document.getElementById('upPrivate').checked = p.isPrivate;
-    document.getElementById('upReference').checked = p.needsReference;
+    document.getElementById('upReference').checked = p.needsReference || p.needs_reference;
 
     // Handle Creator
     if (p.origCreator) {
