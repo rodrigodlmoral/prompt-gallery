@@ -806,7 +806,7 @@ window.openDetail = (id) => {
         const icon = r.startsWith('SFW') ? '🟢' : '🔞';
         bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
 
-        const refText = p.needsReference ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
+        const refText = (p.needsReference || p.needs_reference) ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
         bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
 
         badgesEl.innerHTML = bhtml;
@@ -1803,7 +1803,7 @@ window.doSendDirectTip = async (recipientId, amount) => {
 
 const init = async () => {
     // Normal initialization
-    setTimeout(() => { if (window.toast) window.toast("v8.2: Auto-Count Fix", "success"); }, 1000);
+    setTimeout(() => { if (window.toast) window.toast("v8.4: Data Fix", "success"); }, 1000);
 
     await store.init();
     if (profileUser) {
