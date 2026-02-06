@@ -180,19 +180,26 @@ const store = {
         };
 
         try {
-            // STRATEGY 1: DIRECT FILTER (The most accurate)
+            // STRATEGY 1: DIRECT SEQUENTIAL SEARCH (Avoids "OR" syntax errors)
+            let directFound = null;
+
+            // 1.1 Try strict Username
             try {
-                // Fix v4.8: Search in both 'username' AND 'name' (case-sensitive at DB level, but better than nothing)
-                const directRes = await pb.collection('users').getList(1, 1, {
-                    filter: `username = "${username}" || name = "${username}"`
-                });
-                if (directRes.items.length > 0) {
-                    console.log(`[ST_DEBUG] Strategy 1 Found: ${username}`);
-                    return this._cacheUser(username, directRes.items[0]);
-                }
-            } catch (err1) {
-                console.warn(`[ST_DEBUG] Strategy 1 failed for ${username}:`, err1.message);
-                // Continue to Strategy 2 (ID) and 3 (Nuclear)
+                const resUser = await pb.collection('users').getList(1, 1, { filter: `username = "${username}"` });
+                if (resUser.items.length > 0) directFound = resUser.items[0];
+            } catch (ignore) { }
+
+            // 1.2 If not found, try Name (Legacy users)
+            if (!directFound) {
+                try {
+                    const resName = await pb.collection('users').getList(1, 1, { filter: `name = "${username}"` });
+                    if (resName.items.length > 0) directFound = resName.items[0];
+                } catch (ignore) { }
+            }
+
+            if (directFound) {
+                console.log(`[ST_DEBUG] Strategy 1 Found: ${username}`);
+                return this._cacheUser(username, directFound);
             }
 
             // STRATEGY 2: ID Check (If looks like ID)
