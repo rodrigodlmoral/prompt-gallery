@@ -1,22 +1,22 @@
-import fs from 'fs';
+import PocketBase from 'pocketbase';
 
-const stream = fs.createReadStream('supabase_profiles.json', { encoding: 'utf8' });
-let data = '';
+const pb = new PocketBase('https://prompt-gallery.pockethost.io');
 
-stream.on('data', (chunk) => {
-    data += chunk;
-    if (data.includes('rodridom.rock@gmail.com')) {
-        const start = data.lastIndexOf('{', data.indexOf('rodridom.rock@gmail.com'));
-        const end = data.indexOf('}', data.indexOf('rodridom.rock@gmail.com')) + 1;
-        if (start !== -1 && end !== -1) {
-            console.log(data.substring(start, end));
-            stream.destroy();
+async function debugFilter(username) {
+    try {
+        console.log(`🧪 Probando: name = "${username}"`);
+        const res = await pb.collection('users').getList(1, 1, {
+            filter: `name = "${username}"`
+        });
+        console.log(`✅ Éxito. Items: ${res.totalItems}`);
+        if (res.items.length > 0) {
+            console.log("Dato encontrado:", JSON.stringify(res.items[0], null, 2));
+        } else {
+            console.log("❌ NO encontrado.");
         }
+    } catch (err) {
+        console.log(`   ❌ Falló: ${err.message}`);
     }
-    // Mantener solo los últimos 1MB para evitar sobrepasar memoria
-    if (data.length > 1024 * 1024) {
-        data = data.substring(data.length - 1024 * 1024);
-    }
-});
+}
 
-stream.on('end', () => console.log('Not found'));
+debugFilter('valentine');

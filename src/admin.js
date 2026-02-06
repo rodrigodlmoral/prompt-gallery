@@ -1,6 +1,6 @@
 import './style.css'
 import './admin_fix.css'
-import { store } from './store.js'
+import { store } from './store-v2.js'
 
 const app = document.getElementById('admin-app');
 
