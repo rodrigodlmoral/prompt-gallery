@@ -1804,6 +1804,11 @@ window.doSendDirectTip = async (recipientId, amount) => {
 };
 
 const init = async () => {
+    // FORCE VERSION CHECK TOAST
+    setTimeout(() => {
+        if (window.toast) window.toast("Versión v3.1: Fix Perfiles Cargada 🚀", "success");
+    }, 1000);
+
     await store.init();
     if (profileUser) {
         await store.fetchUserProfileByUsername(profileUser);
