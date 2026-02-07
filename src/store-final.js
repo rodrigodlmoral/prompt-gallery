@@ -146,6 +146,7 @@ const store = {
                 tool: p.tool || 'ChatGPT',
                 content: p.content || [],
                 extraConfig: p.extra_config || [],
+                tags: p.tags || [], // NUEVO: Include tags in frontend model
                 profiles: p.expand?.author ? {
                     username: p.expand.author.username,
                     avatar_url: p.expand.author.avatar_url,
