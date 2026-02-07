@@ -108,8 +108,26 @@ const store = {
 
     async loadPrompts() {
         try {
-            // NO usar sort: '-created' porque causa error 400 en PocketHost
-            const records = await pb.collection('prompts').getList(1, 100);
+            // ESTRATEGIA: Jump to Tail (Salto al final)
+            // Ya que PocketHost falla con 'sort', saltamos a la última página para obtener lo más nuevo.
+            const stats = await pb.collection('prompts').getList(1, 1);
+            const total = stats.totalItems;
+
+            let records = { items: [] };
+            if (total > 0) {
+                const limit = 200;
+                const lastPage = Math.ceil(total / limit);
+
+                // Obtenemos la última página (los más recientes)
+                const batch1 = await pb.collection('prompts').getList(lastPage, limit);
+                records.items = batch1.items;
+
+                // Si la última página es pequeña, unimos con la anterior para asegurar volumen
+                if (records.items.length < limit && lastPage > 1) {
+                    const batch2 = await pb.collection('prompts').getList(lastPage - 1, limit);
+                    records.items = [...batch2.items, ...records.items].slice(-limit);
+                }
+            }
 
             // Ordenar en el cliente
             const sortedItems = records.items.sort((a, b) => {
