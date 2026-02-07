@@ -789,35 +789,6 @@ header nav {
   overflow-y: auto;
 }
 
-/* CUSTOM PREMIUM SCROLLBARS (TARGETED) */
-.modal-container::-webkit-scrollbar,
-.tag-categories::-webkit-scrollbar,
-.view-scroll-content::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.modal-container::-webkit-scrollbar-track,
-.tag-categories::-webkit-scrollbar-track,
-.view-scroll-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.modal-container::-webkit-scrollbar-thumb,
-.tag-categories::-webkit-scrollbar-thumb,
-.view-scroll-content::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-
-.modal-container::-webkit-scrollbar-thumb:hover,
-.tag-categories::-webkit-scrollbar-thumb:hover,
-.view-scroll-content::-webkit-scrollbar-thumb:hover {
-  background: var(--accent);
-}
-
 .form-group {
   margin-bottom: 20px;
   width: 100%;

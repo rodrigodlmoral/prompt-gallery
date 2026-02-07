@@ -2886,39 +2886,25 @@ window.renderTagSelector = () => {
     const root = document.getElementById('tagSelectorRoot');
     if (!root) return;
 
-    const selectedPreview = `
-        <div class="selected-tags-preview">
-            ${Array.from(window.selectedTags).map(tag => `
-                <button class="tag-chip selected" onclick="window.toggleTag('${tag}')" title="Quitar">
-                    ${tag} <span style="font-size:0.6rem; opacity:0.6; margin-left:4px">✕</span>
-                </button>
-            `).join('')}
-        </div>
-    `;
-
-    const categoriesHTML = Object.entries(TAG_CATEGORIES).map(([category, tags]) => {
-        const isOpen = window.openCategory === category;
-        return `
-            <div class="tag-category">
-                <div class="tag-category-header ${isOpen ? 'active' : ''}" onclick="window.toggleTagCategory('${category}')">
-                    <span>${category}</span>
-                    <span>${isOpen ? '▲' : '▼'}</span>
-                </div>
-                <div class="tag-category-content" style="${isOpen ? 'display:flex' : 'display:none'}">
-                    ${tags.map(tag => {
-            const isSelected = window.selectedTags.has(tag);
-            return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
-        }).join('')}
-                </div>
+    const categoriesHTML = Object.entries(TAG_CATEGORIES).map(([category, tags]) => `
+        <div class="tag-category">
+            <div class="tag-category-header" onclick="window.toggleTagCategory('${category}')">
+                <span>${category}</span>
+                <span id="cat-indicator-${category.replace(/\s+/g, '-')}">▼</span>
             </div>
-        `;
-    }).join('');
+            <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : ''}">
+                ${tags.map(tag => {
+        const isSelected = window.selectedTags.has(tag);
+        return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
+    }).join('')}
+            </div>
+        </div>
+    `).join('');
 
     root.innerHTML = `
         <div class="tag-selector-container">
-            <label class="form-label">ETIQUETAS SELECCIONADAS</label>
-            ${selectedPreview}
-            <input type="text" class="tag-search-input" placeholder="Buscar etiquetas..." onkeyup="window.filterTags(this.value)">
+            <label class="form-label">ETIQUETAS (TAGS)</label>
+            <input type="text" class="tag-search-input" placeholder="Buscar etiqueta..." onkeyup="window.filterTags(this.value)">
             <div class="tag-categories" id="tagCategoriesContainer">
                 ${categoriesHTML}
             </div>
