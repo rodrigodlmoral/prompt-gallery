@@ -1324,9 +1324,9 @@ window.filterTags = (query) => {
         const matches = tags.filter(t => t.toLowerCase().includes(term));
         if (matches.length > 0) {
             resultsHTML += `
-                <div class="tag-category" style="margin-bottom:5px">
-                    <div style="font-size:0.75rem; color:#666; margin-bottom:4px; margin-left:5px">${category}</div>
-                    <div style="display:flex; flex-wrap:wrap; gap:5px">
+                <div class="tag-category" style="margin-bottom:12px">
+                    <div style="font-size:0.75rem; color:#666; margin-bottom:8px; margin-left:5px; text-transform:uppercase; font-weight:bold">${category}</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px">
                         ${matches.map(tag => {
                 const isSelected = window.selectedTags.has(tag);
                 return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
