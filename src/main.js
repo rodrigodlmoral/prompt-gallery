@@ -2920,7 +2920,7 @@ window.renderTagSelector = () => {
                 <button class="btn-tag-action ${window.showSearchUI ? 'active' : ''}" onclick="window.toggleSearchUI()">
                     🔍 Buscar Tags
                 </button>
-                <button class="btn-tag-action btn-auto-tag" onclick="window.toast('IA Auto-Tag proximamente...', 'info')">
+                <button class="btn-tag-action btn-auto-tag" id="autoTagBtn" onclick="window.doAutoTag()">
                     ✨ IA Auto-Tag
                 </button>
             </div>
@@ -2938,6 +2938,89 @@ window.renderTagSelector = () => {
 window.toggleSearchUI = () => {
     window.showSearchUI = !window.showSearchUI;
     window.renderTagSelector();
+};
+
+window.doAutoTag = async () => {
+    const btn = document.getElementById('autoTagBtn');
+    const isSequence = document.querySelector('input[name="postType"]:checked')?.value === 'sequence';
+    let file;
+
+    if (isSequence) {
+        file = document.querySelector('.seq-card input[type="file"]')?.files[0];
+    } else {
+        file = document.getElementById('upFile')?.files[0];
+    }
+
+    if (!file) {
+        window.toast('Por favor, selecciona una imagen primero', 'warning');
+        return;
+    }
+
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '🪄 Analizando...';
+        window.toast('IA analizando imagen...', 'info');
+
+        const reader = new FileReader();
+        const base64Promise = new Promise((resolve) => {
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.readAsDataURL(file);
+        });
+
+        const base64Image = await base64Promise;
+        const ALL_TAGS = Object.values(TAG_CATEGORIES).flat();
+
+        // Use injected key or hardcoded as fallback for local dev
+        const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY || "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";
+
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                "model": "google/gemini-2.0-flash-lite-001",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": `De la siguiente lista de etiquetas, elige las 3-5 más adecuadas para describir esta imagen. Devuelve ÚNICAMENTE un array JSON de strings: ${ALL_TAGS.join(', ')}`
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": { "url": `data:${file.type};base64,${base64Image}` }
+                            }
+                        ]
+                    }
+                ]
+            })
+        });
+
+        const data = await response.json();
+        const aiContent = data.choices?.[0]?.message?.content || "";
+        const match = aiContent.match(/\[.*\]/s);
+
+        if (match) {
+            const suggested = JSON.parse(match[0]);
+            suggested.forEach(tag => {
+                if (ALL_TAGS.includes(tag)) window.selectedTags.add(tag);
+            });
+            window.toast('✨ Sugerencias de IA añadidas', 'success');
+            window.renderTagSelector();
+        } else {
+            throw new Error('Respuesta inválida de IA');
+        }
+
+    } catch (err) {
+        console.error('Auto-Tag Error:', err);
+        window.toast('Error con la IA', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '✨ IA Auto-Tag';
+    }
 };
 
 window.toggleTagCategory = (category) => {
