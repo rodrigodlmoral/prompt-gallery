@@ -1933,6 +1933,8 @@ window.openDetail = (id) => {
 
             // Render Tags
             const tagsEl = document.getElementById('detTags');
+            console.log("[DEBUG] Rendering details for:", p.title);
+            console.log("[DEBUG] Tags found in object:", p.tags);
             if (tagsEl) {
                 if (p.tags && p.tags.length > 0) {
                     tagsEl.innerHTML = p.tags.map(t => `<span class="server-tag-pill">${t}</span>`).join('');

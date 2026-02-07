@@ -432,6 +432,7 @@ const store = {
                 comments: [],
                 saved_by: []
             });
+            console.log("[DEBUG] Post Created in DB. Tags saved:", record.tags);
 
             // --- LEVEL UP LOGIC (POSTS + COPIAS) ---
             const oldLevel = this.currentUser.level || 0;
