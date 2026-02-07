@@ -66,6 +66,10 @@ window.openUserProfile = (username) => {
     window.location.href = `/profile.html?u=${encodeURIComponent(username)}`;
 };
 
+// --- TAGS STATE ---
+window.selectedTags = new Set();
+window.openCategory = null;
+
 // --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist in Detail View ---
 setInterval(() => {
     document.querySelectorAll('.card-blurred').forEach(wrapper => {
