@@ -2136,6 +2136,23 @@ header nav {
   margin-bottom: 10px;
 }
 
+.tag-search-input {
+  width: 100%;
+  background: #111;
+  border: 1px solid #333;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: white;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+  outline: none;
+  transition: 0.2s;
+}
+
+.tag-search-input:focus {
+  border-color: var(--accent);
+}
+
 .compact-category-list {
   display: none;
   /* Controlled by JS */
@@ -2145,6 +2162,35 @@ header nav {
   border: 1px solid #222;
   border-radius: 8px;
   padding: 10px;
+}
+
+/* CUSTOM PREMIUM SCROLLBARS (TARGETED) */
+.modal-container::-webkit-scrollbar,
+.compact-category-list::-webkit-scrollbar,
+.view-scroll-content::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.modal-container::-webkit-scrollbar-track,
+.compact-category-list::-webkit-scrollbar-track,
+.view-scroll-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-container::-webkit-scrollbar-thumb,
+.compact-category-list::-webkit-scrollbar-thumb,
+.view-scroll-content::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.modal-container::-webkit-scrollbar-thumb:hover,
+.compact-category-list::-webkit-scrollbar-thumb:hover,
+.view-scroll-content::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }
 
 .tag-category-header {
