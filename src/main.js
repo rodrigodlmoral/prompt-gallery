@@ -2886,13 +2886,21 @@ window.renderTagSelector = () => {
     const root = document.getElementById('tagSelectorRoot');
     if (!root) return;
 
+    const selectedHTML = Array.from(window.selectedTags).length > 0
+        ? Array.from(window.selectedTags).map(tag => `
+            <button class="tag-chip selected" onclick="window.toggleTag('${tag}')">
+                ${tag} <span style="font-size:0.6rem; opacity:0.6">✕</span>
+            </button>
+        `).join('')
+        : '<div style="color:#555; font-size:0.75rem; font-style:italic">Ninguna etiqueta seleccionada</div>';
+
     const categoriesHTML = Object.entries(TAG_CATEGORIES).map(([category, tags]) => `
         <div class="tag-category">
             <div class="tag-category-header" onclick="window.toggleTagCategory('${category}')">
                 <span>${category}</span>
-                <span id="cat-indicator-${category.replace(/\s+/g, '-')}">▼</span>
+                <span>${window.openCategory === category ? '▲' : '▼'}</span>
             </div>
-            <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : ''}">
+            <div class="tag-category-content" style="${window.openCategory === category ? 'display:flex' : 'display:none'}">
                 ${tags.map(tag => {
         const isSelected = window.selectedTags.has(tag);
         return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
@@ -2903,13 +2911,33 @@ window.renderTagSelector = () => {
 
     root.innerHTML = `
         <div class="tag-selector-container">
-            <label class="form-label">ETIQUETAS (TAGS)</label>
-            <input type="text" class="tag-search-input" placeholder="Buscar etiqueta..." onkeyup="window.filterTags(this.value)">
-            <div class="tag-categories" id="tagCategoriesContainer">
-                ${categoriesHTML}
+            <div class="selected-tags-box">
+                <h4>Etiquetas Seleccionadas</h4>
+                <div class="selected-tags-list">${selectedHTML}</div>
+            </div>
+
+            <div class="tag-control-btns">
+                <button class="btn-tag-action ${window.showSearchUI ? 'active' : ''}" onclick="window.toggleSearchUI()">
+                    🔍 Buscar Tags
+                </button>
+                <button class="btn-tag-action btn-auto-tag" onclick="window.toast('IA Auto-Tag proximamente...', 'info')">
+                    ✨ IA Auto-Tag
+                </button>
+            </div>
+
+            <div class="tag-search-field" style="${window.showSearchUI ? 'display:block' : 'display:none'}">
+                <input type="text" class="tag-search-input" placeholder="Escribe aquí para buscar..." onkeyup="window.filterTags(this.value)">
+                <div class="compact-category-list" style="display:block">
+                    ${categoriesHTML}
+                </div>
             </div>
         </div>
     `;
+};
+
+window.toggleSearchUI = () => {
+    window.showSearchUI = !window.showSearchUI;
+    window.renderTagSelector();
 };
 
 window.toggleTagCategory = (category) => {
