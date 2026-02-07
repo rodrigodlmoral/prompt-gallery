@@ -484,6 +484,8 @@ const DetailModalTemplate = () => `
                     
                     <div id="detBadges" style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap"></div>
                     
+                    <div id="detTags" class="server-tags-display"></div>
+                    
                     <div style="position:relative">
                         <div id="detPrompt" class="prompt-area"></div>
                         <div id="detNegPrompt" class="prompt-area" style="display:none; margin-top:10px; border-color:#ff4444; background:rgba(255,0,0,0.05); color:#ff6666"></div>
