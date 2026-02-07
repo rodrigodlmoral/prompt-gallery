@@ -1,5 +1,6 @@
 import './style.css'
 import { store, LEVEL_REQS, TOOLS, RATINGS, RATING_INFO, INFO_ICON } from './store-final.js'
+import { TAG_CATEGORIES } from './data/tags.js';
 
 const app = document.getElementById('profile-app');
 
@@ -14,6 +15,10 @@ window.sliderUnlocked = false;
 let seqStepCount = 0;
 let isEditing = false;
 let editingId = null;
+
+// --- TAGS STATE ---
+window.selectedTags = new Set();
+window.openCategory = null;
 
 // --- SAFETY CHECK: Ensure NSFW Reveal Buttons always exist in Detail View ---
 setInterval(() => {
@@ -318,6 +323,10 @@ window.doEditPrompt = (id) => {
     document.getElementById('upPrivate').checked = p.isPrivate;
     document.getElementById('upReference').checked = p.needsReference || p.needs_reference;
 
+    // Load Tags
+    window.selectedTags = new Set(p.tags || []);
+    window.renderTagSelector();
+
     // Handle Type
     if (p.type === 'sequence') {
         document.querySelector('input[name="postType"][value="sequence"]').checked = true;
@@ -371,7 +380,8 @@ window.doUpdate = async () => {
             negative_prompt: document.getElementById('upNegPrompt')?.value || '',
             isPrivate: document.getElementById('upPrivate').checked,
             needsReference: document.getElementById('upReference').checked,
-            type: p.type
+            type: p.type,
+            tags: Array.from(window.selectedTags) // NUEVO
         };
 
         const btn = document.getElementById('pubBtn');
@@ -702,6 +712,8 @@ const CreateModal = () => `
             <span>🔒 Hacer privado (solo yo puedo verlo)</span>
         </label>
     </div>
+
+    <div id="tagSelectorRoot"></div>
     
     </form>
     
@@ -789,6 +801,16 @@ window.openDetail = (id) => {
         bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
 
         badgesEl.innerHTML = bhtml;
+
+        // Render Tags
+        const tagsEl = document.getElementById('detTags');
+        if (tagsEl) {
+            if (p.tags && p.tags.length > 0) {
+                tagsEl.innerHTML = p.tags.map(t => `<span class="server-tag-pill">${t}</span>`).join('');
+            } else {
+                tagsEl.innerHTML = '';
+            }
+        }
     }
 
     // Sequence vs Single
@@ -1117,6 +1139,95 @@ window.confirmResolve = (val) => {
     if (confirmResolver) confirmResolver(val);
 };
 
+// --- TAGGING SYSTEM LOGIC ---
+window.renderTagSelector = () => {
+    const root = document.getElementById('tagSelectorRoot');
+    if (!root) return;
+
+    const categoriesHTML = Object.entries(TAG_CATEGORIES).map(([category, tags]) => `
+        <div class="tag-category">
+            <div class="tag-category-header" onclick="window.toggleTagCategory('${category}')">
+                <span>${category}</span>
+                <span id="cat-indicator-${category.replace(/\s+/g, '-')}">▼</span>
+            </div>
+            <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : ''}">
+                ${tags.map(tag => {
+        const isSelected = window.selectedTags.has(tag);
+        return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
+    }).join('')}
+            </div>
+        </div>
+    `).join('');
+
+    root.innerHTML = `
+        <div class="tag-selector-container">
+            <label class="form-label">ETIQUETAS (TAGS)</label>
+            <input type="text" class="tag-search-input" placeholder="Buscar etiqueta..." onkeyup="window.filterTags(this.value)">
+            <div class="tag-categories" id="tagCategoriesContainer">
+                ${categoriesHTML}
+            </div>
+        </div>
+    `;
+};
+
+window.toggleTagCategory = (category) => {
+    const id = `cat-content-${category.replace(/\s+/g, '-')}`;
+    const content = document.getElementById(id);
+    if (content) {
+        const isClosed = content.style.display === 'none' || content.style.display === '';
+        // Close all others
+        document.querySelectorAll('.tag-category-content').forEach(el => el.style.display = 'none');
+        // Toggle current
+        content.style.display = isClosed ? 'flex' : 'none';
+        window.openCategory = isClosed ? category : null;
+    }
+};
+
+window.toggleTag = (tag) => {
+    if (window.selectedTags.has(tag)) {
+        window.selectedTags.delete(tag);
+    } else {
+        if (window.selectedTags.size >= 10) {
+            window.toast("Máximo 10 etiquetas permitidas", "error");
+            return;
+        }
+        window.selectedTags.add(tag);
+    }
+    // Re-render chips visual state only
+    window.renderTagSelector();
+};
+
+window.filterTags = (query) => {
+    const term = query.toLowerCase();
+    const container = document.getElementById('tagCategoriesContainer');
+    if (!container) return;
+
+    if (!term) {
+        window.renderTagSelector();
+        return;
+    }
+
+    let resultsHTML = '';
+    Object.entries(TAG_CATEGORIES).forEach(([category, tags]) => {
+        const matches = tags.filter(t => t.toLowerCase().includes(term));
+        if (matches.length > 0) {
+            resultsHTML += `
+                <div class="tag-category" style="margin-bottom:5px">
+                    <div style="font-size:0.75rem; color:#666; margin-bottom:4px; margin-left:5px">${category}</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:5px">
+                        ${matches.map(tag => {
+                const isSelected = window.selectedTags.has(tag);
+                return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
+            }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+    });
+
+    container.innerHTML = resultsHTML || '<div style="color:#666; font-size:0.8rem; padding:10px">No se encontraron etiquetas.</div>';
+};
+
 window.openCreate = () => {
     if (!store.currentUser) {
         if (window.toast) window.toast("Debes iniciar sesión para compartir prompts.", "warning");
@@ -1127,6 +1238,9 @@ window.openCreate = () => {
     const modal = document.getElementById('createModal');
     if (modal) {
         modal.style.display = 'flex';
+        // RESET TAGS for new post
+        window.selectedTags.clear();
+        window.renderTagSelector();
         // Reset single preview
         const sp = document.getElementById('singlePreview');
         if (sp) sp.style.display = 'none';
