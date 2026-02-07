@@ -1141,7 +1141,7 @@ window.confirmResolve = (val) => {
     if (confirmResolver) confirmResolver(val);
 };
 
-// --- TAGGING SYSTEM LOGIC ---
+// No change needed for profile.js search yet as it uses the same header logic if shared, but they are separate files.
 window.renderTagSelector = () => {
     const root = document.getElementById('tagSelectorRoot');
     if (!root) return;

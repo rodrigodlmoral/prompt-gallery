@@ -1,46 +1,79 @@
 export const TAG_CATEGORIES = {
-    "🎨 Arte / Ilustración / Digital": [
-        "Arte", "Ilustración", "Concept Art", "Matte Painting", "Collage Digital",
-        "Arte Abstracto", "Surrealismo", "Pop Art", "Minimalismo", "Arte Psicodélico",
-        "Arte Infantil", "Arte Fantástico", "Dark Fantasy", "Steampunk", "Cyberpunk",
-        "Futurista", "Retro / Vintage", "Gótico", "Barroco", "Rococó"
+    "🎨 1. ARTE TRADICIONAL": [
+        "Bellas artes", "Arte", "Arte Abstracto", "Surrealismo", "Pop Art", "Minimalismo",
+        "Barroco", "Rococó", "Gótico", "Pintura y técnicas", "Acuarela", "Óleo",
+        "Acrílico", "Pastel", "Tinta", "Grabado", "Mural / Fresco", "Técnica Mixta",
+        "Dibujo e ilustración", "Ilustración", "Lápiz / Sketch", "Line Art", "Arte Infantil"
     ],
-    "✏️ Técnicas artísticas": [
-        "Acuarela", "Óleo", "Acrílico", "Pastel", "Lápiz / Sketch", "Line Art",
-        "Tinta", "Grabado", "Mural / Fresco", "Arte Mixto"
+    "💻 2. ARTE DIGITAL / IA": [
+        "Arte digital general", "Concept Art", "Matte Painting", "Collage Digital",
+        "Conceptual Digital", "Arte Experimental", "IA generativa", "AI Conceptual Art",
+        "Generative Abstract", "Neural Style Art", "Procedural Art", "Algorithmic Art",
+        "Fractal Art", "Render 3D", "Low Poly", "Holographic Art", "Metaverse Art",
+        "Virtual Photography", "Anime", "Manga", "Comic Style", "Caricatura",
+        "Kawaii", "Pixel Art", "Arte Vectorial", "Glitch Art", "Neon Art"
     ],
-    "🤖 Estilos IA / Digital moderno": [
-        "Fotorealista", "Cinematográfico", "Render 3D", "Low Poly", "Pixel Art",
-        "Arte Vectorial", "Glitch Art", "Neon Art", "Kawaii", "Anime", "Manga",
-        "Comic / Novela gráfica", "Caricatura", "Stylized Realism", "Conceptual Digital"
+    "📸 3. FOTOGRAFÍA RETRATO Y MODA": [
+        "Retrato", "Beauty", "Lifestyle", "Retrato Ambiental", "Corporate Portrait",
+        "Fashion", "Editorial", "High Fashion Concept", "Futuristic Fashion Editorial",
+        "Avant-Garde Fashion", "Underground Fashion", "Gothic Fashion", "Punk Fashion",
+        "Grunge Style", "Emo Aesthetic", "Harajuku Style", "Lolita Fashion"
     ],
-    "📸 Fotografía — Retrato y moda": [
-        "Retrato", "Fashion / Moda", "Editorial", "Beauty", "Boudoir", "Lingerie",
-        "Fine Art Nude", "Glamour", "Lifestyle", "Fotografía Comercial"
+    "🔥 4. FOTOGRAFÍA SENSUAL / ARTÍSTICA": [
+        "Boudoir", "Boudoir Editorial", "Glamour", "Lingerie", "Fine Art Nude",
+        "Artistic Nude", "Implied Nude", "Silhouette Nude", "Body Detail Nude",
+        "Artistic Body Landscape", "Mature Nude Art", "Erotic Fine Art",
+        "Sensual Portrait", "Sensual Couple Portrait", "Dark Erotic Art",
+        "Alternative Erotic Portrait", "Fetish Fashion", "Latex / PVC Fashion",
+        "Glam Fetish", "Dominatrix Aesthetic", "BDSM Aesthetic Photography",
+        "Pin-Up Photography", "Burlesque Photography", "Cabaret Style"
     ],
-    "📸 Fotografía — Documental / Realista": [
-        "Street Photography", "Documental", "Fotoperiodismo", "Fotografía Social",
-        "Fotografía de Viaje", "Fotografía Cultural", "Lifestyle Urbano"
+    "🌍 5. FOTOGRAFÍA DOCUMENTAL Y SOCIAL": [
+        "Documental", "Fotoperiodismo", "Fotografía Humanista", "Fotografía Antropológica",
+        "Cultura", "Etnográfica", "Tradiciones Populares", "Ritual / Ceremonial",
+        "Identidad Cultural", "Tribus Urbanas", "Oficios y Artesanos", "Vida Rural",
+        "Fotografía Cultural", "Street Photography", "Lifestyle Urbano"
     ],
-    "📸 Fotografía — Naturaleza y exteriores": [
-        "Paisaje", "Naturaleza", "Wildlife", "Fotografía Marina", "Montaña / Senderismo",
-        "Fotografía Aérea / Drone", "Fotografía Nocturna", "Astrofotografía"
+    "🌄 6. NATURALEZA Y PAISAJE": [
+        "Paisaje", "Landscape Fine Art", "Minimal Landscape", "Seascape",
+        "Desert Photography", "Forest Photography", "Volcanic Landscape",
+        "Polar Photography", "Naturaleza", "Wildlife", "Fotografía Marina",
+        "Montaña / Senderismo", "Environmental Portrait", "Eco-Art Photography",
+        "Astrofotografía", "Climate Documentary"
     ],
-    "📸 Fotografía — Técnica especializada": [
-        "Macro", "Producto", "Arquitectura", "Interiorismo", "Fotografía Gastronómica",
-        "Automotriz", "Deportes", "Acción", "Fotografía Subacuática"
+    "📷 7. FOTOGRAFÍA ESPECIALIZADA": [
+        "Arquitectura", "Interiorismo", "Real Estate Photography", "Industrial Photography",
+        "Packaging Visual", "Producto", "Tech Product Visual", "Automotriz",
+        "Gastronómica", "Hospitality Photography", "Deportes", "Acción",
+        "Subacuática", "Macro", "Fotografía Nocturna", "Fotografía Aérea / Drone",
+        "Larga Exposición", "Light Painting", "Double Exposure", "ICM Fotografía",
+        "Infrarroja", "Ultravioleta", "Lomography", "Polaroid Style",
+        "Cámara Estenopeica", "Fotograma Experimental"
     ],
-    "🎭 Arte escénico / entretenimiento": [
-        "Teatro / Escénica", "Conciertos / Música", "Cine / Still cinematográfico",
-        "Cosplay", "Performance Art"
+    "🎬 8. ESTÉTICA CINEMATOGRÁFICA": [
+        "Cinematográfico", "Still Cinematográfico", "Film Noir", "Neo-Noir",
+        "Golden Age Hollywood", "Indie Film Look", "Experimental Cinema",
+        "Analog Film Look", "VHS Aesthetic", "16mm Film Look", "35mm Film Look",
+        "IMAX Cinematic"
     ],
-    "🧠 Conceptuales / creativas": [
-        "Fotografía Conceptual", "Arte Experimental", "Narrativa Visual",
-        "Fantástico Épico", "Horror / Dark Art", "Sci-Fi"
+    "🎭 9. ARTES ESCÉNICAS Y ENTRETENIMIENTO": [
+        "Teatro / Escénica", "Performance Art", "Conciertos / Música",
+        "Cosplay", "Cosplay Editorial", "Fan Art"
     ],
-    "💼 Comercial / branding / web": [
-        "Publicidad", "Branding Visual", "Stock Photography", "Portada / Cover Art",
-        "UI / Visual Web", "NFT Art", "Arte para Videojuegos", "Arte Editorial",
-        "Poster Art", "Social Media Visual"
+    "🎨 10. ARTE FANTÁSTICO / GEEK": [
+        "Arte Fantástico", "Dark Fantasy", "Fantástico Épico", "Ciencia Ficción",
+        "Cyberpunk", "Futurista", "Fantasy Character Art", "Sci-Fi Character Design",
+        "Creature Design", "Mecha Art", "RPG Character Portrait", "Game Splash Art",
+        "Trading Card Art", "Fantasy Map Art", "Arte para Videojuegos"
+    ],
+    "💼 11. COMERCIAL / MEDIA / BRANDING": [
+        "Publicidad", "Branding Visual", "Campaign Photography", "Key Visual Advertising",
+        "Billboard Advertising Style", "Luxury Branding Visual", "Cover Art",
+        "Poster Art", "Arte Editorial", "Social Media Visual", "Stock Photography",
+        "Visual Web / UI", "NFT Art", "Data Visualization Art"
+    ],
+    "🧠 12. CONCEPTUAL / EXPERIMENTAL": [
+        "Fotografía Conceptual", "Narrativa Visual", "Arte Psicodélico",
+        "Horror / Dark Art", "Ciencia Ficción Artística"
     ]
 };

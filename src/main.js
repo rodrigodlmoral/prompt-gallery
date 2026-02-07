@@ -296,7 +296,14 @@ const getFilteredPrompts = () => {
     }
 
     // 2. Search Query
-    if (searchQuery) list = list.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (searchQuery) {
+        const term = searchQuery.toLowerCase();
+        list = list.filter(p => {
+            const inTitle = p.title?.toLowerCase().includes(term);
+            const inTags = (p.tags || []).some(t => t.toLowerCase().includes(term));
+            return inTitle || inTags;
+        });
+    }
 
     // 3. Filters
     if (filters.time !== 'all') {
