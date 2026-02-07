@@ -302,12 +302,53 @@
   cursor: help;
 }
 
-body {
-  background-color: var(--bg-main);
-  color: var(--text-color);
-  font-family: 'Inter', sans-serif;
-  line-height: 1.5;
-  overflow-x: hidden;
+/* --- GLOBAL PREMIUM SCROLLBARS --- */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: 0.2s;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+  background-clip: content-box;
+}
+
+/* Firefox Support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+
+/* --- MODAL OPTIMIZATIONS --- */
+.modal-container {
+  background: var(--bg-modal);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 25px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  /* Applying the premium scrollbar theme explicitly if needed */
+}
+
+/* Specific optimization for the Publish Modal */
+#pubForm {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .container {
@@ -2108,24 +2149,6 @@ header nav {
   flex-direction: column;
   gap: 4px;
   padding-right: 5px;
-}
-
-/* Custom Scrollbar for Tags */
-.tag-categories::-webkit-scrollbar {
-  width: 4px;
-}
-
-.tag-categories::-webkit-scrollbar-track {
-  background: #111;
-}
-
-.tag-categories::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 10px;
-}
-
-.tag-categories::-webkit-scrollbar-thumb:hover {
-  background: var(--accent);
 }
 
 .tag-category-header {
