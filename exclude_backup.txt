@@ -1,8 +1,0 @@
-backups
-node_modules
-dist
-.git
-.vite
-.gemini
-brain
-uploaded_media_*

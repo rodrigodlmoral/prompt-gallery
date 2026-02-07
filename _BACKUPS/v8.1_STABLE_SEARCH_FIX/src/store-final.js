@@ -40,7 +40,7 @@ export const LEVEL_REQS = [
     { posts: 250, copies: 80, name: 'Maestro', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '👑', color: 'gold' }
 ];
 
-export const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.0', 'SDXL', 'Flux', 'Midjourney', 'Whisk', 'Huggingface', 'Fooocus', 'ComfyUI', 'Perchance', 'Otro'];
+export const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.0', 'SDXL', 'Flux', 'Midjourney', 'Huggingface', 'Fooocus', 'ComfyUI', 'Perchance', 'Otro'];
 export const RATINGS = ['SFW / Apto', 'Sugestivo', 'NSFW / +18'];
 
 export const RATING_INFO = `SFW / Apto (Safe for Work): Imágenes aptas para todo público. No contienen violencia, desnudez ni contenido sexual.
@@ -138,14 +138,11 @@ const store = {
                 rating: p.rating || 'SFW / Apto',
                 is_private: p.is_private === true || p.isPrivate === true,
                 copy_count: p.copy_count || 0,
-                needs_reference: p.needs_reference || false,
-                needsReference: p.needs_reference || false,
                 admin_featured: p.admin_featured || false,
                 is_featured: p.is_featured || false,
                 featured_until: p.featured_until || null,
                 tool: p.tool || 'ChatGPT',
                 content: p.content || [],
-                extraConfig: p.extra_config || [],
                 profiles: p.expand?.author ? {
                     username: p.expand.author.username,
                     avatar_url: p.expand.author.avatar_url,
@@ -173,7 +170,13 @@ const store = {
 
         const logError = (msg) => {
             console.error(`[ST_DEBUG] ${msg}`);
-            // Banner disabled to avoid UI clutter
+            // INJECT ERROR INTO DOM (User requested visibility)
+            const banner = document.getElementById('debug-banner') || document.createElement('div');
+            banner.id = 'debug-banner';
+            banner.style.cssText = "position:fixed; top:0; left:0; width:100%; background:red; color:white; font-size:12px; z-index:99999; padding:5px; text-align:center;";
+            banner.innerText = msg;
+            document.body.appendChild(banner);
+            setTimeout(() => banner.remove(), 10000);
         };
 
         try {
@@ -252,6 +255,7 @@ const store = {
                 console.log("[ST_DEBUG] ⚡ Usando CACHÉ NUCLEAR (No se descarga nada)...");
                 items = this.nuclearCache.items;
             } else {
+                console.log("[ST_DEBUG] ☢️ Iniciando NUCLEAR SEARCH (1000 items from DB)...");
                 const nuclearRes = await pb.collection('users').getList(1, 1000, { sort: '-updated' });
                 items = nuclearRes.items;
 
@@ -267,7 +271,7 @@ const store = {
             );
 
             if (found) {
-                console.log(`[SUCCESS] Found user '${found.username}' via Nuclear Search (Matches: ${username})`);
+                logError(`[SUCCESS] Found user '${found.username}' via Nuclear Search (Matches: ${username})`);
                 return this._cacheUser(username, found);
             }
 
@@ -421,12 +425,9 @@ const store = {
                 author_name: this.currentUser.username,
                 type: data.type || 'single',
                 is_private: data.isPrivate || false,
-                needs_reference: data.needsReference || false, // NEW: Persist reference requirement
                 tool: data.tool,
                 rating: data.rating,
                 content: processedContent,
-                extra_config: data.extraConfig,
-                tags: data.tags || [], // NUEVO
                 reactions: { like: 0, love: 0, fire: 0, funny: 0 },
                 comments: [],
                 saved_by: []
@@ -490,38 +491,17 @@ const store = {
     },
 
     async updatePrompt(id, data) {
-        console.log(`[DEBUG_V8.8] updatePrompt requested for ID: ${id}`);
-        console.log(`[DEBUG_V8.8] Current User ID: ${this.currentUser?.id}`);
-
-        if (!this.currentUser) return { success: false, msg: "Debes iniciar sesión" };
-
-        // --- DIAGNOSTIC: VERIFY OWNERSHIP (v8.9) ---
-        try {
-            const currentPost = await pb.collection('prompts').getOne(id);
-            if (currentPost.author !== this.currentUser.id) {
-                console.error(`[OWNERSHIP MISMATCH] PostAuthor: ${currentPost.author} vs User: ${this.currentUser.id}`);
-                return {
-                    success: false,
-                    msg: `⛔ Error de Propiedad: Este post pertenece a otro ID de usuario (${currentPost.author}). Tu ID actual es ${this.currentUser.id}.`
-                };
-            }
-        } catch (e) {
-            console.warn("Could not verify ownership before update:", e);
-        }
-        // ------------------------------------
-
+        if (!this.currentUser) return { success: false };
         let imageUrl = data.image;
-        try {
-            if (data.image && data.image.startsWith('data:')) {
-                // Reutilizamos la lógica de uploadImage interna si es accesible, 
-                // o llamamos a _compressImage + uploadToCloudinary
+
+        if (data.image && data.image.startsWith('data:')) {
+            try {
                 const compressed = await this._compressImage(data.image);
                 const file = this._dataURLtoFile(compressed, 'update.webp');
                 imageUrl = await uploadToCloudinary(file);
+            } catch (err) {
+                return { success: false, msg: "Error subiendo imagen" };
             }
-        } catch (uploadErr) {
-            console.error("Upload error:", uploadErr);
-            return { success: false, msg: "Error al subir imagen nueva" };
         }
 
         try {
@@ -531,48 +511,20 @@ const store = {
                 negative_prompt: data.negative_prompt,
                 image: imageUrl,
                 is_private: data.isPrivate,
-                needs_reference: data.needsReference,
                 tool: data.tool,
                 rating: data.rating,
-                rating: data.rating,
-                content: data.content,
-                extra_config: data.extraConfig,
-                tags: data.tags // NUEVO
+                content: data.content
             });
             await this.loadPrompts();
             return { success: true };
         } catch (err) {
-            console.error("Update error:", err);
-            return { success: false, msg: err.message || "Error al actualizar en BD" };
+            return { success: false };
         }
     },
 
     async removePrompt(id) {
         try {
             await pb.collection('prompts').delete(id);
-
-            // --- FIX: AUTO-DECREMENT COUNT ---
-            try {
-                // Get real count from DB to be 100% accurate
-                const countRes = await pb.collection('prompts').getList(1, 1, {
-                    filter: `author = "${this.currentUser.id}"`,
-                    fields: 'id'
-                });
-                const newCount = countRes.totalItems;
-
-                // Update User Profile
-                await pb.collection('users').update(this.currentUser.id, {
-                    prompts_count: newCount
-                });
-
-                // Update Local State
-                this.currentUser.prompts_count = newCount;
-                console.log(`[STORE] Count updated to ${newCount}`);
-            } catch (countErr) {
-                console.warn("Failed to update count:", countErr);
-            }
-            // ---------------------------------
-
             this.prompts = this.prompts.filter(p => p.id !== id);
             if (window.render) window.render();
             return { success: true };
@@ -750,7 +702,6 @@ const store = {
     // --- ADMIN ACTIONS ---
 
     async adminLoadAllUsers() {
-        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return [];
         try {
             const records = await pb.collection('users').getFullList({ sort: '-created' });
             this.users = records.map(r => ({ ...r, avatar: r.avatar_url || r.avatar }));
@@ -761,7 +712,7 @@ const store = {
     getAllUsers() { return this.users; },
 
     async adminUpdateUser(userId, data) {
-        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false };
+        if (!this.currentUser || this.currentUser.role !== 'admin') return { success: false };
         try {
             await pb.collection('users').update(userId, {
                 level: data.level,
@@ -774,7 +725,7 @@ const store = {
     },
 
     async adminDeleteUser(userId) {
-        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false };
+        if (!this.currentUser || this.currentUser.role !== 'admin') return { success: false };
         try {
             await pb.collection('users').delete(userId);
             await this.adminLoadAllUsers();
@@ -783,7 +734,7 @@ const store = {
     },
 
     async giftTokens(userId, amount) {
-        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false };
+        if (!this.currentUser || this.currentUser.role !== 'admin') return { success: false };
         try {
             const user = await pb.collection('users').getOne(userId);
             await pb.collection('users').update(userId, { tokens: (user.tokens || 0) + parseInt(amount) });
@@ -793,87 +744,12 @@ const store = {
     },
 
     async adminUpdatePrompt(id, data) {
-        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false, msg: "Acceso denegado" };
+        if (!this.currentUser || this.currentUser.role !== 'admin') return { success: false };
         try {
             await pb.collection('prompts').update(id, data);
             await this.loadPrompts();
             return { success: true };
         } catch (err) { return { success: false, msg: err.message }; }
-    },
-
-    // --- REPAIR TOOL (v8.11) ---
-    async claimGhostPosts() {
-        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false, msg: "Requiere acceso Admin" };
-        try {
-            // 1. Buscamos posts por varios criterios posibles
-            const possibleFilters = [
-                `author_name = '${this.currentUser.username}'`,
-                `username = '${this.currentUser.username}'`,
-                `name = '${this.currentUser.username}'`,
-                `author_name = '${this.currentUser.name}'`,
-                `username = '${this.currentUser.name}'`
-            ];
-
-            let allGhostRecords = [];
-            for (const filterStr of possibleFilters) {
-                try {
-                    console.log("👻 Probando filtro Nuclear:", filterStr);
-                    const partial = await pb.collection('prompts').getFullList({ filter: filterStr });
-                    allGhostRecords = [...allGhostRecords, ...partial];
-                } catch (e) {
-                    // Ignoramos si el campo no existe en esa colección específica
-                }
-            }
-
-            // Eliminar duplicados por ID
-            const uniqueRecords = Array.from(new Map(allGhostRecords.map(item => [item.id, item])).values());
-
-            // 2. Filtramos solo los que NO tengan tu ID actual
-            const ghostPosts = uniqueRecords.filter(r => r.author !== this.currentUser.id);
-
-            console.log(`👻 [NUCLEAR] Detectados ${ghostPosts.length} posts únicos potenciales.`);
-            if (ghostPosts.length > 0) {
-                console.log(`👻 Muestra de Campos del primer post:`, Object.keys(ghostPosts[0]));
-            }
-
-            if (ghostPosts.length === 0) {
-                return { success: true, count: 0, msg: "No se encontraron posts fantasmas ni con búsqueda Nuclear. ¿Seguro que los posts muestran tu nombre?" };
-            }
-
-            // Preguntamos confirmación con el número exacto
-            if (!confirm(`Se han detectado ${ghostPosts.length} posts que te pertenecen pero tienen un ID de autor antiguo.\n\n¿Quieres intentar reclamarlos todos?`)) {
-                return { success: false, msg: "Operación cancelada" };
-            }
-
-            // 3. Los reclamamos uno por uno
-            let fixedCount = 0;
-            let errors = [];
-            for (const p of ghostPosts) {
-                try {
-                    await pb.collection('prompts').update(p.id, { author: this.currentUser.id });
-                    fixedCount++;
-                } catch (err) {
-                    console.error(`Error reclamando post ${p.id}:`, err);
-                    errors.push(`${p.id}: ${err.message}`);
-                }
-            }
-
-            await this.loadPrompts();
-            if (fixedCount > 0 && errors.length === 0) {
-                return { success: true, count: fixedCount, msg: `¡Éxito! Has recuperado ${fixedCount} posts.` };
-            } else {
-                return {
-                    success: false,
-                    msg: `Se arreglaron ${fixedCount}, pero fallaron ${errors.length}. Probablemente por falta de Permisos (Rules) en PocketBase.`
-                };
-            }
-
-        } catch (err) {
-            console.error("Detailed Claim Error:", err);
-            // Si es un error de PocketBase, tiene data y originalError
-            const detail = err.data ? JSON.stringify(err.data) : (err.message || "Error desconocido");
-            return { success: false, msg: "Error al buscar: " + detail };
-        }
     },
 
     // --- AUTH ---

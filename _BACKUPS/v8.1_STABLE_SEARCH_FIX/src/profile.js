@@ -144,8 +144,6 @@ const ProfileHeader = () => {
         : (store.users.find(u => u.username === profileUser || u.name === profileUser) || store.usersCache[profileUser]);
 
     console.log(`[PROFILE] ProfileHeader: user encontrado?`, user ? user.username : 'NO');
-    console.log(`[DEBUG_ADMIN] CurrentUserRole:`, store.currentUser?.role);
-    console.log(`[DEBUG_ADMIN] ProfileUserRole:`, user?.role);
 
     if (!user) {
         // Si ya pasó un tiempo razonable y sigue sin cargar, asumimos error
@@ -164,12 +162,7 @@ const ProfileHeader = () => {
         </div>`;
     }
 
-    const isAdmin = user.role === 'admin' || user.username === 'rodrigodlmoral' || user.username === 'rodridomrock' || user.name === 'rodrigodlmoral';
     const isMe = store.currentUser && store.currentUser.id === user.id;
-
-    console.log(`[DEBUG_ADMIN] Final isAdmin check:`, isAdmin);
-    console.log(`[DEBUG_ADMIN] user object keys:`, Object.keys(user));
-
     const getLevelInfo = (lvl) => LEVEL_REQS[lvl] || LEVEL_REQS[0];
     const lvlInfo = getLevelInfo(user.level || 0);
 
@@ -235,10 +228,9 @@ const ProfileHeader = () => {
 
                     ${!isMe ? `<button class="btn" style="margin-top:15px" onclick="window.doFollow('${user.username}')">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
             : `
-            <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap">
+            <div style="display:flex; gap:10px; margin-top:15px">
                 <button class="btn-outline" onclick="window.openActivity()">📜 Actividad</button>
                 <button class="btn-outline" onclick="window.openSettings()">⚙️ Configurar</button>
-                ${(isMe && isAdmin) ? `<button class="btn-sm" id="btnAdminPanel" onclick="window.open('/admin.html', '_blank')" style="background:gold; color:black; font-weight:bold; box-shadow:0 0 10px gold; border:none">👑 PANEL ADMIN</button>` : ''}
             </div>
             `}
                 </div>
@@ -316,7 +308,18 @@ window.doEditPrompt = (id) => {
         document.getElementById('upNegPrompt').value = p.negative_prompt || '';
     }
     document.getElementById('upPrivate').checked = p.isPrivate;
-    document.getElementById('upReference').checked = p.needsReference || p.needs_reference;
+    document.getElementById('upReference').checked = p.needsReference;
+
+    // Handle Creator
+    if (p.origCreator) {
+        document.querySelector('input[name="origCreator"][value="other"]').checked = true;
+        window.toggleOrigCreator('other');
+        document.getElementById('upOrigName').value = p.origCreator.name;
+        document.getElementById('upOrigUrl').value = p.origCreator.url;
+    } else {
+        document.querySelector('input[name="origCreator"][value="me"]').checked = true;
+        window.toggleOrigCreator('me');
+    }
 
     // Handle Type
     if (p.type === 'sequence') {
@@ -360,7 +363,7 @@ window.doUpdate = async () => {
     try {
         const title = document.getElementById('upTitle').value;
         const tool = document.getElementById('upTool').value;
-        if (!title) { if (window.toast) window.toast("El título es obligatorio", "error"); return; }
+        if (!title) return alert("El título es obligatorio");
 
         const p = store.prompts.find(x => String(x.id) === String(editingId));
         if (!p) return;
@@ -385,24 +388,24 @@ window.doUpdate = async () => {
                     data.image = reader.result;
                     const res = await store.updatePrompt(editingId, data);
                     if (res.success) finishUpdate();
-                    else if (window.toast) window.toast("Error: " + res.msg, "error");
+                    else alert("Error: " + res.msg);
                 };
                 reader.readAsDataURL(file);
             } else {
                 data.image = p.image;
                 const res = await store.updatePrompt(editingId, data);
                 if (res.success) finishUpdate();
-                else if (window.toast) window.toast("Error: " + (res.msg || "Error desconocido"), "error");
+                else alert("Error: " + res.msg);
             }
         } else {
-            if (window.toast) window.toast("Edición de secuencias en mantenimiento en perfil. Por favor borra y crea de nuevo.", "error");
+            alert("Edición de secuencias en mantenimiento en perfil. Por favor borra y crea de nuevo.");
             if (btn) { btn.innerText = "Actualizar"; }
         }
     } catch (e) { console.error(e); }
 };
 
 const finishUpdate = () => {
-    if (window.toast) window.toast("✅ Post actualizado", "success");
+    alert("✅ Post actualizado");
     isEditing = false;
     editingId = null;
     window.closeModals();
@@ -430,7 +433,7 @@ window.doPromotePrompt = async (id) => {
     if (await window.askConfirm('¿Destacar este prompt por 1 semana (Costo: 50 PromptBits)?', '💎')) {
         const res = await store.promotePrompt(id);
         if (res.success) {
-            if (window.toast) window.toast("🚀 ¡Prompt destacado con éxito!", "success");
+            alert("🚀 ¡Prompt destacado con éxito!");
             render();
         } else {
             alert(res.msg);
@@ -692,6 +695,24 @@ const CreateModal = () => `
         <button class="btn-outline" onclick="window.addSeqStep()" style="width:100%; margin-bottom:15px">+ Añadir Paso</button>
     </div>
     
+    <div class="form-group" style="margin-bottom:15px">
+        <label class="form-label">¿QUIEN ES EL CREADOR ORIGINAL?</label>
+        <div style="display:flex; gap:15px; margin-bottom:10px">
+            <label class="chk-wrap">
+                <input type="radio" name="origCreator" value="me" checked onchange="window.toggleOrigCreator('me')">
+                <span>Yo</span>
+            </label>
+            <label class="chk-wrap">
+                <input type="radio" name="origCreator" value="other" onchange="window.toggleOrigCreator('other')">
+                <span>Otro Creador</span>
+            </label>
+        </div>
+        <div id="otherCreatorFields" style="display:none; gap:10px; flex-direction:column">
+            <input type="text" id="upOrigName" class="form-input" placeholder="Nombre del Creador">
+            <input type="text" id="upOrigUrl" class="form-input" placeholder="URL Red Social (https://...)" autocomplete="off">
+        </div>
+    </div>
+    
     <div style="display:flex; flex-direction:column; gap:5px; margin:15px 0">
         <label class="chk-wrap">
             <input type="checkbox" id="upReference" name="reference_chk_unique">
@@ -785,7 +806,7 @@ window.openDetail = (id) => {
         const icon = r.startsWith('SFW') ? '🟢' : '🔞';
         bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
 
-        const refText = (p.needsReference || p.needs_reference) ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
+        const refText = p.needsReference ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
         bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
 
         badgesEl.innerHTML = bhtml;
@@ -916,7 +937,7 @@ window.toggleOptionsMenu = () => {
 };
 
 window.doSavePrompt = async () => {
-    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para guardar.", "warning"); return; }
+    if (!store.currentUser) return alert("Inicia sesión para guardar.");
     await store.savePrompt(currentId);
     render();
     window.toggleOptionsMenu();
@@ -956,7 +977,7 @@ window.doBlockUser = async () => {
 };
 
 window.doReact = async (type) => {
-    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para reaccionar.", "warning"); return; }
+    if (!store.currentUser) return alert("Inicia sesión para reaccionar.");
     await store.toggleReaction(currentId, type);
     const p = store.prompts.find(x => String(x.id) === String(currentId));
     window.openDetail(currentId); // Refresh modal
@@ -1039,7 +1060,7 @@ window.initCrystalSlider = () => {
 };
 
 window.postComm = async () => {
-    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión.", "warning"); return; }
+    if (!store.currentUser) return alert("Inicia sesión.");
     if (!window.sliderUnlocked) return alert("Desliza el diamante 💎 para comentar.");
     const text = document.getElementById('commInput').value;
     if (!text) return;
@@ -1055,7 +1076,7 @@ window.postComm = async () => {
 };
 
 window.openTip = (postId) => {
-    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para enviar propinas.", "warning"); return; }
+    if (!store.currentUser) return alert("Inicia sesión para enviar propinas.");
     currentTipPostId = postId;
     const p = store.prompts.find(x => String(x.id) === String(postId));
 
@@ -1119,7 +1140,7 @@ window.confirmResolve = (val) => {
 
 window.openCreate = () => {
     if (!store.currentUser) {
-        if (window.toast) window.toast("Debes iniciar sesión para compartir prompts.", "warning");
+        alert("Debes iniciar sesión para compartir prompts.");
         window.location.href = '/';
         return;
     }
@@ -1242,12 +1263,14 @@ window.previewFile = (input, previewId) => {
 };
 
 window.doPublish = () => {
-    const postType = document.querySelector('input[name="postType"]:checked')?.value || 'single';
+    if (isEditing) return; // Not implemented for profile edit yet
+
+    const postType = document.querySelector('input[name="postType"]:checked').value;
     const title = document.getElementById('upTitle').value;
     const tool = document.getElementById('upTool').value;
     const isPrivate = document.getElementById('upPrivate').checked;
     const needsReference = document.getElementById('upReference').checked;
-    const origCreatorType = document.querySelector('input[name="origCreator"]:checked')?.value || 'me';
+    const origCreatorType = document.querySelector('input[name="origCreator"]:checked').value;
     const origCreator = origCreatorType === 'other' ? {
         name: document.getElementById('upOrigName').value,
         url: document.getElementById('upOrigUrl').value
@@ -1266,96 +1289,6 @@ window.doPublish = () => {
     });
 
     const pubBtn = document.getElementById('pubBtn');
-
-    if (isEditing) {
-        // --- UPDATE FLOW ---
-        const updateData = {
-            title,
-            tool,
-            isPrivate,
-            needsReference,
-            origCreator,
-            extraConfig,
-            rating: document.getElementById('upRating').value,
-            prompt: document.getElementById('upPrompt').value,
-            negative_prompt: document.getElementById('upNegPrompt')?.value || ''
-        };
-
-        if (pubBtn) {
-            pubBtn.disabled = true;
-            pubBtn.innerText = "Actualizando...";
-        }
-
-        if (postType === 'single') {
-            const file = document.getElementById('upFile').files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = async () => {
-                    updateData.image = reader.result;
-                    const res = await store.updatePrompt(editingId, updateData);
-                    handleUpdateResult(res);
-                };
-                reader.readAsDataURL(file);
-            } else {
-                const existing = store.prompts.find(x => x.id === editingId);
-                updateData.image = existing?.image;
-                (async () => {
-                    const res = await store.updatePrompt(editingId, updateData);
-                    handleUpdateResult(res);
-                })();
-            }
-        } else {
-            // Sequence Update
-            const steps = Array.from(document.querySelectorAll('.seq-step'));
-            const content = [];
-            let loaded = 0;
-            if (steps.length === 0) {
-                if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Actualizar"; }
-                return alert("Añade al menos un paso");
-            }
-            steps.forEach((step, idx) => {
-                const file = step.querySelector('.seqFile').files[0];
-                const prompt = step.querySelector('.seqPrompt').value;
-                const negPrompt = step.querySelector('.seqNegPrompt').value;
-                const rating = step.querySelector('.seqRating').value;
-                if (!file) {
-                    const existing = store.prompts.find(x => x.id === editingId);
-                    content[idx] = { image: existing?.content[idx]?.image, prompt, negative_prompt: negPrompt, rating };
-                    loaded++;
-                    if (loaded === steps.length) finalizeUpdate();
-                } else {
-                    const reader = new FileReader();
-                    reader.onload = async () => {
-                        content[idx] = { image: reader.result, prompt, negative_prompt: negPrompt, rating };
-                        loaded++;
-                        if (loaded === steps.length) await finalizeUpdate();
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
-
-            async function finalizeUpdate() {
-                updateData.type = 'sequence';
-                updateData.content = content.filter(c => c); // Remove empty slots
-                const res = await store.updatePrompt(editingId, updateData);
-                handleUpdateResult(res);
-            }
-        }
-
-        async function handleUpdateResult(res) {
-            if (res.success) {
-                window.closeModals();
-                await store.init();
-                render();
-                window.toast("Prompt Actualizado", "success");
-            } else {
-                alert(res.msg);
-                if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Actualizar"; }
-            }
-        }
-        return;
-    }
-
     if (pubBtn) {
         pubBtn.disabled = true;
         pubBtn.innerText = "Publicando...";
@@ -1365,7 +1298,7 @@ window.doPublish = () => {
         const file = document.getElementById('upFile').files[0];
         if (!file) {
             if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
-            if (window.toast) window.toast("Imagen obligatoria", "error"); return;
+            return alert("Imagen obligatoria");
         }
         const negPrompt = document.getElementById('upNegPrompt').value;
         const reader = new FileReader();
@@ -1585,7 +1518,7 @@ window.saveSettings = async () => {
 
 window.doChangePassword = () => {
     const np = document.getElementById('newPassInput').value;
-    if (np.length < 6) { if (window.toast) window.toast("Mínimo 6 chars", "error"); return; }
+    if (np.length < 6) return alert("Mínimo 6 chars");
     store.changePassword(np);
 };
 
@@ -1870,6 +1803,8 @@ window.doSendDirectTip = async (recipientId, amount) => {
 
 const init = async () => {
     // Normal initialization
+    // setTimeout(() => { if (window.toast) window.toast("v8.1: Stable", "success"); }, 1000);
+
     await store.init();
     if (profileUser) {
         await store.fetchUserProfileByUsername(profileUser);
@@ -1988,26 +1923,6 @@ const renderActivityLogs = (logs) => {
     }
 
     container.innerHTML = logs.map(createLogItemHtml).join('');
-};
-
-// --- ADMIN ACTIONS ---
-window.doClaimGhosts = async () => {
-    if (!confirm("Esto buscará todos los posts antiguos con tu nombre y actualizará su ID al actual. ¿Continuar?")) return;
-    if (window.toast) window.toast("Iniciando reparación...", "info");
-
-    try {
-        const res = await store.claimGhostPosts();
-        if (res.success) {
-            if (window.toast) window.toast(res.msg, "success");
-            setTimeout(() => window.location.reload(), 1500);
-        } else {
-            if (window.toast) window.toast(res.msg, "error");
-            else alert(res.msg);
-        }
-    } catch (err) {
-        console.error("Claim handler error:", err);
-        alert("Error crítico en la reparación");
-    }
 };
 
 init();

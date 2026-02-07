@@ -1,0 +1,34 @@
+Iniciando despliegue 
+07/02/2026 14:35:31.14 
+Resetting repo... 
+Already on 'main'
+HEAD is now at b764f3e Auto-Deploy Update: 07/02/2026 13:29:19.98
+From https://github.com/rodrigodlmoral/prompt-gallery
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+Limpieza OK. 
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\admin.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\admin_fix.css
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\counter.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\javascript.svg
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\main.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\pocketbase.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\profile.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\store-final.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\style.css
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\uploadService.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\data\tags.js
+11 archivo(s) copiado(s)
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\public\vite.svg
+1 archivo(s) copiado(s)
+        1 archivo(s) copiado(s).
+        1 archivo(s) copiado(s).
+        1 archivo(s) copiado(s).
+        1 archivo(s) copiado(s).
+        1 archivo(s) copiado(s).
+warning: in the working copy of 'src/counter.js', LF will be replaced by CRLF the next time Git touches it
+[main 69ac487] Auto-Deploy Update: 07/02/2026 14:35:33.29
+ 4 files changed, 309 insertions(+), 17 deletions(-)
+ create mode 100644 src/data/tags.js
+To https://github.com/rodrigodlmoral/prompt-gallery.git
+   b764f3e..69ac487  main -> main

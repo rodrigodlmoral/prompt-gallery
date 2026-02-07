@@ -1,9 +1,6 @@
 import './style.css'
 import './admin_fix.css' // Emergency CSS Fix for Admin Panel
-import { pb } from './pocketbase.js';
-import { store, TOOLS, RATINGS, RATING_INFO, INFO_ICON, LEVEL_REQS } from './store-final.js';
-import { uploadToCloudinary } from './uploadService.js';
-import { TAG_CATEGORIES } from './data/tags.js';
+import { store, LEVEL_REQS, TOOLS, RATINGS, RATING_INFO, INFO_ICON } from './store-final.js'
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;
@@ -111,7 +108,7 @@ window.setFilter = (key, value) => {
         // but alerting is the main requirement).
         const el = event.target;
         if (el) el.value = filters[key]; // Revert visual change
-        if (window.toast) window.toast("Debes iniciar sesión para usar los filtros.", "warning"); return;
+        return alert("Debes iniciar sesión para usar los filtros.");
     }
     filters[key] = value;
     render();
@@ -900,8 +897,24 @@ const CreateModal = () => `
         <button class="btn-outline" onclick="window.addSeqStep()" style="width:100%; margin-bottom:15px">+ Añadir Paso</button>
     </div>
     
-    <div id="tagSelectorRoot"></div>
-
+    <div class="form-group" style="margin-bottom:15px">
+        <label class="form-label">¿QUIEN ES EL CREADOR ORIGINAL?</label>
+        <div style="display:flex; gap:15px; margin-bottom:10px">
+            <label class="chk-wrap">
+                <input type="radio" name="origCreator" value="me" checked onchange="window.toggleOrigCreator('me')">
+                <span>Yo</span>
+            </label>
+            <label class="chk-wrap">
+                <input type="radio" name="origCreator" value="other" onchange="window.toggleOrigCreator('other')">
+                <span>Otro Creador</span>
+            </label>
+        </div>
+        <div id="otherCreatorFields" style="display:none; gap:10px; flex-direction:column">
+            <input type="text" id="upOrigName" class="form-input" placeholder="Nombre del Creador">
+            <input type="text" id="upOrigUrl" class="form-input" placeholder="URL Red Social (https://...)" autocomplete="off">
+        </div>
+    </div>
+    
     <div style="display:flex; flex-direction:column; gap:5px; margin:15px 0">
         <label class="chk-wrap">
             <input type="checkbox" id="upReference" name="reference_chk_unique">
@@ -962,7 +975,6 @@ const DetailModal = () => `
                         <a id="detOrigLink" href="#" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:600"></a>
                     </div>
     
-                    <div id="detTags" class="server-tags-display"></div>
                     <div id="detBadges" style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap"></div>
                     
                     <div style="position:relative">
@@ -1156,11 +1168,7 @@ window.render = render;
 
 const attachEvents = () => {
     document.getElementById('searchInput')?.addEventListener('input', (e) => { searchQuery = e.target.value; render(); });
-    document.getElementById('addBtn')?.addEventListener('click', () => {
-        window.selectedTags.clear();
-        window.renderTagSelector();
-        document.getElementById('createModal').style.display = 'flex';
-    });
+    document.getElementById('addBtn')?.addEventListener('click', () => { document.getElementById('createModal').style.display = 'flex'; });
     document.getElementById('loginBtn')?.addEventListener('click', () => { document.getElementById('authModal').style.display = 'flex'; });
 
     // Event delegation para clicks en posts: REMOVED from here to avoid duplication.
@@ -1204,7 +1212,7 @@ window.doRegisterSubmit = async () => {
 
 window.doRecoverSubmit = async () => {
     const email = document.getElementById('recEmail').value;
-    if (!email) { if (window.toast) window.toast("Por favor introduce tu email.", "warning"); return; }
+    if (!email) return alert("Por favor introduce tu email.");
     const res = await store.recoverPassword(email);
     alert(res.msg);
     if (res.success) window.toggleAuth('log');
@@ -1215,7 +1223,7 @@ window.doActivateSubmit = async () => {
     const pass = document.getElementById('actPass').value;
     const token = new URLSearchParams(window.location.search).get('token');
 
-    if (!userOrEmail || !pass) { if (window.toast) window.toast("Rellena todos los campos.", "warning"); return; }
+    if (!userOrEmail || !pass) return alert("Rellena todos los campos.");
     if (!token) return alert("Token de activación no encontrado.");
 
     const res = await store.confirmResetPassword(token, pass, userOrEmail);
@@ -1368,9 +1376,9 @@ window.submitSupport = () => {
     const name = document.getElementById('supName').value;
     const email = document.getElementById('supEmail').value;
     const msg = document.getElementById('supMsg').value;
-    if (!name || !email || !msg) { if (window.toast) window.toast("Por favor completa todos los campos.", "warning"); return; }
+    if (!name || !email || !msg) return alert("Por favor completa todos los campos.");
     store.addSupportTicket({ name, email, message: msg });
-    if (window.toast) window.toast("Ticket enviado correctamente. Te contactaremos pronto.", "success");
+    alert("Ticket enviado correctamente. Te contactaremos pronto.");
     window.closeModals();
 };
 
@@ -1390,6 +1398,10 @@ window.togglePostType = (type) => {
     if (type === 'sequence' && seqStepCount === 0) {
         window.addSeqStep();
     }
+};
+
+window.toggleOrigCreator = (type) => {
+    document.getElementById('otherCreatorFields').style.display = type === 'other' ? 'flex' : 'none';
 };
 
 window.checkToolConfig = () => {
@@ -1467,7 +1479,7 @@ window.addSeqStep = () => {
 
 window.openLevelProgress = () => {
     console.log("🚀 openLevelProgress triggered (Dynamic Mode)");
-    if (!store.currentUser) { if (window.toast) window.toast("Error: No has iniciado sesión.", "error"); return; }
+    if (!store.currentUser) { alert("Error: No has iniciado sesión."); return; }
 
     // Bloquear scroll del fondo
     document.body.style.overflow = 'hidden';
@@ -1665,8 +1677,14 @@ window.doPublish = () => {
     const tool = document.getElementById('upTool').value;
     const isPrivate = document.getElementById('upPrivate').checked;
     const needsReference = document.getElementById('upReference').checked;
+    const origCreatorType = document.querySelector('input[name="origCreator"]:checked').value;
+    const origCreator = origCreatorType === 'other' ? {
+        name: document.getElementById('upOrigName').value,
+        url: document.getElementById('upOrigUrl').value
+    } : null;
 
-    if (!title) { if (window.toast) window.toast("El título es obligatorio", "error"); return; }
+    if (!title) return alert("El título es obligatorio");
+    if (origCreatorType === 'other' && !origCreator.name) return alert("Falta el nombre del creador original");
 
     const extraConfig = [];
     document.querySelectorAll('.extra-config-row').forEach(row => {
@@ -1679,7 +1697,7 @@ window.doPublish = () => {
 
     if (postType === 'single') {
         const file = document.getElementById('upFile').files[0];
-        if (!file) { if (window.toast) window.toast("Imagen obligatoria", "error"); return; }
+        if (!file) return alert("Imagen obligatoria");
         const negPrompt = document.getElementById('upNegPrompt').value; // NUEVO
         const reader = new FileReader();
         reader.onload = async () => {
@@ -1693,10 +1711,8 @@ window.doPublish = () => {
                 type: 'single',
                 isPrivate,
                 needsReference,
-                isPrivate,
-                needsReference,
-                extraConfig,
-                tags: Array.from(window.selectedTags) // NUEVO
+                origCreator,
+                extraConfig
             });
             if (!res.success) alert(res.msg);
             else {
@@ -1721,7 +1737,7 @@ window.doPublish = () => {
     } else {
         // Sequence
         const steps = Array.from(document.querySelectorAll('.seq-step'));
-        if (steps.length === 0) { if (window.toast) window.toast("Añade al menos un paso", "warning"); return; }
+        if (steps.length === 0) return alert("Añade al menos un paso");
 
         const content = [];
         let loaded = 0;
@@ -1746,10 +1762,8 @@ window.doPublish = () => {
                         content,
                         isPrivate,
                         needsReference,
-                        isPrivate,
-                        needsReference,
-                        extraConfig,
-                        tags: Array.from(window.selectedTags) // NUEVO
+                        origCreator,
+                        extraConfig
                     }).then(res => {
                         if (!res.success) {
                             alert("❌ Error: " + res.msg);
@@ -1901,6 +1915,19 @@ window.openDetail = (id) => {
             }
         }
 
+        // Setup Original Creator
+        const origEl = document.getElementById('detOrigCreator');
+        const origLink = document.getElementById('detOrigLink');
+        if (origEl && origLink) {
+            if (p.origCreator && p.origCreator.name) {
+                origEl.style.display = 'flex';
+                origLink.innerText = p.origCreator.name;
+                origLink.href = p.origCreator.url || '#';
+            } else {
+                origEl.style.display = 'none';
+            }
+        }
+
         // Show/hide options based on ownership
         const optReport = document.getElementById('optReport');
         const optBlock = document.getElementById('optBlock');
@@ -1920,22 +1947,12 @@ window.openDetail = (id) => {
                 bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
             }
 
-            const refText = (p.needsReference || p.needs_reference) ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
+            const refText = p.needsReference ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
             bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
 
             badgesEl.innerHTML = bhtml;
 
             badgesEl.innerHTML = bhtml;
-
-            // Render Tags
-            const tagsEl = document.getElementById('detTags');
-            if (tagsEl) {
-                if (p.tags && p.tags.length > 0) {
-                    tagsEl.innerHTML = p.tags.map(t => `<span class="server-tag-pill">${t}</span>`).join('');
-                } else {
-                    tagsEl.innerHTML = '';
-                }
-            }
         }
 
         // Handle sequence vs single
@@ -2151,7 +2168,7 @@ window.updateSeqDisplay = (p) => {
         bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
 
         // Referencia (Global del post original)
-        const refText = (p.needsReference || p.needs_reference) ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
+        const refText = p.needsReference ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
         bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
 
         badgesEl.innerHTML = bhtml;
@@ -2318,12 +2335,18 @@ window.doEditPrompt = (id) => {
     document.getElementById('upRating').value = p.rating || 'SFW / Apto';
     document.getElementById('upPrompt').value = p.prompt || '';
     document.getElementById('upPrivate').checked = p.isPrivate;
-    document.getElementById('upPrivate').checked = p.isPrivate;
-    document.getElementById('upReference').checked = p.needsReference || p.needs_reference;
+    document.getElementById('upReference').checked = p.needsReference;
 
-    // Load Tags
-    window.selectedTags = new Set(p.tags || []);
-    window.renderTagSelector();
+    // Handle Creator
+    if (p.origCreator) {
+        document.querySelector('input[name="origCreator"][value="other"]').checked = true;
+        window.toggleOrigCreator('other');
+        document.getElementById('upOrigName').value = p.origCreator.name;
+        document.getElementById('upOrigUrl').value = p.origCreator.url;
+    } else {
+        document.querySelector('input[name="origCreator"][value="me"]').checked = true;
+        window.toggleOrigCreator('me');
+    }
 
     // Handle Type
     if (p.type === 'sequence') {
@@ -2385,7 +2408,14 @@ window.doUpdate = async () => {
         const isPrivate = document.getElementById('upPrivate').checked;
         const needsReference = document.getElementById('upReference').checked;
 
+        const origCreatorType = document.querySelector('input[name="origCreator"]:checked').value;
+        const origCreator = origCreatorType === 'other' ? {
+            name: document.getElementById('upOrigName').value,
+            url: document.getElementById('upOrigUrl').value
+        } : null;
+
         if (!title) return alert("El título es obligatorio");
+        if (origCreatorType === 'other' && !origCreator.name) return alert("Falta el nombre del creador original");
 
         const p = store.prompts.find(x => x.id === editingId);
         if (!p) return;
@@ -2393,7 +2423,7 @@ window.doUpdate = async () => {
         const data = {
             title, tool, rating: document.getElementById('upRating').value, prompt: document.getElementById('upPrompt').value,
             isPrivate, needsReference, type: p.type,
-            tags: Array.from(window.selectedTags) // NUEVO
+            origCreator
         };
 
         // Disable button during update
@@ -2869,96 +2899,6 @@ window.toggleOptionsMenu = toggleOptionsMenu;
 
 
 
-
-// --- TAGGING SYSTEM LOGIC ---
-window.renderTagSelector = () => {
-    const root = document.getElementById('tagSelectorRoot');
-    if (!root) return;
-
-    const categoriesHTML = Object.entries(TAG_CATEGORIES).map(([category, tags]) => `
-        <div class="tag-category">
-            <div class="tag-category-header" onclick="window.toggleTagCategory('${category}')">
-                <span>${category}</span>
-                <span id="cat-indicator-${category.replace(/\s+/g, '-')}">▼</span>
-            </div>
-            <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : ''}">
-                ${tags.map(tag => {
-        const isSelected = window.selectedTags.has(tag);
-        return \`<button class="tag-chip \${isSelected ? 'selected' : ''}" onclick="window.toggleTag('\${tag}')">\${tag}</button>\`;
-                }).join('')}
-            </div>
-        </div>
-    `).join('');
-
-    root.innerHTML = `
-        <div class="tag-selector-container">
-            <label class="form-label">ETIQUETAS (TAGS)</label>
-            <input type="text" class="tag-search-input" placeholder="Buscar etiqueta..." onkeyup="window.filterTags(this.value)">
-            <div class="tag-categories" id="tagCategoriesContainer">
-                ${categoriesHTML}
-            </div>
-        </div>
-    `;
-};
-
-window.toggleTagCategory = (category) => {
-    const id = `cat-content-${category.replace(/\s+/g, '-')}`;
-    const content = document.getElementById(id);
-    if (content) {
-        const isClosed = content.style.display === 'none' || content.style.display === '';
-        // Close all others
-        document.querySelectorAll('.tag-category-content').forEach(el => el.style.display = 'none');
-        // Toggle current
-        content.style.display = isClosed ? 'flex' : 'none';
-        window.openCategory = isClosed ? category : null;
-    }
-};
-
-window.toggleTag = (tag) => {
-    if (window.selectedTags.has(tag)) {
-        window.selectedTags.delete(tag);
-    } else {
-        if (window.selectedTags.size >= 10) {
-            window.toast("Máximo 10 etiquetas permitidas", "error");
-            return;
-        }
-        window.selectedTags.add(tag);
-    }
-    // Re-render chips visual state only (performance optimization)
-    window.renderTagSelector();
-};
-
-window.filterTags = (query) => {
-    const term = query.toLowerCase();
-    const container = document.getElementById('tagCategoriesContainer');
-    if (!container) return;
-
-    if (!term) {
-        window.renderTagSelector();
-        return;
-    }
-
-    let resultsHTML = '';
-    Object.entries(TAG_CATEGORIES).forEach(([category, tags]) => {
-        const matches = tags.filter(t => t.toLowerCase().includes(term));
-        if (matches.length > 0) {
-            resultsHTML += `
-                <div class="tag-category" style="margin-bottom:5px">
-                    <div style="font-size:0.75rem; color:#666; margin-bottom:4px; margin-left:5px">${category}</div>
-                    <div style="display:flex; flex-wrap:wrap; gap:5px">
-                        ${matches.map(tag => {
-                const isSelected = window.selectedTags.has(tag);
-                return \`<button class="tag-chip \${isSelected ? 'selected' : ''}" onclick="window.toggleTag('\${tag}')">\${tag}</button>\`;
-                        }).join('')}
-                    </div>
-                </div>
-            `;
-            }
-    });
-    
-    container.innerHTML = resultsHTML || '<div style="color:#666; font-size:0.8rem; padding:10px">No se encontraron etiquetas.</div>';
-};
-
 // --- GLOBAL HELPER DEFINITIONS ---
 window.openInfo = (page) => {
     console.log("Abriendo Info:", page);
@@ -3004,7 +2944,7 @@ window.openTip = (postId) => {
     overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index:9000000; display:flex; align-items:center; justify-content:center;';
 
     overlay.innerHTML = `
-                < div style = "background:#1a1a2e; border:1px solid #333; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);" >
+        <div style="background:#1a1a2e; border:1px solid #333; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
             <div style="font-size:3rem; margin-bottom:10px">💎</div>
             <h2 style="color:#fff; margin:0 0 5px 0">Enviar a @${p.author}</h2>
             <p style="color:#888; margin-bottom:20px">Apoya el post "${p.title}"</p>
@@ -3021,8 +2961,8 @@ window.openTip = (postId) => {
             </div>
             
             <button onclick="document.getElementById('dynamicTipModal').remove()" style="background:transparent; border:none; color:#666; padding:10px 20px; cursor:pointer; font-size:0.9rem">Cancelar</button>
-        </div >
-                `;
+        </div>
+    `;
 
     // Click on overlay (outside modal) to close
     overlay.addEventListener('click', (e) => {
@@ -3035,7 +2975,7 @@ window.openTip = (postId) => {
 
 window.doSendTip = async (amount) => {
     if (!currentTipPostId) return;
-    if (await window.askConfirm(`¿Enviar ${ amount } PromptBits a este autor ? `, '💎')) {
+    if (await window.askConfirm(`¿Enviar ${amount} PromptBits a este autor?`, '💎')) {
         // Immediate feedback
         window.toast("Enviando PromptBits...", "info");
 
@@ -3096,7 +3036,7 @@ window.startMigration = async () => {
         const result = await store.migrateOldImages((current, batchTotal, title, totalPending) => {
             if (initialCount === -1 && totalPending) {
                 initialCount = totalPending;
-                console.log(`📊 Total a migrar: ${ initialCount } posts`);
+                console.log(`📊 Total a migrar: ${initialCount} posts`);
             }
 
             let pct = 0;
@@ -3105,8 +3045,8 @@ window.startMigration = async () => {
                 pct = (done / initialCount) * 100;
             }
 
-            statusEl.innerText = `📥 Migrando "${title}"... (Quedan ${ totalPending })`;
-            barEl.style.width = `${ Math.min(pct, 100) }% `;
+            statusEl.innerText = `📥 Migrando "${title}"... (Quedan ${totalPending})`;
+            barEl.style.width = `${Math.min(pct, 100)}%`;
         }, sessionIgnored);
 
         if (result.fatal) {
@@ -3119,8 +3059,8 @@ window.startMigration = async () => {
             barEl.style.width = '100%';
 
             const summary = `✅ Migración Finalizada\\n\\n` +
-                `Total migrado: ${ totalMigrated + result.count } posts\\n` +
-                (sessionIgnored.length > 0 ? `Ignorados(errores): ${ sessionIgnored.length } \\n` : '') +
+                `Total migrado: ${totalMigrated + result.count} posts\\n` +
+                (sessionIgnored.length > 0 ? `Ignorados (errores): ${sessionIgnored.length}\\n` : '') +
                 `\\nTodos tus posts están ahora en Cloudinary.`;
 
             alert(summary);
@@ -3134,10 +3074,10 @@ window.startMigration = async () => {
 
             if (result.failedIds && result.failedIds.length > 0) {
                 sessionIgnored = [...sessionIgnored, ...result.failedIds];
-                console.warn(`⚠️ ${ result.failedIds.length } posts fallaron en este lote`);
+                console.warn(`⚠️ ${result.failedIds.length} posts fallaron en este lote`);
             }
 
-            statusEl.innerText = `✅ Lote completado(${ result.count } migrados).Continuando...`;
+            statusEl.innerText = `✅ Lote completado (${result.count} migrados). Continuando...`;
             await new Promise(r => setTimeout(r, 500));
         }
     }
