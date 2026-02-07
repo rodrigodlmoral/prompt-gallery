@@ -108,8 +108,10 @@ const store = {
 
     async loadPrompts() {
         try {
-            // NO usar sort: '-created' porque causa error 400 en PocketHost
-            const records = await pb.collection('prompts').getList(1, 100);
+            // Usar sort: '-created' para obtener los más recientes de raíz
+            const records = await pb.collection('prompts').getList(1, 200, {
+                sort: '-created'
+            });
 
             // Ordenar en el cliente
             const sortedItems = records.items.sort((a, b) => {
