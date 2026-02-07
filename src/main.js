@@ -1,6 +1,9 @@
 import './style.css'
 import './admin_fix.css' // Emergency CSS Fix for Admin Panel
-import { store, LEVEL_REQS, TOOLS, RATINGS, RATING_INFO, INFO_ICON } from './store-final.js'
+import { pb } from './pocketbase.js';
+import { store, TOOLS, RATINGS, RATING_INFO, INFO_ICON, LEVEL_REQS } from './store-final.js';
+import { uploadToCloudinary } from './uploadService.js';
+import { TAG_CATEGORIES } from './data/tags.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;
@@ -897,6 +900,8 @@ const CreateModal = () => `
         <button class="btn-outline" onclick="window.addSeqStep()" style="width:100%; margin-bottom:15px">+ Añadir Paso</button>
     </div>
     
+    <div id="tagSelectorRoot"></div>
+
     <div style="display:flex; flex-direction:column; gap:5px; margin:15px 0">
         <label class="chk-wrap">
             <input type="checkbox" id="upReference" name="reference_chk_unique">
@@ -957,6 +962,7 @@ const DetailModal = () => `
                         <a id="detOrigLink" href="#" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:600"></a>
                     </div>
     
+                    <div id="detTags" class="server-tags-display"></div>
                     <div id="detBadges" style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap"></div>
                     
                     <div style="position:relative">
@@ -1150,7 +1156,11 @@ window.render = render;
 
 const attachEvents = () => {
     document.getElementById('searchInput')?.addEventListener('input', (e) => { searchQuery = e.target.value; render(); });
-    document.getElementById('addBtn')?.addEventListener('click', () => { document.getElementById('createModal').style.display = 'flex'; });
+    document.getElementById('addBtn')?.addEventListener('click', () => {
+        window.selectedTags.clear();
+        window.renderTagSelector();
+        document.getElementById('createModal').style.display = 'flex';
+    });
     document.getElementById('loginBtn')?.addEventListener('click', () => { document.getElementById('authModal').style.display = 'flex'; });
 
     // Event delegation para clicks en posts: REMOVED from here to avoid duplication.
@@ -1683,7 +1693,10 @@ window.doPublish = () => {
                 type: 'single',
                 isPrivate,
                 needsReference,
-                extraConfig
+                isPrivate,
+                needsReference,
+                extraConfig,
+                tags: Array.from(window.selectedTags) // NUEVO
             });
             if (!res.success) alert(res.msg);
             else {
@@ -1733,7 +1746,10 @@ window.doPublish = () => {
                         content,
                         isPrivate,
                         needsReference,
-                        extraConfig
+                        isPrivate,
+                        needsReference,
+                        extraConfig,
+                        tags: Array.from(window.selectedTags) // NUEVO
                     }).then(res => {
                         if (!res.success) {
                             alert("❌ Error: " + res.msg);
@@ -1910,6 +1926,16 @@ window.openDetail = (id) => {
             badgesEl.innerHTML = bhtml;
 
             badgesEl.innerHTML = bhtml;
+
+            // Render Tags
+            const tagsEl = document.getElementById('detTags');
+            if (tagsEl) {
+                if (p.tags && p.tags.length > 0) {
+                    tagsEl.innerHTML = p.tags.map(t => `<span class="server-tag-pill">${t}</span>`).join('');
+                } else {
+                    tagsEl.innerHTML = '';
+                }
+            }
         }
 
         // Handle sequence vs single
@@ -2292,7 +2318,12 @@ window.doEditPrompt = (id) => {
     document.getElementById('upRating').value = p.rating || 'SFW / Apto';
     document.getElementById('upPrompt').value = p.prompt || '';
     document.getElementById('upPrivate').checked = p.isPrivate;
+    document.getElementById('upPrivate').checked = p.isPrivate;
     document.getElementById('upReference').checked = p.needsReference || p.needs_reference;
+
+    // Load Tags
+    window.selectedTags = new Set(p.tags || []);
+    window.renderTagSelector();
 
     // Handle Type
     if (p.type === 'sequence') {
@@ -2361,7 +2392,8 @@ window.doUpdate = async () => {
 
         const data = {
             title, tool, rating: document.getElementById('upRating').value, prompt: document.getElementById('upPrompt').value,
-            isPrivate, needsReference, type: p.type
+            isPrivate, needsReference, type: p.type,
+            tags: Array.from(window.selectedTags) // NUEVO
         };
 
         // Disable button during update
@@ -2837,6 +2869,96 @@ window.toggleOptionsMenu = toggleOptionsMenu;
 
 
 
+
+// --- TAGGING SYSTEM LOGIC ---
+window.renderTagSelector = () => {
+    const root = document.getElementById('tagSelectorRoot');
+    if (!root) return;
+
+    const categoriesHTML = Object.entries(TAG_CATEGORIES).map(([category, tags]) => `
+        <div class="tag-category">
+            <div class="tag-category-header" onclick="window.toggleTagCategory('${category}')">
+                <span>${category}</span>
+                <span id="cat-indicator-${category.replace(/\s+/g, '-')}">▼</span>
+            </div>
+            <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : ''}">
+                ${tags.map(tag => {
+        const isSelected = window.selectedTags.has(tag);
+        return \`<button class="tag-chip \${isSelected ? 'selected' : ''}" onclick="window.toggleTag('\${tag}')">\${tag}</button>\`;
+                }).join('')}
+            </div>
+        </div>
+    `).join('');
+
+    root.innerHTML = `
+        <div class="tag-selector-container">
+            <label class="form-label">ETIQUETAS (TAGS)</label>
+            <input type="text" class="tag-search-input" placeholder="Buscar etiqueta..." onkeyup="window.filterTags(this.value)">
+            <div class="tag-categories" id="tagCategoriesContainer">
+                ${categoriesHTML}
+            </div>
+        </div>
+    `;
+};
+
+window.toggleTagCategory = (category) => {
+    const id = `cat-content-${category.replace(/\s+/g, '-')}`;
+    const content = document.getElementById(id);
+    if (content) {
+        const isClosed = content.style.display === 'none' || content.style.display === '';
+        // Close all others
+        document.querySelectorAll('.tag-category-content').forEach(el => el.style.display = 'none');
+        // Toggle current
+        content.style.display = isClosed ? 'flex' : 'none';
+        window.openCategory = isClosed ? category : null;
+    }
+};
+
+window.toggleTag = (tag) => {
+    if (window.selectedTags.has(tag)) {
+        window.selectedTags.delete(tag);
+    } else {
+        if (window.selectedTags.size >= 10) {
+            window.toast("Máximo 10 etiquetas permitidas", "error");
+            return;
+        }
+        window.selectedTags.add(tag);
+    }
+    // Re-render chips visual state only (performance optimization)
+    window.renderTagSelector();
+};
+
+window.filterTags = (query) => {
+    const term = query.toLowerCase();
+    const container = document.getElementById('tagCategoriesContainer');
+    if (!container) return;
+
+    if (!term) {
+        window.renderTagSelector();
+        return;
+    }
+
+    let resultsHTML = '';
+    Object.entries(TAG_CATEGORIES).forEach(([category, tags]) => {
+        const matches = tags.filter(t => t.toLowerCase().includes(term));
+        if (matches.length > 0) {
+            resultsHTML += `
+                <div class="tag-category" style="margin-bottom:5px">
+                    <div style="font-size:0.75rem; color:#666; margin-bottom:4px; margin-left:5px">${category}</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:5px">
+                        ${matches.map(tag => {
+                const isSelected = window.selectedTags.has(tag);
+                return \`<button class="tag-chip \${isSelected ? 'selected' : ''}" onclick="window.toggleTag('\${tag}')">\${tag}</button>\`;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+            }
+    });
+    
+    container.innerHTML = resultsHTML || '<div style="color:#666; font-size:0.8rem; padding:10px">No se encontraron etiquetas.</div>';
+};
+
 // --- GLOBAL HELPER DEFINITIONS ---
 window.openInfo = (page) => {
     console.log("Abriendo Info:", page);
@@ -2882,7 +3004,7 @@ window.openTip = (postId) => {
     overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index:9000000; display:flex; align-items:center; justify-content:center;';
 
     overlay.innerHTML = `
-        <div style="background:#1a1a2e; border:1px solid #333; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+                < div style = "background:#1a1a2e; border:1px solid #333; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);" >
             <div style="font-size:3rem; margin-bottom:10px">💎</div>
             <h2 style="color:#fff; margin:0 0 5px 0">Enviar a @${p.author}</h2>
             <p style="color:#888; margin-bottom:20px">Apoya el post "${p.title}"</p>
@@ -2899,8 +3021,8 @@ window.openTip = (postId) => {
             </div>
             
             <button onclick="document.getElementById('dynamicTipModal').remove()" style="background:transparent; border:none; color:#666; padding:10px 20px; cursor:pointer; font-size:0.9rem">Cancelar</button>
-        </div>
-    `;
+        </div >
+                `;
 
     // Click on overlay (outside modal) to close
     overlay.addEventListener('click', (e) => {
@@ -2913,7 +3035,7 @@ window.openTip = (postId) => {
 
 window.doSendTip = async (amount) => {
     if (!currentTipPostId) return;
-    if (await window.askConfirm(`¿Enviar ${amount} PromptBits a este autor?`, '💎')) {
+    if (await window.askConfirm(`¿Enviar ${ amount } PromptBits a este autor ? `, '💎')) {
         // Immediate feedback
         window.toast("Enviando PromptBits...", "info");
 
@@ -2974,7 +3096,7 @@ window.startMigration = async () => {
         const result = await store.migrateOldImages((current, batchTotal, title, totalPending) => {
             if (initialCount === -1 && totalPending) {
                 initialCount = totalPending;
-                console.log(`📊 Total a migrar: ${initialCount} posts`);
+                console.log(`📊 Total a migrar: ${ initialCount } posts`);
             }
 
             let pct = 0;
@@ -2983,8 +3105,8 @@ window.startMigration = async () => {
                 pct = (done / initialCount) * 100;
             }
 
-            statusEl.innerText = `📥 Migrando "${title}"... (Quedan ${totalPending})`;
-            barEl.style.width = `${Math.min(pct, 100)}%`;
+            statusEl.innerText = `📥 Migrando "${title}"... (Quedan ${ totalPending })`;
+            barEl.style.width = `${ Math.min(pct, 100) }% `;
         }, sessionIgnored);
 
         if (result.fatal) {
@@ -2997,8 +3119,8 @@ window.startMigration = async () => {
             barEl.style.width = '100%';
 
             const summary = `✅ Migración Finalizada\\n\\n` +
-                `Total migrado: ${totalMigrated + result.count} posts\\n` +
-                (sessionIgnored.length > 0 ? `Ignorados (errores): ${sessionIgnored.length}\\n` : '') +
+                `Total migrado: ${ totalMigrated + result.count } posts\\n` +
+                (sessionIgnored.length > 0 ? `Ignorados(errores): ${ sessionIgnored.length } \\n` : '') +
                 `\\nTodos tus posts están ahora en Cloudinary.`;
 
             alert(summary);
@@ -3012,10 +3134,10 @@ window.startMigration = async () => {
 
             if (result.failedIds && result.failedIds.length > 0) {
                 sessionIgnored = [...sessionIgnored, ...result.failedIds];
-                console.warn(`⚠️ ${result.failedIds.length} posts fallaron en este lote`);
+                console.warn(`⚠️ ${ result.failedIds.length } posts fallaron en este lote`);
             }
 
-            statusEl.innerText = `✅ Lote completado (${result.count} migrados). Continuando...`;
+            statusEl.innerText = `✅ Lote completado(${ result.count } migrados).Continuando...`;
             await new Promise(r => setTimeout(r, 500));
         }
     }

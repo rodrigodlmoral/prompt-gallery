@@ -426,6 +426,7 @@ const store = {
                 rating: data.rating,
                 content: processedContent,
                 extra_config: data.extraConfig,
+                tags: data.tags || [], // NUEVO
                 reactions: { like: 0, love: 0, fire: 0, funny: 0 },
                 comments: [],
                 saved_by: []
@@ -533,8 +534,10 @@ const store = {
                 needs_reference: data.needsReference,
                 tool: data.tool,
                 rating: data.rating,
+                rating: data.rating,
                 content: data.content,
-                extra_config: data.extraConfig
+                extra_config: data.extraConfig,
+                tags: data.tags // NUEVO
             });
             await this.loadPrompts();
             return { success: true };
