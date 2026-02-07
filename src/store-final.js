@@ -142,8 +142,8 @@ const store = {
                 image: p.image_url || p.image, // Normalización de campo de imagen
                 author: p.author_name || p.expand?.author?.name || 'Explorador',
                 author_id: p.author,
-                createdAt: new Date(p.created || p.created_at_original).getTime(),
-                created_at: p.created,
+                createdAt: new Date(p.created_at_custom || p.created || p.created_at_original).getTime(),
+                created_at: p.created_at_custom || p.created,
                 reactions: p.reactions || { like: 0, love: 0, fire: 0, funny: 0 },
                 comments: p.comments || [],
                 savedBy: p.saved_by || [],
@@ -446,6 +446,7 @@ const store = {
                 content: processedContent,
                 extra_config: data.extraConfig,
                 tags: data.tags || [], // NUEVO
+                created_at_custom: new Date().toISOString(),
                 reactions: { like: 0, love: 0, fire: 0, funny: 0 },
                 comments: [],
                 saved_by: []
