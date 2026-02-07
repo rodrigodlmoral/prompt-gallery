@@ -318,17 +318,6 @@ window.doEditPrompt = (id) => {
     document.getElementById('upPrivate').checked = p.isPrivate;
     document.getElementById('upReference').checked = p.needsReference || p.needs_reference;
 
-    // Handle Creator
-    if (p.origCreator) {
-        document.querySelector('input[name="origCreator"][value="other"]').checked = true;
-        window.toggleOrigCreator('other');
-        document.getElementById('upOrigName').value = p.origCreator.name;
-        document.getElementById('upOrigUrl').value = p.origCreator.url;
-    } else {
-        document.querySelector('input[name="origCreator"][value="me"]').checked = true;
-        window.toggleOrigCreator('me');
-    }
-
     // Handle Type
     if (p.type === 'sequence') {
         document.querySelector('input[name="postType"][value="sequence"]').checked = true;
@@ -701,24 +690,6 @@ const CreateModal = () => `
     <div id="sequenceFields" style="display:none">
         <div id="seqContainer"></div>
         <button class="btn-outline" onclick="window.addSeqStep()" style="width:100%; margin-bottom:15px">+ Añadir Paso</button>
-    </div>
-    
-    <div class="form-group" style="margin-bottom:15px">
-        <label class="form-label">¿QUIEN ES EL CREADOR ORIGINAL?</label>
-        <div style="display:flex; gap:15px; margin-bottom:10px">
-            <label class="chk-wrap">
-                <input type="radio" name="origCreator" value="me" checked onchange="window.toggleOrigCreator('me')">
-                <span>Yo</span>
-            </label>
-            <label class="chk-wrap">
-                <input type="radio" name="origCreator" value="other" onchange="window.toggleOrigCreator('other')">
-                <span>Otro Creador</span>
-            </label>
-        </div>
-        <div id="otherCreatorFields" style="display:none; gap:10px; flex-direction:column">
-            <input type="text" id="upOrigName" class="form-input" placeholder="Nombre del Creador">
-            <input type="text" id="upOrigUrl" class="form-input" placeholder="URL Red Social (https://...)" autocomplete="off">
-        </div>
     </div>
     
     <div style="display:flex; flex-direction:column; gap:5px; margin:15px 0">

@@ -897,24 +897,6 @@ const CreateModal = () => `
         <button class="btn-outline" onclick="window.addSeqStep()" style="width:100%; margin-bottom:15px">+ Añadir Paso</button>
     </div>
     
-    <div class="form-group" style="margin-bottom:15px">
-        <label class="form-label">¿QUIEN ES EL CREADOR ORIGINAL?</label>
-        <div style="display:flex; gap:15px; margin-bottom:10px">
-            <label class="chk-wrap">
-                <input type="radio" name="origCreator" value="me" checked onchange="window.toggleOrigCreator('me')">
-                <span>Yo</span>
-            </label>
-            <label class="chk-wrap">
-                <input type="radio" name="origCreator" value="other" onchange="window.toggleOrigCreator('other')">
-                <span>Otro Creador</span>
-            </label>
-        </div>
-        <div id="otherCreatorFields" style="display:none; gap:10px; flex-direction:column">
-            <input type="text" id="upOrigName" class="form-input" placeholder="Nombre del Creador">
-            <input type="text" id="upOrigUrl" class="form-input" placeholder="URL Red Social (https://...)" autocomplete="off">
-        </div>
-    </div>
-    
     <div style="display:flex; flex-direction:column; gap:5px; margin:15px 0">
         <label class="chk-wrap">
             <input type="checkbox" id="upReference" name="reference_chk_unique">
@@ -1400,10 +1382,6 @@ window.togglePostType = (type) => {
     }
 };
 
-window.toggleOrigCreator = (type) => {
-    document.getElementById('otherCreatorFields').style.display = type === 'other' ? 'flex' : 'none';
-};
-
 window.checkToolConfig = () => {
     const tool = document.getElementById('upTool').value;
     const sdTools = ['S.D 1.5', 'S.D 2.0', 'SDXL', 'Fooocus', 'ComfyUI'];
@@ -1677,14 +1655,8 @@ window.doPublish = () => {
     const tool = document.getElementById('upTool').value;
     const isPrivate = document.getElementById('upPrivate').checked;
     const needsReference = document.getElementById('upReference').checked;
-    const origCreatorType = document.querySelector('input[name="origCreator"]:checked').value;
-    const origCreator = origCreatorType === 'other' ? {
-        name: document.getElementById('upOrigName').value,
-        url: document.getElementById('upOrigUrl').value
-    } : null;
 
     if (!title) { if (window.toast) window.toast("El título es obligatorio", "error"); return; }
-    if (origCreatorType === 'other' && !origCreator.name) return alert("Falta el nombre del creador original");
 
     const extraConfig = [];
     document.querySelectorAll('.extra-config-row').forEach(row => {
@@ -1711,7 +1683,6 @@ window.doPublish = () => {
                 type: 'single',
                 isPrivate,
                 needsReference,
-                origCreator,
                 extraConfig
             });
             if (!res.success) alert(res.msg);
@@ -1762,7 +1733,6 @@ window.doPublish = () => {
                         content,
                         isPrivate,
                         needsReference,
-                        origCreator,
                         extraConfig
                     }).then(res => {
                         if (!res.success) {
@@ -1912,19 +1882,6 @@ window.openDetail = (id) => {
                     e.stopPropagation();
                     window.openTip(p.id);
                 };
-            }
-        }
-
-        // Setup Original Creator
-        const origEl = document.getElementById('detOrigCreator');
-        const origLink = document.getElementById('detOrigLink');
-        if (origEl && origLink) {
-            if (p.origCreator && p.origCreator.name) {
-                origEl.style.display = 'flex';
-                origLink.innerText = p.origCreator.name;
-                origLink.href = p.origCreator.url || '#';
-            } else {
-                origEl.style.display = 'none';
             }
         }
 
@@ -2337,17 +2294,6 @@ window.doEditPrompt = (id) => {
     document.getElementById('upPrivate').checked = p.isPrivate;
     document.getElementById('upReference').checked = p.needsReference || p.needs_reference;
 
-    // Handle Creator
-    if (p.origCreator) {
-        document.querySelector('input[name="origCreator"][value="other"]').checked = true;
-        window.toggleOrigCreator('other');
-        document.getElementById('upOrigName').value = p.origCreator.name;
-        document.getElementById('upOrigUrl').value = p.origCreator.url;
-    } else {
-        document.querySelector('input[name="origCreator"][value="me"]').checked = true;
-        window.toggleOrigCreator('me');
-    }
-
     // Handle Type
     if (p.type === 'sequence') {
         document.querySelector('input[name="postType"][value="sequence"]').checked = true;
@@ -2408,22 +2354,14 @@ window.doUpdate = async () => {
         const isPrivate = document.getElementById('upPrivate').checked;
         const needsReference = document.getElementById('upReference').checked;
 
-        const origCreatorType = document.querySelector('input[name="origCreator"]:checked').value;
-        const origCreator = origCreatorType === 'other' ? {
-            name: document.getElementById('upOrigName').value,
-            url: document.getElementById('upOrigUrl').value
-        } : null;
-
         if (!title) return alert("El título es obligatorio");
-        if (origCreatorType === 'other' && !origCreator.name) return alert("Falta el nombre del creador original");
 
         const p = store.prompts.find(x => x.id === editingId);
         if (!p) return;
 
         const data = {
             title, tool, rating: document.getElementById('upRating').value, prompt: document.getElementById('upPrompt').value,
-            isPrivate, needsReference, type: p.type,
-            origCreator
+            isPrivate, needsReference, type: p.type
         };
 
         // Disable button during update

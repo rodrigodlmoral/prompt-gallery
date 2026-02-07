@@ -145,7 +145,6 @@ const store = {
                 featured_until: p.featured_until || null,
                 tool: p.tool || 'ChatGPT',
                 content: p.content || [],
-                origCreator: p.orig_creator || null,
                 extraConfig: p.extra_config || [],
                 profiles: p.expand?.author ? {
                     username: p.expand.author.username,
@@ -426,7 +425,6 @@ const store = {
                 tool: data.tool,
                 rating: data.rating,
                 content: processedContent,
-                orig_creator: data.origCreator,
                 extra_config: data.extraConfig,
                 reactions: { like: 0, love: 0, fire: 0, funny: 0 },
                 comments: [],
@@ -536,7 +534,6 @@ const store = {
                 tool: data.tool,
                 rating: data.rating,
                 content: data.content,
-                orig_creator: data.origCreator,
                 extra_config: data.extraConfig
             });
             await this.loadPrompts();
