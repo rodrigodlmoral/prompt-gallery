@@ -1160,7 +1160,7 @@ window.renderTagSelector = () => {
                 <span>${category}</span>
                 <span>${window.openCategory === category ? '▲' : '▼'}</span>
             </div>
-            <div class="tag-category-content" style="${window.openCategory === category ? 'display:flex' : 'display:none'}">
+            <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : 'display:none'}">
                 ${tags.map(tag => {
         const isSelected = window.selectedTags.has(tag);
         return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
