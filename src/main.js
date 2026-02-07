@@ -966,8 +966,8 @@ const DetailModal = () => `
                         <a id="detOrigLink" href="#" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:600"></a>
                     </div>
     
-                    <div id="detTags" class="server-tags-display"></div>
                     <div id="detBadges" style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap"></div>
+                    <div id="detTags" class="server-tags-display"></div>
                     
                     <div style="position:relative">
                         <div id="detPrompt" class="prompt-area"></div>
@@ -1933,8 +1933,6 @@ window.openDetail = (id) => {
 
             // Render Tags
             const tagsEl = document.getElementById('detTags');
-            console.log("[DEBUG] Rendering details for:", p.title);
-            console.log("[DEBUG] Tags found in object:", p.tags);
             if (tagsEl) {
                 if (p.tags && p.tags.length > 0) {
                     tagsEl.innerHTML = p.tags.map(t => `<span class="server-tag-pill">${t}</span>`).join('');
