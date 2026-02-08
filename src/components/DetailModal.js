@@ -84,4 +84,4 @@ export const DetailModalTemplate = () => `
         </div>
         <div class="ad-bottom"></div>
     </div>
-</div>\`;
+</div>`;
