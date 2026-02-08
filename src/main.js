@@ -12,7 +12,7 @@ const MAINTENANCE_END_TIME = new Date('2026-02-05T04:35:00-06:00').getTime(); //
 
 const renderMaintenance = () => {
     document.body.innerHTML = `
-    < div style = "height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0a0a0a; color:white; font-family: 'Inter', sans-serif; text-align:center; padding:20px" >
+    <div style = "height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0a0a0a; color:white; font-family: 'Inter', sans-serif; text-align:center; padding:20px">
             <div style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); padding: 50px; border-radius: 32px; border: 1px solid rgba(255, 255, 255, 0.12); max-width: 500px; box-shadow: 0 20px 50px rgba(0,0,0,0.5)">
                 <div style="font-size: 5rem; margin-bottom: 25px; animation: float 3s ease-in-out infinite">🏗️</div>
                 <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 15px; background: linear-gradient(135deg, #fff 0%, #888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -1px">Estamos Mejorando</h1>
@@ -33,7 +33,7 @@ const renderMaintenance = () => {
                 }
                 body { margin: 0; overflow: hidden; background: #050505; }
             </style>
-        </div >
+        </div>
     `;
 
     // Temporizador removido por solicitud del usuario
@@ -90,12 +90,12 @@ setInterval(() => {
         if (isModal) {
             // Force inject button in MODAL detail
             if (!hasButton) {
-                overlay.innerHTML = `< span >🔞 ${warningLabel}</span > <button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; font-weight:700; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span> <button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; font-weight:700; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
             }
         } else {
             // Dashboard / Collage: Only show Label, NO button
             if (hasButton || !hasLabel) {
-                overlay.innerHTML = `< span >🔞 ${warningLabel}</span > `;
+                overlay.innerHTML = `<span>🔞 ${warningLabel}</span> `;
             }
         }
     });
@@ -125,7 +125,7 @@ window.setFilter = (key, value) => {
 
 const renderCollage = (p, isHero = false) => {
     if (p.type !== 'sequence' || !p.content || p.content.length === 0) {
-        return `< img src = "${p.image || ''}" loading = "lazy" > `;
+        return `<img src = "${p.image || ''}" loading = "lazy"> `;
     }
 
     // Support up to 6 items
@@ -142,7 +142,7 @@ const renderCollage = (p, isHero = false) => {
     else if (count >= 6) gridStyle = 'grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr;';
 
     return `
-    < div class="card-collage" style = "${gridStyle}" >
+    <div class="card-collage" style = "${gridStyle}">
         ${items.map((step, idx) => {
         const { applyBlur } = getModeration(p, step.rating);
         let spanStyle = '';
@@ -162,13 +162,13 @@ const renderCollage = (p, isHero = false) => {
             </div>`;
     }).join('')
         }
-    </div > `;
+    </div> `;
 };
 
 // --- LEGAL CONTENT ---
 const LEGAL_TEXTS = {
     tos: `
-    < h2 > Términos de Servicio</h2 >
+    <h2> Términos de Servicio</h2>
         <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
             <p><strong>1. Licencia de Uso:</strong> Prompt Gallery es una plataforma para compartir, descubrir y organizar prompts de IA. Al utilizar nuestros servicios, aceptas operar bajo estos términos.</p>
             <p><strong>2. Propiedad Intelectual:</strong> Tú conservas todos los derechos de autor sobre los prompts y secuencias que creas. Sin embargo, al publicarlos en la plataforma (en modo público), otorgas a Prompt Gallery y a sus usuarios una licencia no exclusiva, mundial y gratuita para ver, copiar, modificar y ejecutar dichos prompts.</p>
@@ -178,7 +178,7 @@ const LEGAL_TEXTS = {
         </div>
 `,
     privacy: `
-    < h2 > Política de Privacidad</h2 >
+    <h2> Política de Privacidad</h2>
         <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
             <p><strong>1. Recolección de Datos:</strong> Recopilamos información mínima necesaria: correo electrónico, nombre de usuario y datos técnicos de acceso (IP, navegador) para seguridad y análisis.</p>
             <p><strong>2. Imágenes y Prompts:</strong> Las imágenes subidas a servidores públicos son accesibles externamente. Recomendamos no subir fotos personales privadas ni información sensible en los prompts.</p>
@@ -188,7 +188,7 @@ const LEGAL_TEXTS = {
         </div>
 `,
     safety: `
-    < h2 > Centro de Seguridad</h2 >
+    <h2> Centro de Seguridad</h2>
         <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
             <p><strong>Nuestra Prioridad:</strong> Mantener un entorno creativo seguro y respetuoso.</p>
             <ul>
@@ -200,7 +200,7 @@ const LEGAL_TEXTS = {
         </div>
 `,
     faq: `
-    < h2 > Preguntas Frecuentes(FAQ)</h2 >
+    <h2> Preguntas Frecuentes(FAQ)</h2>
         <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
             <p><strong>¿Qué es Prompt Gallery?</strong><br>
                 Es una comunidad para entusiastas de la IA Generativa. Puedes guardar, organizar y compartir prompts para herramientas como Midjourney, Stable Diffusion, DALL-E, etc.</p>
@@ -219,7 +219,7 @@ const LEGAL_TEXTS = {
         </div>
 `,
     support: `
-    < h2 >📞 Centro de Soporte</h2 >
+    <h2>📞 Centro de Soporte</h2>
         <p style="margin-bottom:15px; color:#aaa">Envíanos un ticket y te responderemos lo antes posible.</p>
         <div class="form-group">
             <label class="form-label">Tu Nombre</label>
@@ -238,7 +238,7 @@ const LEGAL_TEXTS = {
 };
 
 // --- COMPONENTS ---
-const TopBar = () => `< div class="top-bar" > <div class="container top-bar-inner"><div class="top-bar-links"><span onclick="window.openInfo('tos')">Términos</span><span onclick="window.openInfo('privacy')">Privacidad</span><span onclick="window.openInfo('safety')">Seguridad</span><span onclick="window.openInfo('faq')">Preguntas</span></div><button class="support-btn" onclick="window.openInfo('support')">💬 Soporte</button></div></div > `;
+const TopBar = () => `<div class="top-bar"> <div class="container top-bar-inner"><div class="top-bar-links"><span onclick="window.openInfo('tos')">Términos</span><span onclick="window.openInfo('privacy')">Privacidad</span><span onclick="window.openInfo('safety')">Seguridad</span><span onclick="window.openInfo('faq')">Preguntas</span></div><button class="support-btn" onclick="window.openInfo('support')">💬 Soporte</button></div></div> `;
 
 const getModeration = (p, forcedRating) => {
     // Si no hay rating, asumimos SFW por defecto
@@ -359,7 +359,7 @@ const getFilteredPrompts = () => {
 };
 
 const Header = () => `
-    < header style = "height:auto; display:flex; flex-direction:column" >
+    <header style = "height:auto; display:flex; flex-direction:column">
     <div class="container" style="height:72px; border-bottom:1px solid #222">
         <div class="logo" onclick="window.goHome()" style="cursor:pointer">✨ Prompt Gallery</div>
         
@@ -392,7 +392,7 @@ const Header = () => `
             </div>
         </div>
     </div>
-    </div >
+    </div>
     ${store.currentUser ? `
     <div class="container" style="padding:10px 20px; display:flex; gap:10px; overflow-x:auto; background:rgba(0,0,0,0.3)">
         <select id="sourceFilter" onchange="window.setFilter('source', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem" ${currentView === 'profile' ? 'disabled' : ''}>
@@ -428,7 +428,7 @@ const Header = () => `
     </div>
     ` : ''
     }
-</header > `;
+</header> `;
 
 const HeroCarousel = () => {
     if (currentView !== 'home') return '';
@@ -469,9 +469,9 @@ const HeroCarousel = () => {
     const list = featured.length < 6 ? featured : featured.concat(featured);
 
     return `
-    < div class="container" style = "margin-top:20px; margin-bottom:-10px" >
+    <div class="container" style = "margin-top:20px; margin-bottom:-10px">
         <h2 style="font-size:1.2rem; font-weight:800; color:var(--accent); letter-spacing:1px">🌟 PROMPTS DESTACADOS</h2>
-    </div >
+    </div>
     <div class="hero-carousel">
         <div class="carousel-track" style="${featured.length < 6 ? 'animation:none; justify-content:center; width:100%' : ''}">
             ${list.map((p, idx) => {
@@ -540,11 +540,11 @@ const ProfileHeader = () => {
         };
     }
 
-    if (!user) return `< div class="container" style = "padding:40px; text-align:center" >
+    if (!user) return `<div class="container" style = "padding:40px; text-align:center">
         <h2>Usuario no encontrado</h2>
         <p>El usuario @${profileUser} no existe o no ha cargado.</p>
         <button class="btn" onclick="window.location.reload()">Recargar</button>
-    </div > `;
+    </div> `;
 
     const isMe = store.currentUser && store.currentUser.username.toLowerCase() === user.username.toLowerCase();
 
@@ -556,7 +556,7 @@ const ProfileHeader = () => {
     const lvlInfo = getLevelInfo(user.level || 0);
 
     return `
-    < div class="profile-header" >
+    <div class="profile-header">
         <div class="container" style="padding: 40px 0 0 0;">
             <div style="display:flex; gap:30px; align-items:center; margin-bottom:30px">
                 <div class="user-avatar-lg" style="background-image:url('${user.avatar || 'https://robohash.org/' + user.username}')"></div>
@@ -638,8 +638,8 @@ const ProfileHeader = () => {
                 ${isMe ? `<button class="profile-tab ${profileTab === 'saved' ? 'active' : ''}" onclick="window.setProfileTab('saved')">Guardados</button>` : ''}
             </div>
         </div>
-        </div >
-    </div > `;
+        </div>
+    </div> `;
 };
 
 // --- TOP CREATORS COMPONENT ---
@@ -647,7 +647,7 @@ const renderTopCreators = (details) => {
     // Hide for visitors (no currentUser) or empty details
     if (!store.currentUser || !details || details.length === 0) return '';
     return `
-    < div class="top-creators-banner" >
+    <div class="top-creators-banner">
         <div class="tc-header">
             <div>
                 <div class="tc-title">⭐ Top Creadores</div>
@@ -669,7 +669,7 @@ const renderTopCreators = (details) => {
             </div>`;
     }).join('')}
         </div>
-    </div > `;
+    </div> `;
 };
 
 const loadTopCreators = async () => {
@@ -685,7 +685,7 @@ const Gallery = () => {
     if (list.length === 0) {
         if (isMyProfile) {
             return `
-    < div class="container" style = "padding: 40px 20px; text-align: center;" >
+    <div class="container" style = "padding: 40px 20px; text-align: center;">
         <div style="background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%); padding: 60px 20px; border-radius: 20px; border: 1px dashed #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
             <div style="font-size: 4rem; margin-bottom: 20px;">✨</div>
             <h2 style="font-size: 2rem; color: #fff; margin-bottom: 10px;">¡Tu galería está lista para brillar!</h2>
@@ -696,18 +696,18 @@ const Gallery = () => {
                 🚀 Comparte tu primer prompt
             </button>
         </div>
-            </div > `;
+            </div> `;
         } else if (currentView === 'profile') {
             return `
-    < div class="container" style = "padding: 80px 20px; text-align: center; color: #666;" >
+    <div class="container" style = "padding: 80px 20px; text-align: center; color: #666;">
                 <div style="font-size: 3rem; margin-bottom: 20px; grayscale: 1; opacity: 0.5;">🏜️</div>
                 <h3 style="font-size: 1.5rem; margin-bottom: 10px;">Este usuario aún no ha compartido prompts</h3>
                 <p>Vuelve más tarde para ver sus creaciones.</p>
-            </div > `;
+            </div> `;
         }
     }
 
-    return `< div class="container" > <div class="gallery-grid">
+    return `<div class="container"> <div class="gallery-grid">
     ${list.map((p, idx) => {
         const { applyBlur, warningLabel } = getModeration(p);
         const reactions = p.reactions || { like: 0, love: 0, fire: 0, funny: 0 };
@@ -777,11 +777,11 @@ const Gallery = () => {
     </div>
     ` : ''
         }
-    </div ></div > `;
+    </div></div> `;
 };
 
 const TipModal = () => `
-    < div id = "tipModal" class="modal-overlay" style = "display:none; z-index:9999999 !important;" > <div class="modal-container" style="max-width:400px; text-align:center; position:relative; z-index:9999999">
+    <div id = "tipModal" class="modal-overlay" style = "display:none; z-index:9999999 !important;"> <div class="modal-container" style="max-width:400px; text-align:center; position:relative; z-index:9999999">
         <div style="font-size:3rem; margin-bottom:10px">💎</div>
         <h2 id="tipTitle">Enviar Propina</h2>
         <p id="tipSubtitle" style="color:#888; margin-bottom:20px"></p>
@@ -798,11 +798,11 @@ const TipModal = () => `
         </div>
 
         <button class="btn-outline" style="width:100%; border:none; color:#666" onclick="window.closeModals()">Cancelar</button>
-    </div></div > `;
+    </div></div> `;
 
 // --- MODALS ---
 const AuthModal = () => `
-        < div id = "authModal" class="modal-overlay" style = "display:none;" > <div class="modal-container">
+        <div id = "authModal" class="modal-overlay" style = "display:none;"> <div class="modal-container">
             <div id="loginForm">
                 <h2>Entrar</h2>
                 <input type="text" id="logUser" class="form-input" placeholder="Usuario o Email">
@@ -850,7 +850,7 @@ const AuthModal = () => `
             </div></div>`;
 
 const CreateModal = () => `
-                < div id = "createModal" class="modal-overlay" style = "display:none;" ><div class="modal-container">
+                <div id = "createModal" class="modal-overlay" style = "display:none;"><div class="modal-container">
     <h2>Compartir Prompt</h2>
     
     <div class="form-group">
@@ -944,7 +944,7 @@ const SettingsModal = () => {
     const mod = u.moderation || { suggestive: 'ON', nsfw: 'BLUR' };
 
     return `
-    < div id = "settingsModal" class="modal-overlay" style = "display:none;" >
+    <div id = "settingsModal" class="modal-overlay" style = "display:none;">
         <div class="modal-container" style="max-width:600px">
             <h2>Configuración de Perfil</h2>
 
@@ -1048,7 +1048,7 @@ const SettingsModal = () => {
                 <button class="btn-outline" onclick="window.closeModals()" style="flex:1">Cancelar</button>
             </div>
         </div>
-</div > `;
+</div> `;
 };
 
 const InfoModal = () => `
@@ -1207,7 +1207,7 @@ window.toast = (message, type = 'info') => {
     if (type === 'error') icon = '❌';
 
     toast.innerHTML = `
-    < div class="toast-icon" > ${icon}</div >
+    <div class="toast-icon"> ${icon}</div>
         <div class="toast-content">${message}</div>
 `;
 
@@ -1248,7 +1248,7 @@ window.showTokenCelebration = (amount = 1, subtitle = null) => {
     const celebration = document.createElement('div');
     celebration.className = 'token-celebration';
     celebration.innerHTML = `
-    < div class="celebration-emoji" >🎉</div >
+    <div class="celebration-emoji">🎉</div>
         <div class="celebration-title">¡FELICIDADES!</div>
         <div class="celebration-token-amount">+${amount} 💎</div>
         <div class="celebration-subtitle">
@@ -1359,11 +1359,11 @@ window.addExtraRow = () => {
     div.className = 'extra-config-row';
     div.style.cssText = 'display:flex; gap:10px; margin-bottom:10px; align-items:center';
     div.innerHTML = `
-    < select class="form-input extra-type" style = "margin:0; flex:1" >
+    <select class="form-input extra-type" style = "margin:0; flex:1">
             <option value="CHECKPOINT">CHECKPOINT</option>
             <option value="LORA">LORA</option>
             <option value="EMBEDDING">EMBEDDING</option>
-        </select >
+        </select>
     <input type="text" class="form-input extra-val" placeholder="Nombre/Valor..." style="margin:0; flex:2">
         <button class="btn-icon" onclick="this.parentElement.remove()" style="background:#444; width:24px; height:24px; flex-shrink:0">×</button>
         `;
@@ -3114,7 +3114,7 @@ window.openTip = (postId) => {
     overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index:9000000; display:flex; align-items:center; justify-content:center;';
 
     overlay.innerHTML = `
-                < div style="background:#1a1a2e; border:1px solid #333; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);" >
+                <div style="background:#1a1a2e; border:1px solid #333; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
                     <div style="font-size:3rem; margin-bottom:10px">💎</div>
                     <h2 style="color:#fff; margin:0 0 5px 0">Enviar a @${p.author}</h2>
                     <p style="color:#888; margin-bottom:20px">Apoya el post "${p.title}"</p>
@@ -3131,7 +3131,7 @@ window.openTip = (postId) => {
                     </div>
 
                     <button onclick="document.getElementById('dynamicTipModal').remove()" style="background:transparent; border:none; color:#666; padding:10px 20px; cursor:pointer; font-size:0.9rem">Cancelar</button>
-                </div >
+                </div>
                 `;
 
     // Click on overlay (outside modal) to close
