@@ -2586,26 +2586,26 @@ window.doReact = async (type) => {
     if (!p) return;
 
     // --- TRUE OPTIMISTIC UI (Manual Calculation) ---
-    // Calculate what the new state SHOULD be immediately
     const user = store.currentUser.username;
-    const currentReactions = p.reactions || {};
-    const currentUserReactions = p.userReactions || {};
-    const oldUserReaction = currentUserReactions[user];
+    if (!p.reactions) p.reactions = {};
+    if (!p.userReactions) p.userReactions = {};
 
-    // Clone counts for local manipulation
-    let newCounts = { ...currentReactions };
+    const oldUserReaction = p.userReactions[user];
+
+    // Calculate new state
     let newMyReaction = null;
-
     if (oldUserReaction === type) {
         // Toggle OFF
-        newCounts[type] = Math.max(0, (newCounts[type] || 0) - 1);
+        p.reactions[type] = Math.max(0, (p.reactions[type] || 0) - 1);
+        delete p.userReactions[user];
         newMyReaction = null;
     } else {
-        // Toggle ON (or Switch)
+        // Toggle ON or Switch
         if (oldUserReaction) {
-            newCounts[oldUserReaction] = Math.max(0, (newCounts[oldUserReaction] || 0) - 1);
+            p.reactions[oldUserReaction] = Math.max(0, (p.reactions[oldUserReaction] || 0) - 1);
         }
-        newCounts[type] = (newCounts[type] || 0) + 1;
+        p.reactions[type] = (p.reactions[type] || 0) + 1;
+        p.userReactions[user] = type;
         newMyReaction = type;
     }
 
@@ -2613,14 +2613,10 @@ window.doReact = async (type) => {
     ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(t => {
         const el = document.getElementById(`det-${t}-count`);
         const btn = document.getElementById(`btn-react-${t}`);
-
-        if (el) el.innerText = newCounts[t] || 0;
-
+        if (el) el.innerText = p.reactions[t] || 0;
         if (btn) {
-            // Remove active from everything first, or just check logic
             if (newMyReaction === t) {
                 btn.classList.add('active');
-                // Optional: Add simple pop animation
                 btn.style.transform = "scale(1.2)";
                 setTimeout(() => btn.style.transform = "scale(1)", 200);
             } else {
@@ -2629,12 +2625,14 @@ window.doReact = async (type) => {
         }
     });
 
-    // --- SYNC WITH STORE & SERVER ---
+    // Notify other components if needed
+    if (window.render) window.render();
+
+    // --- SYNC WITH SERVER ---
     try {
         await store.toggleReaction(currentId, type);
     } catch (e) {
         console.error("Reaction Sync Failed", e);
-        // Silent fail or revert if critical
     }
 };
 
