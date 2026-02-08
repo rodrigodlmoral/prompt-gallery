@@ -960,35 +960,30 @@ window.doReact = async (type) => {
     const p = store.prompts.find(x => String(x.id) === String(currentId));
     if (!p) return;
 
-    // --- TRUE OPTIMISTIC UI (Manual Calculation) ---
+    // --- PURE OPTIMISTIC DOM UPDATE ---
     const user = store.currentUser.username;
-    if (!p.reactions) p.reactions = {};
-    if (!p.userReactions) p.userReactions = {};
+    const currentReactions = { ...(p.reactions || {}) };
+    const myOldReaction = (p.userReactions) ? p.userReactions[user] : null;
 
-    const oldUserReaction = p.userReactions[user];
-
-    // Calculate new state
+    let newCounts = { ...currentReactions };
     let newMyReaction = null;
-    if (oldUserReaction === type) {
-        // Toggle OFF
-        p.reactions[type] = Math.max(0, (p.reactions[type] || 0) - 1);
-        delete p.userReactions[user];
+
+    if (myOldReaction === type) {
+        newCounts[type] = Math.max(0, (newCounts[type] || 0) - 1);
         newMyReaction = null;
     } else {
-        // Toggle ON or Switch
-        if (oldUserReaction) {
-            p.reactions[oldUserReaction] = Math.max(0, (p.reactions[oldUserReaction] || 0) - 1);
+        if (myOldReaction) {
+            newCounts[myOldReaction] = Math.max(0, (newCounts[myOldReaction] || 0) - 1);
         }
-        p.reactions[type] = (p.reactions[type] || 0) + 1;
-        p.userReactions[user] = type;
+        newCounts[type] = (newCounts[type] || 0) + 1;
         newMyReaction = type;
     }
 
-    // UPDATE DOM IMMEDIATELY
+    // Update DOM Immediately
     ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(t => {
         const el = document.getElementById(`det-${t}-count`);
         const btn = document.getElementById(`btn-react-${t}`);
-        if (el) el.innerText = p.reactions[t] || 0;
+        if (el) el.innerText = newCounts[t] || 0;
         if (btn) {
             if (newMyReaction === t) {
                 btn.classList.add('active');
@@ -1000,7 +995,7 @@ window.doReact = async (type) => {
         }
     });
 
-    // --- SYNC WITH STORE & SERVER ---
+    // --- SYNC WITH SERVER ---
     try {
         await store.toggleReaction(currentId, type);
     } catch (e) {
