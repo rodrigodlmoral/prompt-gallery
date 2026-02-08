@@ -728,12 +728,15 @@ header nav {
   gap: 8px;
   font-size: 0.7rem;
   font-weight: 600;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.6);
+  /* Aumentado de 0.4 */
+  backdrop-filter: blur(12px);
+  /* Aumentado de 8px */
+  -webkit-backdrop-filter: blur(12px);
+  padding: 5px 14px;
   border-radius: 50px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  /* Aumentado de 0.1 */
   width: fit-content;
   white-space: nowrap;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
@@ -1075,24 +1078,27 @@ header nav {
 }
 
 .react-btn {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
+  /* Aumentado de 0.03 */
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  /* Aumentado de 0.1 */
   border-radius: 8px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 1rem;
+  font-size: 1.1rem;
+  /* Aumentado ligeramente */
   color: white;
 }
 
 .react-btn small {
-  font-weight: 700;
-  font-size: 0.75rem;
+  font-weight: 800;
+  font-size: 0.8rem;
   color: #fff;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 .react-btn.active {

@@ -51,7 +51,7 @@ export const DetailModalTemplate = () => `
                         </div>
                     </div>
                     
-                    <div class="reactions-flex" style="margin-top:20px; display:flex; gap:8px; overflow-x:auto; padding-bottom:5px">
+                    <div class="reactions-flex" style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap">
                         <button class="react-btn" id="btn-react-like" onclick="window.doReact('like')">👍 <small id="det-like-count">0</small></button>
                         <button class="react-btn" id="btn-react-love" onclick="window.doReact('love')">❤️ <small id="det-love-count">0</small></button>
                         <button class="react-btn" id="btn-react-fire" onclick="window.doReact('fire')">🔥 <small id="det-fire-count">0</small></button>

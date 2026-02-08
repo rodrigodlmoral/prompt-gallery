@@ -720,7 +720,7 @@ const Gallery = () => {
                     <div style="font-weight:700; font-size:0.9rem; margin-bottom:5px">${window.escapeHTML(p.title)}</div>
                     <div style="font-size:0.8rem; opacity:0.8; margin-bottom:10px; cursor:pointer" onclick="event.stopPropagation(); window.openUserProfile('${p.author}')">por @${window.escapeHTML(p.author)}</div>
                     <div class="card-stats">
-                        ${reactions.like > 0 ? `<span title="Me gusta">👍 ${reactions.like}</span>` : ''}
+                        <span title="Me gusta">👍 ${reactions.like || 0}</span>
                         ${reactions.love > 0 ? `<span title="Me encanta">❤️ ${reactions.love}</span>` : ''}
                         ${reactions.fire > 0 ? `<span title="Fuego">🔥 ${reactions.fire}</span>` : ''}
                         ${reactions.funny > 0 ? `<span title="Divertido">😂 ${reactions.funny}</span>` : ''}
@@ -2018,9 +2018,9 @@ window.openDetail = (id) => {
         }
 
         // Setup Reactions
-        const reactions = p.reactions || { like: 0, love: 0, fire: 0, funny: 0 };
+        const reactions = p.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 };
         const myReaction = (p.userReactions && store.currentUser) ? p.userReactions[store.currentUser.username] : null;
-        ['like', 'love', 'fire', 'funny'].forEach(type => {
+        ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(type => {
             const countEl = document.getElementById(`det-${type}-count`);
             const btnEl = document.getElementById(`btn-react-${type}`);
             if (countEl) countEl.innerText = reactions[type] || 0;
