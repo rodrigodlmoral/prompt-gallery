@@ -2582,36 +2582,59 @@ window.doDeleteAccount = () => {
 window.doReact = async (type) => {
     if (!store.currentUser) return alert("Inicia sesión para reaccionar");
 
-    // 1. Trigger Async Action (Do NOT await yet)
-    // The store updates local state SYNCHRONOUSLY inside the async function (optimistic update)
-    const reqPromise = store.toggleReaction(currentId, type);
-
-    // 2. Update UI Immediately (Optimistic)
     const p = store.prompts.find(x => String(x.id) === String(currentId));
-    if (p) {
-        const user = store.currentUser?.username;
-        const myReaction = (p.userReactions && user) ? p.userReactions[user] : null;
-        ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(t => {
-            const el = document.getElementById(`det-${t}-count`);
-            const btn = document.getElementById(`btn-react-${t}`);
-            const reactions = p.reactions || {};
-            if (el) el.innerText = reactions[t] || 0;
-            if (btn) {
-                if (myReaction === t) btn.classList.add('active');
-                else btn.classList.remove('active');
-            }
-        });
+    if (!p) return;
+
+    // --- TRUE OPTIMISTIC UI (Manual Calculation) ---
+    // Calculate what the new state SHOULD be immediately
+    const user = store.currentUser.username;
+    const currentReactions = p.reactions || {};
+    const currentUserReactions = p.userReactions || {};
+    const oldUserReaction = currentUserReactions[user];
+
+    // Clone counts for local manipulation
+    let newCounts = { ...currentReactions };
+    let newMyReaction = null;
+
+    if (oldUserReaction === type) {
+        // Toggle OFF
+        newCounts[type] = Math.max(0, (newCounts[type] || 0) - 1);
+        newMyReaction = null;
+    } else {
+        // Toggle ON (or Switch)
+        if (oldUserReaction) {
+            newCounts[oldUserReaction] = Math.max(0, (newCounts[oldUserReaction] || 0) - 1);
+        }
+        newCounts[type] = (newCounts[type] || 0) + 1;
+        newMyReaction = type;
     }
 
-    // 3. Render background/others
-    if (window.render) window.render();
+    // UPDATE DOM IMMEDIATELY
+    ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(t => {
+        const el = document.getElementById(`det-${t}-count`);
+        const btn = document.getElementById(`btn-react-${t}`);
 
-    // 4. Await server response silently (or handle error if needed)
+        if (el) el.innerText = newCounts[t] || 0;
+
+        if (btn) {
+            // Remove active from everything first, or just check logic
+            if (newMyReaction === t) {
+                btn.classList.add('active');
+                // Optional: Add simple pop animation
+                btn.style.transform = "scale(1.2)";
+                setTimeout(() => btn.style.transform = "scale(1)", 200);
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+    });
+
+    // --- SYNC WITH STORE & SERVER ---
     try {
-        await reqPromise;
+        await store.toggleReaction(currentId, type);
     } catch (e) {
-        console.error("Reaction failed:", e);
-        // Could revert UI here if needed, but for now we trust the store handles it or we accept slight desync on error
+        console.error("Reaction Sync Failed", e);
+        // Silent fail or revert if critical
     }
 };
 
