@@ -335,8 +335,8 @@ const getFilteredPrompts = () => {
     }
 
     // 4. Sorting
-    if (filters.sort === 'newest') list.sort((a, b) => b.createdAt - a.createdAt);
-    if (filters.sort === 'oldest') list.sort((a, b) => a.createdAt - b.createdAt);
+    if (filters.sort === 'newest') list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (filters.sort === 'oldest') list.sort((a, b) => (a.createdAt || Infinity) - (b.createdAt || Infinity));
     if (filters.sort === 'popular') {
         list.sort((a, b) => {
             const reaA = Object.values(a.reactions || {}).reduce((x, y) => x + y, 0);

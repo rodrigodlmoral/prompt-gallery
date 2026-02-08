@@ -129,9 +129,12 @@ const store = {
                 }
             }
 
-            // Ordenar en el cliente
+            // Ordenar en el cliente (Descendente: más nuevo primero)
             const sortedItems = records.items.sort((a, b) => {
-                return new Date(b.created) - new Date(a.created);
+                const getVal = (p) => (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : p.created;
+                const dateA = new Date(getVal(a));
+                const dateB = new Date(getVal(b));
+                return dateB - dateA;
             });
 
             this.prompts = sortedItems.map(p => ({
@@ -142,8 +145,12 @@ const store = {
                 image: p.image_url || p.image, // Normalización de campo de imagen
                 author: p.author_name || p.expand?.author?.name || 'Explorador',
                 author_id: p.author,
-                createdAt: new Date(p.created_at_custom || p.created || p.created_at_original).getTime(),
-                created_at: p.created_at_custom || p.created,
+                createdAt: (() => {
+                    const val = (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : (p.created || p.created_at_original);
+                    const d = new Date(val);
+                    return isNaN(d.getTime()) ? 0 : d.getTime();
+                })(),
+                created_at: (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : p.created,
                 reactions: p.reactions || { like: 0, love: 0, fire: 0, funny: 0 },
                 comments: p.comments || [],
                 savedBy: p.saved_by || [],
@@ -444,9 +451,8 @@ const store = {
                 tool: data.tool,
                 rating: data.rating,
                 content: processedContent,
-                extra_config: data.extraConfig,
                 tags: data.tags || [], // NUEVO
-                created_at_custom: new Date().toISOString(),
+                created_at_custom: new Date().toISOString(), // Usamos ISO para asegurar orden correcto
                 reactions: { like: 0, love: 0, fire: 0, funny: 0 },
                 comments: [],
                 saved_by: []
