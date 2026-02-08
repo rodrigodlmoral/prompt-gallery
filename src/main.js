@@ -1679,6 +1679,13 @@ window.doPublish = () => {
 
     if (!title) { if (window.toast) window.toast("El título es obligatorio", "error"); return; }
 
+    const pubBtn = document.getElementById('pubBtn');
+    if (pubBtn) {
+        pubBtn.disabled = true;
+        pubBtn.innerText = 'Publicando...';
+    }
+    if (window.toast) window.toast("🚀 Publicando tu prompt...", "info");
+
     const extraConfig = [];
     document.querySelectorAll('.extra-config-row').forEach(row => {
         const type = row.querySelector('.extra-type').value;
@@ -1688,51 +1695,67 @@ window.doPublish = () => {
         }
     });
 
+    const resetBtn = () => {
+        if (pubBtn) {
+            pubBtn.disabled = false;
+            pubBtn.innerText = 'Publicar';
+        }
+    };
+
     if (postType === 'single') {
         const file = document.getElementById('upFile').files[0];
-        if (!file) { if (window.toast) window.toast("Imagen obligatoria", "error"); return; }
-        const negPrompt = document.getElementById('upNegPrompt').value; // NUEVO
+        if (!file) {
+            if (window.toast) window.toast("Imagen obligatoria", "error");
+            resetBtn();
+            return;
+        }
+        const negPrompt = document.getElementById('upNegPrompt').value;
         const reader = new FileReader();
         reader.onload = async () => {
-            const res = await store.addPrompt({
-                title,
-                tool,
-                rating: document.getElementById('upRating').value,
-                image: reader.result,
-                prompt: document.getElementById('upPrompt').value,
-                negative_prompt: negPrompt, // NUEVO
-                type: 'single',
-                isPrivate,
-                needsReference,
-                isPrivate,
-                needsReference,
-                extraConfig,
-                tags: Array.from(window.selectedTags) // NUEVO
-            });
-            if (!res.success) alert(res.msg);
-            else {
-                window.closeModals();
-                // Actualizar stats del usuario para ver nuevo nivel/tokens
-                await store.loadUsers();
-                render();
-
-                // Track Event in GA4
-                window.trackEvent('publish_post', {
-                    title: title,
-                    tool: tool,
-                    type: 'single'
+            try {
+                const res = await store.addPrompt({
+                    title,
+                    tool,
+                    rating: document.getElementById('upRating').value,
+                    image: reader.result,
+                    prompt: document.getElementById('upPrompt').value,
+                    negative_prompt: negPrompt,
+                    type: 'single',
+                    isPrivate,
+                    needsReference,
+                    extraConfig,
+                    tags: Array.from(window.selectedTags)
                 });
 
-                if (res.leveledUp) {
-                    setTimeout(() => window.showLevelUpModal(res.newLevel), 500);
+                if (!res.success) {
+                    window.toast("❌ " + res.msg, "error");
+                    resetBtn();
+                } else {
+                    if (window.toast) window.toast("✅ ¡Publicado con éxito!", "success");
+                    window.closeModals();
+                    await store.loadUsers();
+                    render();
+
+                    window.trackEvent('publish_post', { title, tool, type: 'single' });
+
+                    if (res.leveledUp) {
+                        setTimeout(() => window.showLevelUpModal(res.newLevel), 500);
+                    }
                 }
+            } catch (err) {
+                window.toast("❌ Error crítico: " + err.message, "error");
+                resetBtn();
             }
         };
         reader.readAsDataURL(file);
     } else {
         // Sequence
         const steps = Array.from(document.querySelectorAll('.seq-step'));
-        if (steps.length === 0) { if (window.toast) window.toast("Añade al menos un paso", "warning"); return; }
+        if (steps.length === 0) {
+            if (window.toast) window.toast("Añade al menos un paso", "warning");
+            resetBtn();
+            return;
+        }
 
         const content = [];
         let loaded = 0;
@@ -1740,14 +1763,22 @@ window.doPublish = () => {
         steps.forEach((step, idx) => {
             const file = step.querySelector('.seqFile').files[0];
             const prompt = step.querySelector('.seqPrompt').value;
-            const negPrompt = step.querySelector('.seqNegPrompt').value; // NUEVO
+            const negPrompt = step.querySelector('.seqNegPrompt').value;
             const rating = step.querySelector('.seqRating').value;
-            if (!file) return alert(`Falta imagen en paso ${idx + 1}`);
-            if (!isImageFile(file)) return alert(`❌ El archivo en el paso ${idx + 1} no es una imagen válida.`);
+            if (!file) {
+                window.toast(`Falta imagen en paso ${idx + 1}`, "error");
+                resetBtn();
+                return;
+            }
+            if (!isImageFile(file)) {
+                window.toast(`❌ Archivo paso ${idx + 1} no es imagen`, "error");
+                resetBtn();
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = () => {
-                content.push({ image: reader.result, prompt, negative_prompt: negPrompt, rating }); // NUEVO
+                content.push({ image: reader.result, prompt, negative_prompt: negPrompt, rating });
                 loaded++;
                 if (loaded === steps.length) {
                     store.addPrompt({
@@ -1757,26 +1788,22 @@ window.doPublish = () => {
                         content,
                         isPrivate,
                         needsReference,
-                        isPrivate,
-                        needsReference,
                         extraConfig,
-                        tags: Array.from(window.selectedTags) // NUEVO
+                        tags: Array.from(window.selectedTags)
                     }).then(res => {
                         if (!res.success) {
-                            alert("❌ Error: " + res.msg);
+                            window.toast("❌ Error: " + res.msg, "error");
+                            resetBtn();
                         } else {
+                            if (window.toast) window.toast("✅ ¡Secuencia publicada!", "success");
                             seqStepCount = 0;
                             window.closeModals();
                             render();
-
-                            // Track Event in GA4
-                            window.trackEvent('publish_post', {
-                                title: title,
-                                tool: tool,
-                                type: 'sequence',
-                                steps: steps.length
-                            });
+                            window.trackEvent('publish_post', { title, tool, type: 'sequence', steps: steps.length });
                         }
+                    }).catch(err => {
+                        window.toast("❌ Error en secuencia: " + err.message, "error");
+                        resetBtn();
                     });
                 }
             };
