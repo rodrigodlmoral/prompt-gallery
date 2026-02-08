@@ -64,7 +64,7 @@ window.adminSort = { col: 'username', dir: 'asc' };
 // --- TOP CREATORS STATE ---
 let topCreatorsList = [];
 window.openUserProfile = (username) => {
-    window.location.href = `/ profile.html ? u = ${encodeURIComponent(username)} `;
+    window.location.href = `/profile.html?u=${encodeURIComponent(username)}`;
 };
 
 // --- TAGS STATE ---
