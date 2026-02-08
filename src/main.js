@@ -4,6 +4,7 @@ import { pb } from './pocketbase.js';
 import { store, TOOLS, RATINGS, RATING_INFO, INFO_ICON, LEVEL_REQS } from './store-final.js';
 import { uploadToCloudinary } from './uploadService.js';
 import { TAG_CATEGORIES } from './data/tags.js';
+import { DetailModalTemplate } from './components/DetailModal.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;
@@ -11,7 +12,7 @@ const MAINTENANCE_END_TIME = new Date('2026-02-05T04:35:00-06:00').getTime(); //
 
 const renderMaintenance = () => {
     document.body.innerHTML = `
-        <div style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0a0a0a; color:white; font-family: 'Inter', sans-serif; text-align:center; padding:20px">
+    < div style = "height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0a0a0a; color:white; font-family: 'Inter', sans-serif; text-align:center; padding:20px" >
             <div style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); padding: 50px; border-radius: 32px; border: 1px solid rgba(255, 255, 255, 0.12); max-width: 500px; box-shadow: 0 20px 50px rgba(0,0,0,0.5)">
                 <div style="font-size: 5rem; margin-bottom: 25px; animation: float 3s ease-in-out infinite">🏗️</div>
                 <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 15px; background: linear-gradient(135deg, #fff 0%, #888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -1px">Estamos Mejorando</h1>
@@ -32,7 +33,7 @@ const renderMaintenance = () => {
                 }
                 body { margin: 0; overflow: hidden; background: #050505; }
             </style>
-        </div>
+        </div >
     `;
 
     // Temporizador removido por solicitud del usuario
@@ -63,7 +64,7 @@ window.adminSort = { col: 'username', dir: 'asc' };
 // --- TOP CREATORS STATE ---
 let topCreatorsList = [];
 window.openUserProfile = (username) => {
-    window.location.href = `/profile.html?u=${encodeURIComponent(username)}`;
+    window.location.href = `/ profile.html ? u = ${encodeURIComponent(username)} `;
 };
 
 // --- TAGS STATE ---
@@ -89,12 +90,12 @@ setInterval(() => {
         if (isModal) {
             // Force inject button in MODAL detail
             if (!hasButton) {
-                overlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; font-weight:700; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
+                overlay.innerHTML = `< span >🔞 ${warningLabel}</span > <button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; font-weight:700; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
             }
         } else {
             // Dashboard / Collage: Only show Label, NO button
             if (hasButton || !hasLabel) {
-                overlay.innerHTML = `<span>🔞 ${warningLabel}</span>`;
+                overlay.innerHTML = `< span >🔞 ${warningLabel}</span > `;
             }
         }
     });
@@ -124,7 +125,7 @@ window.setFilter = (key, value) => {
 
 const renderCollage = (p, isHero = false) => {
     if (p.type !== 'sequence' || !p.content || p.content.length === 0) {
-        return `<img src="${p.image || ''}" loading="lazy">`;
+        return `< img src = "${p.image || ''}" loading = "lazy" > `;
     }
 
     // Support up to 6 items
@@ -141,7 +142,7 @@ const renderCollage = (p, isHero = false) => {
     else if (count >= 6) gridStyle = 'grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr;';
 
     return `
-    <div class="card-collage" style="${gridStyle}">
+    < div class="card-collage" style = "${gridStyle}" >
         ${items.map((step, idx) => {
         const { applyBlur } = getModeration(p, step.rating);
         let spanStyle = '';
@@ -159,14 +160,15 @@ const renderCollage = (p, isHero = false) => {
             <div class="collage-item ${applyBlur ? 'card-blurred' : ''}" data-warning="${applyBlur ? warningLabel : ''}" style="${spanStyle}">
                 <img src="${step.image}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">
             </div>`;
-    }).join('')}
-    </div>`;
+    }).join('')
+        }
+    </div > `;
 };
 
 // --- LEGAL CONTENT ---
 const LEGAL_TEXTS = {
     tos: `
-        <h2>Términos de Servicio</h2>
+    < h2 > Términos de Servicio</h2 >
         <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
             <p><strong>1. Licencia de Uso:</strong> Prompt Gallery es una plataforma para compartir, descubrir y organizar prompts de IA. Al utilizar nuestros servicios, aceptas operar bajo estos términos.</p>
             <p><strong>2. Propiedad Intelectual:</strong> Tú conservas todos los derechos de autor sobre los prompts y secuencias que creas. Sin embargo, al publicarlos en la plataforma (en modo público), otorgas a Prompt Gallery y a sus usuarios una licencia no exclusiva, mundial y gratuita para ver, copiar, modificar y ejecutar dichos prompts.</p>
@@ -174,9 +176,9 @@ const LEGAL_TEXTS = {
             <p><strong>4. Clasificación Obligatoria:</strong> Es tu deber etiquetar correctamente el contenido (SFW, Sugestivo, NSFW). El uso indebido de etiquetas resultará en la suspensión de la cuenta.</p>
             <p><strong>5. Modificaciones:</strong> Nos reservamos el derecho de actualizar estos términos en cualquier momento. El uso continuado implica la aceptación de los cambios.</p>
         </div>
-    `,
+`,
     privacy: `
-        <h2>Política de Privacidad</h2>
+    < h2 > Política de Privacidad</h2 >
         <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
             <p><strong>1. Recolección de Datos:</strong> Recopilamos información mínima necesaria: correo electrónico, nombre de usuario y datos técnicos de acceso (IP, navegador) para seguridad y análisis.</p>
             <p><strong>2. Imágenes y Prompts:</strong> Las imágenes subidas a servidores públicos son accesibles externamente. Recomendamos no subir fotos personales privadas ni información sensible en los prompts.</p>
@@ -184,9 +186,9 @@ const LEGAL_TEXTS = {
             <p><strong>4. Terceros:</strong> No vendemos tus datos a terceros. Podemos utilizar servicios de análisis anonimizados para mejorar la experiencia.</p>
             <p><strong>5. Tus Derechos:</strong> Puedes solicitar la eliminación de tu cuenta y todos tus datos enviando un correo a soporte o desde la configuración de tu perfil.</p>
         </div>
-    `,
+`,
     safety: `
-        <h2>Centro de Seguridad</h2>
+    < h2 > Centro de Seguridad</h2 >
         <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
             <p><strong>Nuestra Prioridad:</strong> Mantener un entorno creativo seguro y respetuoso.</p>
             <ul>
@@ -196,28 +198,28 @@ const LEGAL_TEXTS = {
             </ul>
             <p><strong>Consejo:</strong> Nunca compartas tu contraseña ni datos bancarios con otros usuarios.</p>
         </div>
-    `,
+`,
     faq: `
-        <h2>Preguntas Frecuentes (FAQ)</h2>
+    < h2 > Preguntas Frecuentes(FAQ)</h2 >
         <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
             <p><strong>¿Qué es Prompt Gallery?</strong><br>
-            Es una comunidad para entusiastas de la IA Generativa. Puedes guardar, organizar y compartir prompts para herramientas como Midjourney, Stable Diffusion, DALL-E, etc.</p>
-            
+                Es una comunidad para entusiastas de la IA Generativa. Puedes guardar, organizar y compartir prompts para herramientas como Midjourney, Stable Diffusion, DALL-E, etc.</p>
+
             <p><strong>¿Es gratuito?</strong><br>
-            Sí, el registro y uso básico es 100% gratuito. Ofrecemos funciones avanzadas para usuarios activos que suben de nivel.</p>
-            
+                Sí, el registro y uso básico es 100% gratuito. Ofrecemos funciones avanzadas para usuarios activos que suben de nivel.</p>
+
             <p><strong>¿Qué son los PromptBits?</strong><br>
-            Son puntos de reputación y moneda virtual. Los ganas al recibir propinas de otros usuarios o contribuir a la comunidad. Sirven para destacar tus posts y apoyar a otros creadores.</p>
-            
+                Son puntos de reputación y moneda virtual. Los ganas al recibir propinas de otros usuarios o contribuir a la comunidad. Sirven para destacar tus posts y apoyar a otros creadores.</p>
+
             <p><strong>¿Puedo vender mis prompts?</strong><br>
-            Actualmente la plataforma es de libre intercambio. Sin embargo, puedes incluir enlaces a tus redes o portafolios en tu perfil para que te contacten profesionalmente.</p>
-            
+                Actualmente la plataforma es de libre intercambio. Sin embargo, puedes incluir enlaces a tus redes o portafolios en tu perfil para que te contacten profesionalmente.</p>
+
             <p><strong>¿Cómo subo de nivel?</strong><br>
-            Publicando prompts de calidad. Cada nivel desbloquea nuevas funciones como publicar secuencias, personalizar tu perfil o destacar posts.</p>
+                Publicando prompts de calidad. Cada nivel desbloquea nuevas funciones como publicar secuencias, personalizar tu perfil o destacar posts.</p>
         </div>
-    `,
+`,
     support: `
-        <h2>📞 Centro de Soporte</h2>
+    < h2 >📞 Centro de Soporte</h2 >
         <p style="margin-bottom:15px; color:#aaa">Envíanos un ticket y te responderemos lo antes posible.</p>
         <div class="form-group">
             <label class="form-label">Tu Nombre</label>
@@ -232,11 +234,11 @@ const LEGAL_TEXTS = {
             <textarea id="supMsg" class="form-input" rows="4" placeholder="Describe tu problema o sugerencia..."></textarea>
         </div>
         <button class="btn" style="width:100%" onclick="window.submitSupport()">📨 Enviar Ticket</button>
-    `
+`
 };
 
 // --- COMPONENTS ---
-const TopBar = () => `<div class="top-bar"><div class="container top-bar-inner"><div class="top-bar-links"><span onclick="window.openInfo('tos')">Términos</span><span onclick="window.openInfo('privacy')">Privacidad</span><span onclick="window.openInfo('safety')">Seguridad</span><span onclick="window.openInfo('faq')">Preguntas</span></div><button class="support-btn" onclick="window.openInfo('support')">💬 Soporte</button></div></div>`;
+const TopBar = () => `< div class="top-bar" > <div class="container top-bar-inner"><div class="top-bar-links"><span onclick="window.openInfo('tos')">Términos</span><span onclick="window.openInfo('privacy')">Privacidad</span><span onclick="window.openInfo('safety')">Seguridad</span><span onclick="window.openInfo('faq')">Preguntas</span></div><button class="support-btn" onclick="window.openInfo('support')">💬 Soporte</button></div></div > `;
 
 const getModeration = (p, forcedRating) => {
     // Si no hay rating, asumimos SFW por defecto
@@ -357,7 +359,7 @@ const getFilteredPrompts = () => {
 };
 
 const Header = () => `
-<header style="height:auto; display:flex; flex-direction:column">
+    < header style = "height:auto; display:flex; flex-direction:column" >
     <div class="container" style="height:72px; border-bottom:1px solid #222">
         <div class="logo" onclick="window.goHome()" style="cursor:pointer">✨ Prompt Gallery</div>
         
@@ -381,16 +383,16 @@ const Header = () => `
         </nav>
     </div>
 
-    <!-- Mobile Search Overlay -->
+    <!--Mobile Search Overlay-- >
     <div class="search-mobile-overlay">
         <div class="container" style="display:flex; align-items:center; gap:10px; height:100%">
-             <button class="btn-icon" onclick="document.querySelector('.search-mobile-overlay').classList.remove('active')" style="font-size:1.2rem; color:#fff">✕</button>
-             <div class="search-bar" style="flex:1; max-width:none">
+            <button class="btn-icon" onclick="document.querySelector('.search-mobile-overlay').classList.remove('active')" style="font-size:1.2rem; color:#fff">✕</button>
+            <div class="search-bar" style="flex:1; max-width:none">
                 <input type="search" class="search-input" id="searchMobileInput" placeholder="Buscar prompts..." value="${searchQuery}" autocomplete="off" onkeydown="if(event.key === 'Enter'){ window.handleSearch(this.value); document.querySelector('.search-mobile-overlay').classList.remove('active'); }">
-             </div>
+            </div>
         </div>
     </div>
-    </div>
+    </div >
     ${store.currentUser ? `
     <div class="container" style="padding:10px 20px; display:flex; gap:10px; overflow-x:auto; background:rgba(0,0,0,0.3)">
         <select id="sourceFilter" onchange="window.setFilter('source', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem" ${currentView === 'profile' ? 'disabled' : ''}>
@@ -424,8 +426,9 @@ const Header = () => `
             ${RATINGS.map(r => `<option value="${r}" ${filters.rating === r ? 'selected' : ''}>${r}</option>`).join('')}
         </select>
     </div>
-    ` : ''}
-</header>`;
+    ` : ''
+    }
+</header > `;
 
 const HeroCarousel = () => {
     if (currentView !== 'home') return '';
@@ -466,9 +469,9 @@ const HeroCarousel = () => {
     const list = featured.length < 6 ? featured : featured.concat(featured);
 
     return `
-    <div class="container" style="margin-top:20px; margin-bottom:-10px">
+    < div class="container" style = "margin-top:20px; margin-bottom:-10px" >
         <h2 style="font-size:1.2rem; font-weight:800; color:var(--accent); letter-spacing:1px">🌟 PROMPTS DESTACADOS</h2>
-    </div>
+    </div >
     <div class="hero-carousel">
         <div class="carousel-track" style="${featured.length < 6 ? 'animation:none; justify-content:center; width:100%' : ''}">
             ${list.map((p, idx) => {
@@ -537,11 +540,11 @@ const ProfileHeader = () => {
         };
     }
 
-    if (!user) return `<div class="container" style="padding:40px; text-align:center">
+    if (!user) return `< div class="container" style = "padding:40px; text-align:center" >
         <h2>Usuario no encontrado</h2>
         <p>El usuario @${profileUser} no existe o no ha cargado.</p>
         <button class="btn" onclick="window.location.reload()">Recargar</button>
-    </div>`;
+    </div > `;
 
     const isMe = store.currentUser && store.currentUser.username.toLowerCase() === user.username.toLowerCase();
 
@@ -553,19 +556,19 @@ const ProfileHeader = () => {
     const lvlInfo = getLevelInfo(user.level || 0);
 
     return `
-    <div class="profile-header">
+    < div class="profile-header" >
         <div class="container" style="padding: 40px 0 0 0;">
             <div style="display:flex; gap:30px; align-items:center; margin-bottom:30px">
                 <div class="user-avatar-lg" style="background-image:url('${user.avatar || 'https://robohash.org/' + user.username}')"></div>
                 <div>
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px">
                         <h1 style="font-size:2.5rem; margin:0">${window.escapeHTML(user.username)}</h1>
-                        
+
                         <!-- Level Badge -->
-                        <span class="level-badge tier-${user.level || 0}" 
-                              title="${isMe ? 'Haz clic para ver tu progreso' : 'Nivel ' + (user.level || 0)}"
-                              style="${isMe ? 'cursor:pointer' : ''}"
-                              ${isMe ? 'onclick="window.openLevelProgress()"' : ''}>
+                        <span class="level-badge tier-${user.level || 0}"
+                            title="${isMe ? 'Haz clic para ver tu progreso' : 'Nivel ' + (user.level || 0)}"
+                            style="${isMe ? 'cursor:pointer' : ''}"
+                            ${isMe ? 'onclick="window.openLevelProgress()"' : ''}>
                             ${lvlInfo.icon} NIVEL ${user.level || 0} - ${lvlInfo.name}
                         </span>
                     </div>
@@ -590,14 +593,14 @@ const ProfileHeader = () => {
         return '';
     }).join('')}
                     </div>
-                    
+
                     <div style="display:flex; gap:20px; color:#888; font-size:0.9rem; align-items:center">
                         <div class="token-display" title="PromptBits (Tu saldo actual)">💎 ${user.tokens || 0} PromptBits</div>
                         <span>|</span>
                         <span>${user.followers?.length || 0} Seguidores</span>
                         <span>${user.following?.length || 0} Siguiendo</span>
                     </div>
-                    
+
                     ${user.socials ? `
                     <div style="display:flex; gap:15px; margin-top:10px; align-items:center">
                         ${user.socials.ig ? `<a href="${user.socials.ig.startsWith('http') ? user.socials.ig : 'https://instagram.com/' + user.socials.ig.replace('@', '')}" target="_blank" title="Instagram" style="text-decoration:none; width:24px; height:24px">
@@ -625,8 +628,8 @@ const ProfileHeader = () => {
                         </a>` : ''}
 
                     </div>` : ''}
-                    
-                     ${!isMe ? `<button class="btn" style="margin-top:15px" onclick="window.doFollow('${user.username}')">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
+
+                    ${!isMe ? `<button class="btn" style="margin-top:15px" onclick="window.doFollow('${user.username}')">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
             : `<button class="btn-outline" style="margin-top:15px" onclick="window.openSettings()">⚙️ Configurar Perfil</button>`}
                 </div>
             </div>
@@ -634,9 +637,9 @@ const ProfileHeader = () => {
                 <button class="profile-tab ${profileTab === 'creations' ? 'active' : ''}" onclick="window.setProfileTab('creations')">Creaciones</button>
                 ${isMe ? `<button class="profile-tab ${profileTab === 'saved' ? 'active' : ''}" onclick="window.setProfileTab('saved')">Guardados</button>` : ''}
             </div>
-            </div>
         </div>
-    </div>`;
+        </div >
+    </div > `;
 };
 
 // --- TOP CREATORS COMPONENT ---
@@ -644,7 +647,7 @@ const renderTopCreators = (details) => {
     // Hide for visitors (no currentUser) or empty details
     if (!store.currentUser || !details || details.length === 0) return '';
     return `
-    <div class="top-creators-banner">
+    < div class="top-creators-banner" >
         <div class="tc-header">
             <div>
                 <div class="tc-title">⭐ Top Creadores</div>
@@ -666,7 +669,7 @@ const renderTopCreators = (details) => {
             </div>`;
     }).join('')}
         </div>
-    </div>`;
+    </div > `;
 };
 
 const loadTopCreators = async () => {
@@ -682,30 +685,30 @@ const Gallery = () => {
     if (list.length === 0) {
         if (isMyProfile) {
             return `
-            <div class="container" style="padding: 40px 20px; text-align: center;">
-                <div style="background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%); padding: 60px 20px; border-radius: 20px; border: 1px dashed #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                    <div style="font-size: 4rem; margin-bottom: 20px;">✨</div>
-                    <h2 style="font-size: 2rem; color: #fff; margin-bottom: 10px;">¡Tu galería está lista para brillar!</h2>
-                    <p style="color: #888; font-size: 1.1rem; margin-bottom: 30px; max-width: 500px; margin-left: auto; margin-right: auto;">
-                        Aún no has compartido ningún prompt. ¡Sé el primero en inspirar a la comunidad con tus creaciones!
-                    </p>
-                    <button class="btn" onclick="document.getElementById('createModal').style.display = 'flex'" style="padding: 15px 40px; font-size: 1.2rem; border-radius: 50px; background: var(--accent); color: white; border: none; cursor: pointer; transition: transform 0.2s; font-weight: bold; box-shadow: 0 5px 15px var(--accent-alpha);">
-                        🚀 Comparte tu primer prompt
-                    </button>
-                </div>
-            </div>`;
+    < div class="container" style = "padding: 40px 20px; text-align: center;" >
+        <div style="background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%); padding: 60px 20px; border-radius: 20px; border: 1px dashed #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="font-size: 4rem; margin-bottom: 20px;">✨</div>
+            <h2 style="font-size: 2rem; color: #fff; margin-bottom: 10px;">¡Tu galería está lista para brillar!</h2>
+            <p style="color: #888; font-size: 1.1rem; margin-bottom: 30px; max-width: 500px; margin-left: auto; margin-right: auto;">
+                Aún no has compartido ningún prompt. ¡Sé el primero en inspirar a la comunidad con tus creaciones!
+            </p>
+            <button class="btn" onclick="document.getElementById('createModal').style.display = 'flex'" style="padding: 15px 40px; font-size: 1.2rem; border-radius: 50px; background: var(--accent); color: white; border: none; cursor: pointer; transition: transform 0.2s; font-weight: bold; box-shadow: 0 5px 15px var(--accent-alpha);">
+                🚀 Comparte tu primer prompt
+            </button>
+        </div>
+            </div > `;
         } else if (currentView === 'profile') {
             return `
-            <div class="container" style="padding: 80px 20px; text-align: center; color: #666;">
+    < div class="container" style = "padding: 80px 20px; text-align: center; color: #666;" >
                 <div style="font-size: 3rem; margin-bottom: 20px; grayscale: 1; opacity: 0.5;">🏜️</div>
                 <h3 style="font-size: 1.5rem; margin-bottom: 10px;">Este usuario aún no ha compartido prompts</h3>
                 <p>Vuelve más tarde para ver sus creaciones.</p>
-            </div>`;
+            </div > `;
         }
     }
 
-    return `<div class="container"><div class="gallery-grid">
-        ${list.map((p, idx) => {
+    return `< div class="container" > <div class="gallery-grid">
+    ${list.map((p, idx) => {
         const { applyBlur, warningLabel } = getModeration(p);
         const reactions = p.reactions || { like: 0, love: 0, fire: 0, funny: 0 };
         const totalReacts = Object.values(reactions).reduce((a, b) => a + b, 0);
@@ -752,7 +755,7 @@ const Gallery = () => {
         const adBanner = (idx > 11 && (idx + 1) % 12 === 0) ? `</div><div class="ad-banner"></div><div class="gallery-grid">` : '';
         return card + topCreatorsBanner + adBanner;
     }).join('')}
-    </div>
+</div>
     
     ${!store.currentUser ? `
     <div class="container" style="margin-top: 40px; padding: 40px 20px;">
@@ -772,81 +775,82 @@ const Gallery = () => {
             </div>
         </div>
     </div>
-    ` : ''}
-    </div></div>`;
+    ` : ''
+        }
+    </div ></div > `;
 };
 
 const TipModal = () => `
-<div id="tipModal" class="modal-overlay" style="display:none; z-index:9999999 !important;"><div class="modal-container" style="max-width:400px; text-align:center; position:relative; z-index:9999999">
-    <div style="font-size:3rem; margin-bottom:10px">💎</div>
-    <h2 id="tipTitle">Enviar Propina</h2>
-    <p id="tipSubtitle" style="color:#888; margin-bottom:20px"></p>
-    
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:20px">
-        <button class="btn-outline" onclick="window.doSendTip(5)">💎 5 PromptBits</button>
-        <button class="btn-outline" onclick="window.doSendTip(10)">💎 10 PromptBits</button>
-        <button class="btn-outline" onclick="window.doSendTip(20)">💎 20 PromptBits</button>
-        <button class="btn-outline" onclick="window.doSendTip(50)">💎 50 PromptBits</button>
-    </div>
-    
-    <div style="font-size:0.8rem; color:#666; margin-bottom:20px">
-        Tu saldo: <span id="tipMyTokens" style="color:#a29bfe; font-weight:700">0</span> PromptBits
-    </div>
+    < div id = "tipModal" class="modal-overlay" style = "display:none; z-index:9999999 !important;" > <div class="modal-container" style="max-width:400px; text-align:center; position:relative; z-index:9999999">
+        <div style="font-size:3rem; margin-bottom:10px">💎</div>
+        <h2 id="tipTitle">Enviar Propina</h2>
+        <p id="tipSubtitle" style="color:#888; margin-bottom:20px"></p>
 
-    <button class="btn-outline" style="width:100%; border:none; color:#666" onclick="window.closeModals()">Cancelar</button>
-</div></div>`;
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:20px">
+            <button class="btn-outline" onclick="window.doSendTip(5)">💎 5 PromptBits</button>
+            <button class="btn-outline" onclick="window.doSendTip(10)">💎 10 PromptBits</button>
+            <button class="btn-outline" onclick="window.doSendTip(20)">💎 20 PromptBits</button>
+            <button class="btn-outline" onclick="window.doSendTip(50)">💎 50 PromptBits</button>
+        </div>
+
+        <div style="font-size:0.8rem; color:#666; margin-bottom:20px">
+            Tu saldo: <span id="tipMyTokens" style="color:#a29bfe; font-weight:700">0</span> PromptBits
+        </div>
+
+        <button class="btn-outline" style="width:100%; border:none; color:#666" onclick="window.closeModals()">Cancelar</button>
+    </div></div > `;
 
 // --- MODALS ---
 const AuthModal = () => `
-<div id="authModal" class="modal-overlay" style="display:none;"><div class="modal-container">
-    <div id="loginForm">
-        <h2>Entrar</h2>
-        <input type="text" id="logUser" class="form-input" placeholder="Usuario o Email">
-        <div style="position:relative">
-            <input type="password" id="logPass" class="form-input" placeholder="Pass" style="padding-right:40px">
-            <span onclick="window.togglePass('logPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
-        </div>
-        <button class="btn" style="width:100%" onclick="window.doLoginSubmit()">Login</button>
-        <p style="margin-top:10px; font-size:0.9em">
-            <a href="#" onclick="window.toggleAuth('rec')" style="color:#666">¿Olvidaste tu contraseña?</a>
-        </p>
-        <p>¿No tienes cuenta? <a href="#" onclick="window.toggleAuth('reg')">Regístrate</a></p>
-    </div>
-    <div id="regForm" style="display:none;">
-        <h2>Registro</h2>
-        <input type="text" id="regEmail" class="form-input" placeholder="Email">
-        <input type="text" id="regUser" class="form-input" placeholder="Usuario">
-        <div style="position:relative">
-            <input type="password" id="regPass" class="form-input" placeholder="Contraseña" style="padding-right:40px">
-            <span onclick="window.togglePass('regPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
-        </div>
-        <button class="btn" style="width:100%" onclick="window.doRegisterSubmit()">Registrar</button>
-        <p>¿Ya tienes cuenta? <a href="#" onclick="window.toggleAuth('log')">Login</a></p>
-    </div>
-    <div id="recoverForm" style="display:none;">
-        <h2>Recuperar Pass</h2>
-        <p style="margin-bottom:15px; color:#888; font-size:0.85rem">Introduce tu email de registro:</p>
-        <input type="email" id="recEmail" class="form-input" placeholder="ejemplo@correo.com" style="margin-bottom:15px">
-        <button class="btn" style="width:100%" onclick="window.doRecoverSubmit()">Enviar Instrucciones</button>
-        <p style="margin-top:15px; font-size:0.9rem">
-            <a href="#" onclick="window.toggleAuth('log')" style="color:#666">Volver al Login</a>
-        </p>
-    </div>
-    <div id="activateForm" style="display:none;">
-        <h2>Activar Cuenta</h2>
-        <p style="margin-bottom:15px; color:#a29bfe; font-size:0.85rem; font-weight:700">¡Bienvenido! Elige tu nueva contraseña para activar tu perfil.</p>
-        <input type="text" id="actUser" class="form-input" placeholder="Usuario o Email">
-        <div style="position:relative">
-            <input type="password" id="actPass" class="form-input" placeholder="Nueva Contraseña" style="padding-right:40px">
-            <span onclick="window.togglePass('actPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
-        </div>
-        <button class="btn" style="width:100%" onclick="window.doActivateSubmit()">Activar y Entrar</button>
-    </div>
-    <button class="btn-outline" style="width:100%; border:none; margin-top:10px" onclick="window.closeModals()">Cancelar</button>
-</div></div>`;
+        < div id = "authModal" class="modal-overlay" style = "display:none;" > <div class="modal-container">
+            <div id="loginForm">
+                <h2>Entrar</h2>
+                <input type="text" id="logUser" class="form-input" placeholder="Usuario o Email">
+                    <div style="position:relative">
+                        <input type="password" id="logPass" class="form-input" placeholder="Pass" style="padding-right:40px">
+                            <span onclick="window.togglePass('logPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                    </div>
+                    <button class="btn" style="width:100%" onclick="window.doLoginSubmit()">Login</button>
+                    <p style="margin-top:10px; font-size:0.9em">
+                        <a href="#" onclick="window.toggleAuth('rec')" style="color:#666">¿Olvidaste tu contraseña?</a>
+                    </p>
+                    <p>¿No tienes cuenta? <a href="#" onclick="window.toggleAuth('reg')">Regístrate</a></p>
+            </div>
+            <div id="regForm" style="display:none;">
+                <h2>Registro</h2>
+                <input type="text" id="regEmail" class="form-input" placeholder="Email">
+                    <input type="text" id="regUser" class="form-input" placeholder="Usuario">
+                        <div style="position:relative">
+                            <input type="password" id="regPass" class="form-input" placeholder="Contraseña" style="padding-right:40px">
+                                <span onclick="window.togglePass('regPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                        </div>
+                        <button class="btn" style="width:100%" onclick="window.doRegisterSubmit()">Registrar</button>
+                        <p>¿Ya tienes cuenta? <a href="#" onclick="window.toggleAuth('log')">Login</a></p>
+                    </div>
+                    <div id="recoverForm" style="display:none;">
+                        <h2>Recuperar Pass</h2>
+                        <p style="margin-bottom:15px; color:#888; font-size:0.85rem">Introduce tu email de registro:</p>
+                        <input type="email" id="recEmail" class="form-input" placeholder="ejemplo@correo.com" style="margin-bottom:15px">
+                            <button class="btn" style="width:100%" onclick="window.doRecoverSubmit()">Enviar Instrucciones</button>
+                            <p style="margin-top:15px; font-size:0.9rem">
+                                <a href="#" onclick="window.toggleAuth('log')" style="color:#666">Volver al Login</a>
+                            </p>
+                    </div>
+                    <div id="activateForm" style="display:none;">
+                        <h2>Activar Cuenta</h2>
+                        <p style="margin-bottom:15px; color:#a29bfe; font-size:0.85rem; font-weight:700">¡Bienvenido! Elige tu nueva contraseña para activar tu perfil.</p>
+                        <input type="text" id="actUser" class="form-input" placeholder="Usuario o Email">
+                            <div style="position:relative">
+                                <input type="password" id="actPass" class="form-input" placeholder="Nueva Contraseña" style="padding-right:40px">
+                                    <span onclick="window.togglePass('actPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                            </div>
+                            <button class="btn" style="width:100%" onclick="window.doActivateSubmit()">Activar y Entrar</button>
+                    </div>
+                    <button class="btn-outline" style="width:100%; border:none; margin-top:10px" onclick="window.closeModals()">Cancelar</button>
+            </div></div>`;
 
 const CreateModal = () => `
-<div id="createModal" class="modal-overlay" style="display:none;"><div class="modal-container">
+                < div id = "createModal" class="modal-overlay" style = "display:none;" ><div class="modal-container">
     <h2>Compartir Prompt</h2>
     
     <div class="form-group">
@@ -931,95 +935,7 @@ const CreateModal = () => `
         <button class="btn-outline" onclick="window.closeModals()" style="width:100%">Cerrar</button>
 </div></div>`;
 
-const DetailModal = () => `
-<div id="viewModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) window.closeModals()">
-    <div class="view-modal-wrapper">
-        <div class="view-modal">
-            <button class="modal-close-x" onclick="window.closeModals()">✕</button>
-            <div class="view-img-side" id="detImgWrap">
-                <div id="detCopyBadge" style="position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.7); padding:4px 10px; border-radius:15px; font-size:0.7rem; color:var(--accent); font-weight:700; border:1px solid var(--accent); display:none; z-index:10">📋 Copiado 0 veces</div>
-                <img id="detImg" src="" alt="Post Image">
-                <button class="fullscreen-btn" onclick="window.doFullScreen()">🔍 Ver Pantalla Completa</button>
-                
-                <!-- Navegación de Secuencia Movida Fuera para mejor visibilidad -->
-                <div class="seq-nav-btn prev" id="detPrevBtn" onclick="window.prevSeqStep()" style="display:none">❮</div>
-                <div class="seq-nav-btn next" id="detNextBtn" onclick="window.nextSeqStep()" style="display:none">❯</div>
-                <div class="seq-counter" id="detSeqCount" style="display:none"></div>
-            </div>
-            
-            <div class="view-info-side">
-                <div class="view-scroll-content">
-                    <div id="detMetaTop" style="font-size:0.65rem; color:#666; font-weight:700; margin-bottom:5px; text-transform:uppercase"></div>
-                    <div id="detExtra" style="margin-bottom:10px; font-size:0.85rem"></div>
-                    
-                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px">
-                        <h2 id="detTitle" style="margin:0; flex:1"></h2>
-                        <div class="dropdown" style="position:relative">
-                            <button class="btn-icon" onclick="window.toggleOptionsMenu()" style="font-size:1.5rem">⋮</button>
-                            <div id="optionsMenu" class="dropdown-menu" style="right:0; left:auto; display:none">
-                                <div class="dropdown-item" onclick="window.doSavePrompt()">💾 Guardar</div>
-                                <div class="dropdown-item" onclick="window.doCopyPrompt()">📋 Copiar Prompt</div>
-                                <div class="dropdown-item" id="optReport" onclick="window.doReportPrompt()">⚠️ Reportar</div>
-                                <div class="dropdown-item" id="optHide" onclick="window.doHidePrompt()">🚫 Ocultar Post</div>
-                                <div class="dropdown-item" id="optBlock" onclick="window.doBlockUser()">👤 Bloquear Usuario</div>
-                                <div class="dropdown-item" id="optAdminFeature" style="display:none; color:gold" onclick="window.doAdminFeaturePrompt()">⭐ Destacar (Admin)</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div id="detUser" style="font-weight:700; margin-bottom:10px; color:var(--accent); cursor:pointer"></div>
-                    <div id="detOrigCreator" style="display:none; align-items:center; gap:5px; font-size:0.85rem; color:#888; margin-bottom:15px">
-                        <span>🎨 Creador Original:</span>
-                        <a id="detOrigLink" href="#" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:600"></a>
-                    </div>
-    
-                    <div id="detBadges" style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap"></div>
-                    <div id="detTags" class="server-tags-display"></div>
-                    
-                    <div style="position:relative">
-                        <div id="detPrompt" class="prompt-area"></div>
-                        <div id="detNegPrompt" class="prompt-area" style="display:none; margin-top:10px; border-color:#ff4444; background:rgba(255,0,0,0.05); color:#ff6666"></div>
-                        <div id="copyButtonsWrap" style="display:flex; flex-direction:column; gap:8px; margin-top:10px">
-                            <button class="btn-outline" onclick="window.doCopyPrompt('main')" style="width:100%">📋 Copiar Prompt</button>
-                            <button id="btnCopyNeg" class="btn-outline" onclick="window.doCopyPrompt('negative')" style="width:100%; display:none; border-color:rgba(255,68,68,0.4); color:#ff6666">❌ Copiar Neg. Prompt</button>
-                        </div>
-                    </div>
-                    
-                    <div class="reactions-flex" style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap">
-                        <button class="react-btn" id="btn-react-like" onclick="window.doReact('like')">👍 <small id="det-like-count">0</small></button>
-                        <button class="react-btn" id="btn-react-love" onclick="window.doReact('love')">❤️ <small id="det-love-count">0</small></button>
-                        <button class="react-btn" id="btn-react-fire" onclick="window.doReact('fire')">🔥 <small id="det-fire-count">0</small></button>
-                        <button class="react-btn" id="btn-react-funny" onclick="window.doReact('funny')">😂 <small id="det-funny-count">0</small></button>
-                        <button class="react-btn" id="btn-react-dislike" onclick="window.doReact('dislike')">👎 <small id="det-dislike-count">0</small></button>
-                        <button class="react-btn" id="btn-react-sad" onclick="window.doReact('sad')">😢 <small id="det-sad-count">0</small></button>
-                    </div>
-                    
-                    <div style="margin-top:20px; border-top:1px solid #222; padding-top:15px">
-                         <h3 style="font-size:1rem; margin-bottom:10px">Comentarios</h3>
-                         <div id="detComments"></div>
-                    </div>
-                </div>
-                
-                <div class="view-footer">
-                    <!-- Anti-Bot Container -->
-                    <div id="commAntiBot" class="comment-anti-bot-container" style="display:none">
-                        <div class="crystal-slider-wrapper" id="commSlider">
-                            <div class="crystal-slider-track-text">Desliza 💎 para confirmar</div>
-                            <div class="crystal-slider-handle" id="commSliderHandle">💎</div>
-                        </div>
-                        <input type="text" name="b_name" class="hp-field" id="commHoneypot" tabindex="-1" autocomplete="off">
-                    </div>
-
-                    <div style="display:flex; gap:10px; margin-top:10px">
-                        <input type="text" id="commInput" class="form-input" placeholder="Escribe un comentario..." onfocus="window.showSlider()">
-                        <button class="btn" id="commSubmitBtn" onclick="window.postComm()">Enviar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="ad-bottom"></div>
-    </div>
-</div>`;
+const DetailModal = DetailModalTemplate;
 
 const SettingsModal = () => {
     if (!store.currentUser) return '';
@@ -1028,130 +944,146 @@ const SettingsModal = () => {
     const mod = u.moderation || { suggestive: 'ON', nsfw: 'BLUR' };
 
     return `
-<div id="settingsModal" class="modal-overlay" style="display:none;">
-    <div class="modal-container" style="max-width:600px">
-        <h2>Configuración de Perfil</h2>
-        
-        <div class="settings-section" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #333">
-            <h3>👤 Cuenta</h3>
-            <div style="display:flex; gap:20px; align-items:center; margin-bottom:15px">
-                <div class="user-avatar-lg" id="previewAvatar" style="width:80px; height:80px; background-image:url('${u.avatar || 'https://robohash.org/' + u.username}')"></div>
-                <div>
-                    ${(u.level && u.level >= 2) ? `
+    < div id = "settingsModal" class="modal-overlay" style = "display:none;" >
+        <div class="modal-container" style="max-width:600px">
+            <h2>Configuración de Perfil</h2>
+
+            <div class="settings-section" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #333">
+                <h3>👤 Cuenta</h3>
+                <div style="display:flex; gap:20px; align-items:center; margin-bottom:15px">
+                    <div class="user-avatar-lg" id="previewAvatar" style="width:80px; height:80px; background-image:url('${u.avatar || 'https://robohash.org/' + u.username}')"></div>
+                    <div>
+                        ${(u.level && u.level >= 2) ? `
                     <button class="btn-outline" onclick="document.getElementById('setAvatarFile').click()">Cambiar Foto</button>
                     ` : `
                     <span style="background:rgba(255,165,0,0.1); color:#ffa500; padding:6px 12px; border-radius:4px; font-size:0.8rem; font-weight:700; border:1px solid rgba(255,165,0,0.3); cursor:not-allowed" title="Necesitas ser Nivel 2 (Principiante) para cambiar tu foto">🔒 Nivel 2 Requerido</span>
                     `}
-                    <input type="file" id="setAvatarFile" accept="image/*" style="display:none" onchange="window.previewAvatar(this)">
-                </div>
-            </div>
-            
-            <label class="form-label">Nombre de Usuario</label>
-            <input type="text" id="setUser" class="form-input" value="${u.username}">
-            
-            <div style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px">
-                <button class="btn-outline" onclick="document.getElementById('passSec').style.display = document.getElementById('passSec').style.display === 'none' ? 'block' : 'none'" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center">
-                    <span>🔒 Cambiar Contraseña</span>
-                    <span>▼</span>
-                </button>
-                <div id="passSec" style="display:none; margin-top:10px">
-                    <label class="form-label">Nueva Contraseña</label>
-                    <div style="position:relative">
-                        <input type="password" id="newPassInput" class="form-input" placeholder="Mínimo 6 caracteres" style="padding-right:40px">
-                        <span onclick="window.togglePass('newPassInput', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                        <input type="file" id="setAvatarFile" accept="image/*" style="display:none" onchange="window.previewAvatar(this)">
                     </div>
-                    <button class="btn" onclick="window.doChangePassword()" style="margin-top:10px; width:100%; background:#d32f2f">Actualizar Contraseña</button>
+                </div>
+
+                <label class="form-label">Nombre de Usuario</label>
+                <input type="text" id="setUser" class="form-input" value="${u.username}">
+
+                    <div style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px">
+                        <button class="btn-outline" onclick="document.getElementById('passSec').style.display = document.getElementById('passSec').style.display === 'none' ? 'block' : 'none'" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center">
+                            <span>🔒 Cambiar Contraseña</span>
+                            <span>▼</span>
+                        </button>
+                        <div id="passSec" style="display:none; margin-top:10px">
+                            <label class="form-label">Nueva Contraseña</label>
+                            <div style="position:relative">
+                                <input type="password" id="newPassInput" class="form-input" placeholder="Mínimo 6 caracteres" style="padding-right:40px">
+                                    <span onclick="window.togglePass('newPassInput', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                            </div>
+                            <button class="btn" onclick="window.doChangePassword()" style="margin-top:10px; width:100%; background:#d32f2f">Actualizar Contraseña</button>
+                        </div>
+                    </div>
+
+            </div>
+
+            <div class="settings-section" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #333; position:relative">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+                    <h3 style="margin:0">🌐 Redes Sociales</h3>
+                    ${(u.level && u.level >= 2) ? '' : `<span style="background:rgba(255,165,0,0.1); color:#ffa500; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:700; border:1px solid rgba(255,165,0,0.3)">🔒 Nivel 2 Requerido</span>`}
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; ${(u.level && u.level >= 2) ? '' : 'opacity:0.3; pointer-events:none; filter:grayscale(1)'}">
+                    <div>
+                        <label class="form-label">Instagram</label>
+                        <input type="text" id="setIg" class="form-input" placeholder="@usuario" value="${soc.ig || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                    </div>
+                    <div>
+                        <label class="form-label">Facebook</label>
+                        <input type="text" id="setFb" class="form-input" placeholder="URL o usuario" value="${soc.fb || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                    </div>
+                    <div>
+                        <label class="form-label">X / Twitter</label>
+                        <input type="text" id="setX" class="form-input" placeholder="@usuario" value="${soc.x || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                    </div>
+                    <div>
+                        <label class="form-label">Telegram Channel</label>
+                        <input type="text" id="setTg" class="form-input" placeholder="t.me/canal" value="${soc.tg || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                    </div>
+                    <div>
+                        <label class="form-label">Threads</label>
+                        <input type="text" id="setTh" class="form-input" placeholder="@usuario" value="${soc.th || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                    </div>
+                    <div>
+                        <label class="form-label">Fanvue</label>
+                        <input type="text" id="setFv" class="form-input" placeholder="URL Completa" value="${soc.fv || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                    </div>
                 </div>
             </div>
 
-        </div>
+            <div class="settings-section" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #333">
+                <h3>🛡️ Moderación de Contenido</h3>
 
-        <div class="settings-section" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #333; position:relative">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
-                <h3 style="margin:0">🌐 Redes Sociales</h3>
-                ${(u.level && u.level >= 2) ? '' : `<span style="background:rgba(255,165,0,0.1); color:#ffa500; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:700; border:1px solid rgba(255,165,0,0.3)">🔒 Nivel 2 Requerido</span>`}
-            </div>
+                <div style="margin-bottom:15px">
+                    <label class="form-label">Contenido Sugestivo</label>
+                    <select id="setModSugg" class="form-input">
+                        <option value="ON" ${mod.suggestive === 'ON' ? 'selected' : ''}>Mostrar</option>
+                        <option value="BLUR" ${mod.suggestive === 'BLUR' ? 'selected' : ''}>Difuminar (Blur)</option>
+                    </select>
+                </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; ${(u.level && u.level >= 2) ? '' : 'opacity:0.3; pointer-events:none; filter:grayscale(1)'}">
                 <div>
-                    <label class="form-label">Instagram</label>
-                    <input type="text" id="setIg" class="form-input" placeholder="@usuario" value="${soc.ig || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
-                </div>
-                <div>
-                    <label class="form-label">Facebook</label>
-                    <input type="text" id="setFb" class="form-input" placeholder="URL o usuario" value="${soc.fb || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
-                </div>
-                <div>
-                    <label class="form-label">X / Twitter</label>
-                    <input type="text" id="setX" class="form-input" placeholder="@usuario" value="${soc.x || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
-                </div>
-                <div>
-                    <label class="form-label">Telegram Channel</label>
-                    <input type="text" id="setTg" class="form-input" placeholder="t.me/canal" value="${soc.tg || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
-                </div>
-                <div>
-                    <label class="form-label">Threads</label>
-                    <input type="text" id="setTh" class="form-input" placeholder="@usuario" value="${soc.th || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
-                </div>
-                <div>
-                    <label class="form-label">Fanvue</label>
-                    <input type="text" id="setFv" class="form-input" placeholder="URL Completa" value="${soc.fv || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                    <label class="form-label">Contenido NSFW / +18</label>
+                    <select id="setModNsfw" class="form-input">
+                        <option value="ON" ${mod.nsfw === 'ON' ? 'selected' : ''}>Mostrar</option>
+                        <option value="BLUR" ${mod.nsfw === 'BLUR' ? 'selected' : ''}>Difuminar (Blur)</option>
+                        <option value="OFF" ${mod.nsfw === 'OFF' ? 'selected' : ''}>Apagar (No mostrar)</option>
+                    </select>
                 </div>
             </div>
-        </div>
 
-        <div class="settings-section" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #333">
-            <h3>🛡️ Moderación de Contenido</h3>
-            
-            <div style="margin-bottom:15px">
-                <label class="form-label">Contenido Sugestivo</label>
-                <select id="setModSugg" class="form-input">
-                    <option value="ON" ${mod.suggestive === 'ON' ? 'selected' : ''}>Mostrar</option>
-                    <option value="BLUR" ${mod.suggestive === 'BLUR' ? 'selected' : ''}>Difuminar (Blur)</option>
-                </select>
+            <div class="settings-section" style="margin-bottom:20px; background:#331111; padding:15px; border-radius:8px; border:1px solid #ff4444">
+                <h3 style="color:#ff4444; margin-top:0">⚠️ Zona de Peligro</h3>
+                <p style="font-size:0.9rem; color:#faa">Esta acción es irreversible. Se borrarán todos tus posts y datos.</p>
+                <button class="btn-outline" onclick="window.doDeleteAccount()" style="border-color:#ff4444; color:#ff4444; width:100%">ELIMINAR MI CUENTA</button>
             </div>
 
-            <div>
-                <label class="form-label">Contenido NSFW / +18</label>
-                <select id="setModNsfw" class="form-input">
-                    <option value="ON" ${mod.nsfw === 'ON' ? 'selected' : ''}>Mostrar</option>
-                    <option value="BLUR" ${mod.nsfw === 'BLUR' ? 'selected' : ''}>Difuminar (Blur)</option>
-                    <option value="OFF" ${mod.nsfw === 'OFF' ? 'selected' : ''}>Apagar (No mostrar)</option>
-                </select>
+            <div style="display:flex; gap:10px">
+                <button class="btn" onclick="window.saveSettings()" style="flex:1">Guardar Cambios</button>
+                <button class="btn-outline" onclick="window.closeModals()" style="flex:1">Cancelar</button>
             </div>
         </div>
-
-        <div class="settings-section" style="margin-bottom:20px; background:#331111; padding:15px; border-radius:8px; border:1px solid #ff4444">
-            <h3 style="color:#ff4444; margin-top:0">⚠️ Zona de Peligro</h3>
-            <p style="font-size:0.9rem; color:#faa">Esta acción es irreversible. Se borrarán todos tus posts y datos.</p>
-            <button class="btn-outline" onclick="window.doDeleteAccount()" style="border-color:#ff4444; color:#ff4444; width:100%">ELIMINAR MI CUENTA</button>
-        </div>
-
-        <div style="display:flex; gap:10px">
-            <button class="btn" onclick="window.saveSettings()" style="flex:1">Guardar Cambios</button>
-            <button class="btn-outline" onclick="window.closeModals()" style="flex:1">Cancelar</button>
-        </div>
-    </div>
-</div>`;
+</div > `;
 };
 
 const InfoModal = () => `
-<div id="infoModal" class="modal-overlay" style="display:none;"><div class="modal-container">
-    <div id="infoContent"></div>
-    <button class="btn" style="width:100%; margin-top:20px" onclick="window.closeModals()">OK</button>
-</div></div>`;
+    <div id="infoModal" class="modal-overlay" style="display:none;"><div class="modal-container">
+        <div id="infoContent"></div>
+        <button class="btn" style="width:100%; margin-top:20px" onclick="window.closeModals()">OK</button>
+    </div></div>`;
 
 const ConfirmModal = () => `
-<div id="confirmModal" class="modal-overlay" style="display:none; z-index:2147483647;"><div class="modal-container" style="max-width:400px; text-align:center">
-    <div id="confirmIcon" style="font-size:3rem; margin-bottom:15px">❓</div>
-    <div id="confirmText" style="font-size:1.1rem; margin-bottom:25px; line-height:1.5">¿Estás seguro?</div>
-    <div style="display:flex; gap:15px; justify-content:center">
-        <button class="btn btn-outline" style="flex:1" onclick="window.confirmResolve(false)">Cancelar</button>
-        <button class="btn" style="flex:1" onclick="window.confirmResolve(true)">Aceptar</button>
-    </div>
-</div></div>`;
+        <div id="confirmModal" class="modal-overlay" style="display:none; z-index:2147483647;"><div class="modal-container" style="max-width:400px; text-align:center">
+            <div id="confirmIcon" style="font-size:3rem; margin-bottom:15px">❓</div>
+            <div id="confirmText" style="font-size:1.1rem; margin-bottom:25px; line-height:1.5">¿Estás seguro?</div>
+            <div style="display:flex; gap:15px; justify-content:center">
+                <button class="btn btn-outline" style="flex:1" onclick="window.confirmResolve(false)">Cancelar</button>
+                <button class="btn" style="flex:1" onclick="window.confirmResolve(true)">Aceptar</button>
+            </div>
+        </div></div>`;
 
-const Modals = () => AuthModal() + CreateModal() + DetailModal() + InfoModal() + ConfirmModal();
+const ActivityModal = () => `
+    <div id="activityModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) window.closeModals()">
+        <div class="modal-container" style="max-width:700px; height:80vh; display:flex; flex-direction:column">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+                <h2 style="margin:0">📦 Actividad Reciente</h2>
+                <button class="modal-close-x" onclick="window.closeModals()" style="position:static">✕</button>
+            </div>
+            
+            <div id="activityList" style="flex:1; overflow-y:auto; padding-right:10px" class="custom-scrollbar">
+                <div class="loader-container">
+                    <div class="loader"></div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+const Modals = () => AuthModal() + CreateModal() + DetailModal() + InfoModal() + ConfirmModal() + ActivityModal();
 
 // --- LOGIC ---
 const render = () => {
@@ -1268,16 +1200,16 @@ window.toast = (message, type = 'info') => {
     }
 
     const toast = document.createElement('div');
-    toast.className = `pg-toast ${type}`;
+    toast.className = `pg - toast ${type} `;
 
     let icon = '🔔';
     if (type === 'success') icon = '✅';
     if (type === 'error') icon = '❌';
 
     toast.innerHTML = `
-        <div class="toast-icon">${icon}</div>
+    < div class="toast-icon" > ${icon}</div >
         <div class="toast-content">${message}</div>
-    `;
+`;
 
     container.appendChild(toast);
 
@@ -1316,13 +1248,13 @@ window.showTokenCelebration = (amount = 1, subtitle = null) => {
     const celebration = document.createElement('div');
     celebration.className = 'token-celebration';
     celebration.innerHTML = `
-        <div class="celebration-emoji">🎉</div>
+    < div class="celebration-emoji" >🎉</div >
         <div class="celebration-title">¡FELICIDADES!</div>
         <div class="celebration-token-amount">+${amount} 💎</div>
         <div class="celebration-subtitle">
             ${subtitle || '¡Sigue compartiendo prompts increíbles y ganando PromptBits!'}
         </div>
-    `;
+`;
 
     document.body.appendChild(celebration);
 
@@ -1427,14 +1359,14 @@ window.addExtraRow = () => {
     div.className = 'extra-config-row';
     div.style.cssText = 'display:flex; gap:10px; margin-bottom:10px; align-items:center';
     div.innerHTML = `
-        <select class="form-input extra-type" style="margin:0; flex:1">
+    < select class="form-input extra-type" style = "margin:0; flex:1" >
             <option value="CHECKPOINT">CHECKPOINT</option>
             <option value="LORA">LORA</option>
             <option value="EMBEDDING">EMBEDDING</option>
-        </select>
-        <input type="text" class="form-input extra-val" placeholder="Nombre/Valor..." style="margin:0; flex:2">
+        </select >
+    <input type="text" class="form-input extra-val" placeholder="Nombre/Valor..." style="margin:0; flex:2">
         <button class="btn-icon" onclick="this.parentElement.remove()" style="background:#444; width:24px; height:24px; flex-shrink:0">×</button>
-    `;
+        `;
     container.appendChild(div);
 };
 
@@ -1460,22 +1392,22 @@ window.addSeqStep = () => {
             ${INFO_ICON}
         </div>
         <input type="file" class="form-input seqFile" accept="image/*" style="margin-bottom:10px" onchange="window.previewFile(this, 'seqPreview-${seqStepCount}')">
-        <div id="seqPreview-${seqStepCount}" style="width:100%; display:none; background:#000; border-radius:8px; margin-bottom:10px; border:1px solid #333; align-items:center; justify-content:center; padding:10px; overflow:hidden">
-            <img src="" style="max-width:100%; max-height:300px; display:block; border-radius:4px">
-        </div>
-        
-        <label class="form-label" style="font-size:0.7rem; color:#666">PROMPT</label>
-        <textarea class="form-input seqPrompt" placeholder="Prompt para este paso" rows="3" style="margin-bottom:10px"></textarea>
+            <div id="seqPreview-${seqStepCount}" style="width:100%; display:none; background:#000; border-radius:8px; margin-bottom:10px; border:1px solid #333; align-items:center; justify-content:center; padding:10px; overflow:hidden">
+                <img src="" style="max-width:100%; max-height:300px; display:block; border-radius:4px">
+            </div>
 
-        <div style="display:flex; justify-content:center; margin-bottom:10px">
-             <button class="btn-outline" onclick="window.toggleNeg('${negId}')" style="padding:3px 10px; font-size:0.75rem; border-color:#ff4444; color:#ff4444; border-radius:20px; font-weight:700">+Añadir Negative Prompt</button>
-        </div>
-        
-        <div id="${negId}" style="display:none; margin-bottom:10px">
-            <label class="form-label" style="font-size:0.7rem; color:#ff4444">NEGATIVE PROMPT</label>
-            <textarea class="form-input seqNegPrompt" placeholder="Negative prompt para este paso..." rows="2" style="border-color:#ff4444; background:rgba(255,0,0,0.05)"></textarea>
-        </div>
-    `;
+            <label class="form-label" style="font-size:0.7rem; color:#666">PROMPT</label>
+            <textarea class="form-input seqPrompt" placeholder="Prompt para este paso" rows="3" style="margin-bottom:10px"></textarea>
+
+            <div style="display:flex; justify-content:center; margin-bottom:10px">
+                <button class="btn-outline" onclick="window.toggleNeg('${negId}')" style="padding:3px 10px; font-size:0.75rem; border-color:#ff4444; color:#ff4444; border-radius:20px; font-weight:700">+Añadir Negative Prompt</button>
+            </div>
+
+            <div id="${negId}" style="display:none; margin-bottom:10px">
+                <label class="form-label" style="font-size:0.7rem; color:#ff4444">NEGATIVE PROMPT</label>
+                <textarea class="form-input seqNegPrompt" placeholder="Negative prompt para este paso..." rows="2" style="border-color:#ff4444; background:rgba(255,0,0,0.05)"></textarea>
+            </div>
+            `;
     container.appendChild(stepDiv);
 };
 
@@ -1524,22 +1456,22 @@ window.openLevelProgress = () => {
     const needsCopies = nextLvlReq.copies > 0;
 
     const html = `
-        <div style="text-align:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #222">
-            <div style="font-size:3.5rem; margin-bottom:10px">${LEVEL_REQS[currentLvl].icon}</div>
-            <h2 style="margin:0; font-size:1.8rem; color:#fff">Tu Historial: Nivel ${currentLvl}</h2>
-            <p style="color:#aaa; margin-top:5px; font-weight:600; text-transform:uppercase; letter-spacing:1px">${LEVEL_REQS[currentLvl].name}</p>
-        </div>
-
-        <div style="background:#000; padding:25px; border-radius:16px; border:1px solid #333; margin-bottom:25px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5)">
-            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
-                <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Progreso de Posts'}</span>
-                <span style="color:#2563eb">${postsCount} / ${isMax ? '∞' : nextLvlReq.posts}</span>
-            </div>
-            <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333; margin-bottom:15px">
-                <div style="width:${progressPosts}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1s ease"></div>
+            <div style="text-align:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #222">
+                <div style="font-size:3.5rem; margin-bottom:10px">${LEVEL_REQS[currentLvl].icon}</div>
+                <h2 style="margin:0; font-size:1.8rem; color:#fff">Tu Historial: Nivel ${currentLvl}</h2>
+                <p style="color:#aaa; margin-top:5px; font-weight:600; text-transform:uppercase; letter-spacing:1px">${LEVEL_REQS[currentLvl].name}</p>
             </div>
 
-            ${needsCopies ? `
+            <div style="background:#000; padding:25px; border-radius:16px; border:1px solid #333; margin-bottom:25px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5)">
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
+                    <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Progreso de Posts'}</span>
+                    <span style="color:#2563eb">${postsCount} / ${isMax ? '∞' : nextLvlReq.posts}</span>
+                </div>
+                <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333; margin-bottom:15px">
+                    <div style="width:${progressPosts}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1s ease"></div>
+                </div>
+
+                ${needsCopies ? `
             <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
                 <span style="color:#888">Progreso de Copias</span>
                 <span style="color:#f1c40f">${copiesCount} / ${nextLvlReq.copies}</span>
@@ -1549,21 +1481,21 @@ window.openLevelProgress = () => {
             </div>
             ` : ''}
 
-            ${!isMax ? `
+                ${!isMax ? `
                 <p style="font-size:0.85rem; color:#888; margin-top:15px; text-align:center">
                     ${postsCount < nextLvlReq.posts ? `Te faltan <strong>${nextLvlReq.posts - postsCount}</strong> posts. ` : ''}
                     ${needsCopies && copiesCount < nextLvlReq.copies ? `Te faltan <strong>${nextLvlReq.copies - copiesCount}</strong> copias recibidas.` : ''}
                 </p>
             ` : ''}
-        </div>
+            </div>
 
-        <h3 style="font-size:1.2rem; margin-bottom:18px; color:#fff; display:flex; align-items:center; gap:10px">
-            <span>Beneficios y Jerarquía</span>
-            <div style="flex:1; height:1px; background:#222"></div>
-        </h3>
-        
-        <div style="display:flex; flex-direction:column; gap:12px">
-            ${LEVEL_REQS.map((l, idx) => {
+            <h3 style="font-size:1.2rem; margin-bottom:18px; color:#fff; display:flex; align-items:center; gap:10px">
+                <span>Beneficios y Jerarquía</span>
+                <div style="flex:1; height:1px; background:#222"></div>
+            </h3>
+
+            <div style="display:flex; flex-direction:column; gap:12px">
+                ${LEVEL_REQS.map((l, idx) => {
         const isUnlocked = postsCount >= l.posts && copiesCount >= (l.copies || 0);
         const isCurrent = currentLvl === idx;
         return `
@@ -1580,10 +1512,10 @@ window.openLevelProgress = () => {
                     </div>
                 </div>`;
     }).join('')}
-        </div>
+            </div>
 
-        <button class="btn" style="width:100%; margin-top:30px; height:54px; font-weight:800; font-size:1.1rem; background:#2563eb; color:white; border:none; border-radius:14px; cursor:pointer; box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2)" onclick="window.closeLevelProgress(this)">Entendido</button>
-    `;
+            <button class="btn" style="width:100%; margin-top:30px; height:54px; font-weight:800; font-size:1.1rem; background:#2563eb; color:white; border:none; border-radius:14px; cursor:pointer; box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2)" onclick="window.closeLevelProgress(this)">Entendido</button>
+            `;
 
     window.closeLevelProgress = (btn) => {
         btn.closest('.modal-overlay').remove();
@@ -1603,16 +1535,16 @@ window.openLevelProgress = () => {
     };
 
     modalDiv.innerHTML = `
-        <style>
-            #levelModalDynamic .modal-container::-webkit-scrollbar { width: 6px; }
-            #levelModalDynamic .modal-container::-webkit-scrollbar-track { background: transparent; }
-            #levelModalDynamic .modal-container::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-            #levelModalDynamic .modal-container::-webkit-scrollbar-thumb:hover { background: #444; }
-        </style>
-        <div class="modal-container" style="max-width:550px; background:#111; border:1px solid #333; border-radius:28px; width:100%; padding:35px; max-height:85vh; overflow-y:auto; box-shadow: 0 30px 60px rgba(0,0,0,0.8); position:relative; scroll-behavior: smooth;">
-            ${html}
-        </div>
-    `;
+            <style>
+                #levelModalDynamic .modal-container::-webkit-scrollbar {width: 6px; }
+                #levelModalDynamic .modal-container::-webkit-scrollbar-track {background: transparent; }
+                #levelModalDynamic .modal-container::-webkit-scrollbar-thumb {background: #333; border-radius: 10px; }
+                #levelModalDynamic .modal-container::-webkit-scrollbar-thumb:hover {background: #444; }
+            </style>
+            <div class="modal-container" style="max-width:550px; background:#111; border:1px solid #333; border-radius:28px; width:100%; padding:35px; max-height:85vh; overflow-y:auto; box-shadow: 0 30px 60px rgba(0,0,0,0.8); position:relative; scroll-behavior: smooth;">
+                ${html}
+            </div>
+            `;
 
     document.body.appendChild(modalDiv);
     console.log("✅ Dynamic Modal Injected and Stylized");
@@ -1634,34 +1566,34 @@ window.showLevelUpModal = (newLevel) => {
     }
 
     const modalHtml = `
-    <div id="levelUpModalCanvas" onclick="this.remove()">
-        <style>
-            @keyframes fall {
-                0% { transform: translateY(-10vh) rotate(0deg); }
-                100% { transform: translateY(110vh) rotate(360deg); }
+            <div id="levelUpModalCanvas" onclick="this.remove()">
+                <style>
+                    @keyframes fall {
+                        0 % { transform: translateY(-10vh) rotate(0deg); }
+                100% {transform: translateY(110vh) rotate(360deg); }
             }
-        </style>
-        ${bgHtml}
-        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; background:rgba(0,0,0,0.9); border:2px solid gold; border-radius:20px; padding:40px; box-shadow:0 0 50px rgba(255,215,0,0.3); z-index:20;">
-            <div class="level-up-content">
-                <div class="level-badge-large">${lvlInfo.icon}</div>
-                <div class="level-new-title">¡NIVEL DESBLOQUEADO!</div>
-                <h2 style="font-size:1.5rem; color:white; margin-bottom:10px">Has alcanzado el Nivel ${newLevel}</h2>
-                <h3 style="color:#aaa; text-transform:uppercase; letter-spacing:2px; margin-bottom:20px">${lvlInfo.name}</h3>
-                
-                <div class="level-benefits-list">
-                    <div style="font-weight:bold; margin-bottom:10px; color:white">Nuevos Beneficios:</div>
-                    <ul style="padding-left:20px; margin:0">
-                        ${lvlInfo.benefits.map(b => `<li>${b}</li>`).join('')}
-                    </ul>
-                </div>
+                </style>
+                ${bgHtml}
+                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; background:rgba(0,0,0,0.9); border:2px solid gold; border-radius:20px; padding:40px; box-shadow:0 0 50px rgba(255,215,0,0.3); z-index:20;">
+                    <div class="level-up-content">
+                        <div class="level-badge-large">${lvlInfo.icon}</div>
+                        <div class="level-new-title">¡NIVEL DESBLOQUEADO!</div>
+                        <h2 style="font-size:1.5rem; color:white; margin-bottom:10px">Has alcanzado el Nivel ${newLevel}</h2>
+                        <h3 style="color:#aaa; text-transform:uppercase; letter-spacing:2px; margin-bottom:20px">${lvlInfo.name}</h3>
 
-                <button class="btn" onclick="this.closest('#levelUpModalCanvas').remove()" style="width:100%; font-size:1.2rem; font-weight:bold; background:gold; color:black; border:none; padding:15px; border-radius:10px; cursor:pointer; margin-top:10px; box-shadow:0 5px 15px rgba(255,215,0,0.4)">
-                    ¡GENIAL!
-                </button>
-            </div>
-        </div>
-    </div>`;
+                        <div class="level-benefits-list">
+                            <div style="font-weight:bold; margin-bottom:10px; color:white">Nuevos Beneficios:</div>
+                            <ul style="padding-left:20px; margin:0">
+                                ${lvlInfo.benefits.map(b => `<li>${b}</li>`).join('')}
+                            </ul>
+                        </div>
+
+                        <button class="btn" onclick="this.closest('#levelUpModalCanvas').remove()" style="width:100%; font-size:1.2rem; font-weight:bold; background:gold; color:black; border:none; padding:15px; border-radius:10px; cursor:pointer; margin-top:10px; box-shadow:0 5px 15px rgba(255,215,0,0.4)">
+                            ¡GENIAL!
+                        </button>
+                    </div>
+                </div>
+            </div>`;
 
     const div = document.createElement('div');
     div.innerHTML = modalHtml;
@@ -1895,10 +1827,10 @@ window.openDetail = (id) => {
             if (p.extraConfig && p.extraConfig.length > 0) {
                 detExtra.style.display = 'block';
                 detExtra.innerHTML = p.extraConfig.map(ex => `
-                    <div style="margin-bottom:2px">
-                        <b>${ex.type}:</b> <span style="color:#aaa">${ex.val}</span>
-                    </div>
-                `).join('');
+            <div style="margin-bottom:2px">
+                <b>${ex.type}:</b> <span style="color:#aaa">${ex.val}</span>
+            </div>
+            `).join('');
             } else {
                 detExtra.style.display = 'none';
                 detExtra.innerHTML = '';
@@ -1928,11 +1860,11 @@ window.openDetail = (id) => {
             if (oldTipBtn) oldTipBtn.remove();
 
             userEl.insertAdjacentHTML('afterend', `
-                <div id="detTipsButton" style="margin: 8px 0 10px 0">
-                    <button id="tipBtn_${p.id}" style="background:rgba(162, 155, 254, 0.15); border:1px solid rgba(162, 155, 254, 0.4); color:#a29bfe; padding:4px 12px; border-radius:4px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.2s">
-                        💎 ${p.tokens_received || 0} PromptBits
-                    </button>
-                </div>
+            <div id="detTipsButton" style="margin: 8px 0 10px 0">
+                <button id="tipBtn_${p.id}" style="background:rgba(162, 155, 254, 0.15); border:1px solid rgba(162, 155, 254, 0.4); color:#a29bfe; padding:4px 12px; border-radius:4px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.2s">
+                    💎 ${p.tokens_received || 0} PromptBits
+                </button>
+            </div>
             `);
 
             // Attach click handler
@@ -2024,15 +1956,15 @@ window.openDetail = (id) => {
             const detNeg = document.getElementById('detNegPrompt');
             if (detNeg) {
                 if (p.negative_prompt) {
-                    detNeg.style.display = 'block';
-                    detNeg.innerText = `NEGATIVE PROMPT: ${p.negative_prompt}`;
-                    detNeg.style.backgroundColor = '#331a1a';
-                    detNeg.style.color = '#ffaaaa';
-                    detNeg.style.padding = '8px';
-                    detNeg.style.borderRadius = '4px';
-                    detNeg.style.marginTop = '10px';
+                detNeg.style.display = 'block';
+            detNeg.innerText = `NEGATIVE PROMPT: ${p.negative_prompt}`;
+            detNeg.style.backgroundColor = '#331a1a';
+            detNeg.style.color = '#ffaaaa';
+            detNeg.style.padding = '8px';
+            detNeg.style.borderRadius = '4px';
+            detNeg.style.marginTop = '10px';
                 } else {
-                    detNeg.style.display = 'none';
+                detNeg.style.display = 'none';
                 }
             }
             */
@@ -2073,15 +2005,15 @@ window.openDetail = (id) => {
                 ? p.comments.map(c => {
                     const canDelete = isPostOwner || currUser === c.username;
                     return `<div style="background:#1a1a1a; padding:10px; border-radius:8px; margin-bottom:10px; border-left:3px solid var(--accent); position:relative">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:5px">
-                            <span style="font-weight:700; color:var(--accent); font-size:0.85rem">@${window.escapeHTML(c.username)}</span>
-                            <div style="display:flex; align-items:center; gap:8px">
-                                <span style="font-size:0.65rem; opacity:0.5">${new Date(c.timestamp).toLocaleDateString()}</span>
-                                ${canDelete ? `<button onclick="window.doDeleteComment(${c.id})" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; padding:0" title="Eliminar comentario">🗑️</button>` : ''}
-                            </div>
-                        </div>
-                        <div style="font-size:0.9rem; color:#eee; word-break:break-word">${window.escapeHTML(c.text)}</div>
-                    </div>`;
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px">
+                    <span style="font-weight:700; color:var(--accent); font-size:0.85rem">@${window.escapeHTML(c.username)}</span>
+                    <div style="display:flex; align-items:center; gap:8px">
+                        <span style="font-size:0.65rem; opacity:0.5">${new Date(c.timestamp).toLocaleDateString()}</span>
+                        ${canDelete ? `<button onclick="window.doDeleteComment(${c.id})" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; padding:0" title="Eliminar comentario">🗑️</button>` : ''}
+                    </div>
+                </div>
+                <div style="font-size:0.9rem; color:#eee; word-break:break-word">${window.escapeHTML(c.text)}</div>
+            </div>`;
                 }).join('')
                 : '<div style="opacity:0.5; font-size:0.9rem">No hay comentarios aún.</div>';
         }
@@ -2944,51 +2876,51 @@ window.renderTagSelector = () => {
 
     const selectedHTML = Array.from(window.selectedTags).length > 0
         ? Array.from(window.selectedTags).map(tag => `
-            <button class="tag-chip selected" onclick="window.toggleTag('${tag}')">
-                ${tag} <span style="font-size:0.6rem; opacity:0.6">✕</span>
-            </button>
-        `).join('')
+                <button class="tag-chip selected" onclick="window.toggleTag('${tag}')">
+                    ${tag} <span style="font-size:0.6rem; opacity:0.6">✕</span>
+                </button>
+                `).join('')
         : '<div style="color:#555; font-size:0.75rem; font-style:italic">Ninguna etiqueta seleccionada</div>';
 
     const categoriesHTML = Object.entries(TAG_CATEGORIES).map(([category, tags]) => `
-        <div class="tag-category">
-            <div class="tag-category-header" onclick="window.toggleTagCategory('${category}')">
-                <span>${category}</span>
-                <span>${window.openCategory === category ? '▲' : '▼'}</span>
-            </div>
-            <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : 'display:none'}">
-                ${tags.map(tag => {
+                <div class="tag-category">
+                    <div class="tag-category-header" onclick="window.toggleTagCategory('${category}')">
+                        <span>${category}</span>
+                        <span>${window.openCategory === category ? '▲' : '▼'}</span>
+                    </div>
+                    <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : 'display:none'}">
+                        ${tags.map(tag => {
         const isSelected = window.selectedTags.has(tag);
         return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
     }).join('')}
-            </div>
-        </div>
-    `).join('');
+                    </div>
+                </div>
+                `).join('');
 
     root.innerHTML = `
-        <div class="tag-selector-container">
-            <div class="selected-tags-box">
-                <h4>Etiquetas Seleccionadas</h4>
-                <div class="selected-tags-list">${selectedHTML}</div>
-            </div>
+                <div class="tag-selector-container">
+                    <div class="selected-tags-box">
+                        <h4>Etiquetas Seleccionadas</h4>
+                        <div class="selected-tags-list">${selectedHTML}</div>
+                    </div>
 
-            <div class="tag-control-btns">
-                <button class="btn-tag-action ${window.showSearchUI ? 'active' : ''}" onclick="window.toggleSearchUI()">
-                    🔍 Buscar Tags
-                </button>
-                <button class="btn-tag-action btn-auto-tag" id="autoTagBtn" onclick="window.doAutoTag()">
-                    ✨ IA Auto-Tag
-                </button>
-            </div>
+                    <div class="tag-control-btns">
+                        <button class="btn-tag-action ${window.showSearchUI ? 'active' : ''}" onclick="window.toggleSearchUI()">
+                            🔍 Buscar Tags
+                        </button>
+                        <button class="btn-tag-action btn-auto-tag" id="autoTagBtn" onclick="window.doAutoTag()">
+                            ✨ IA Auto-Tag
+                        </button>
+                    </div>
 
-            <div class="tag-search-field" style="${window.showSearchUI ? 'display:block' : 'display:none'}">
-                <input type="text" class="tag-search-input" placeholder="Escribe aquí para buscar..." onkeyup="window.filterTags(this.value)">
-                <div class="compact-category-list" style="display:block">
-                    ${categoriesHTML}
+                    <div class="tag-search-field" style="${window.showSearchUI ? 'display:block' : 'display:none'}">
+                        <input type="text" class="tag-search-input" placeholder="Escribe aquí para buscar..." onkeyup="window.filterTags(this.value)">
+                            <div class="compact-category-list" style="display:block">
+                                ${categoriesHTML}
+                            </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    `;
+                `;
 };
 
 window.toggleSearchUI = () => {
@@ -3182,24 +3114,24 @@ window.openTip = (postId) => {
     overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index:9000000; display:flex; align-items:center; justify-content:center;';
 
     overlay.innerHTML = `
-                < div style = "background:#1a1a2e; border:1px solid #333; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);" >
-            <div style="font-size:3rem; margin-bottom:10px">💎</div>
-            <h2 style="color:#fff; margin:0 0 5px 0">Enviar a @${p.author}</h2>
-            <p style="color:#888; margin-bottom:20px">Apoya el post "${p.title}"</p>
-            
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px">
-                <button onclick="window.doSendTip(5)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 5</button>
-                <button onclick="window.doSendTip(10)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 10</button>
-                <button onclick="window.doSendTip(20)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 20</button>
-                <button onclick="window.doSendTip(50)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 50</button>
-            </div>
-            
-            <div style="font-size:0.85rem; color:#666; margin-bottom:20px">
-                Tu saldo: <span style="color:#a29bfe; font-weight:700">${store.currentUser.tokens || 0}</span> PromptBits
-            </div>
-            
-            <button onclick="document.getElementById('dynamicTipModal').remove()" style="background:transparent; border:none; color:#666; padding:10px 20px; cursor:pointer; font-size:0.9rem">Cancelar</button>
-        </div >
+                < div style="background:#1a1a2e; border:1px solid #333; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);" >
+                    <div style="font-size:3rem; margin-bottom:10px">💎</div>
+                    <h2 style="color:#fff; margin:0 0 5px 0">Enviar a @${p.author}</h2>
+                    <p style="color:#888; margin-bottom:20px">Apoya el post "${p.title}"</p>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px">
+                        <button onclick="window.doSendTip(5)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 5</button>
+                        <button onclick="window.doSendTip(10)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 10</button>
+                        <button onclick="window.doSendTip(20)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 20</button>
+                        <button onclick="window.doSendTip(50)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 50</button>
+                    </div>
+
+                    <div style="font-size:0.85rem; color:#666; margin-bottom:20px">
+                        Tu saldo: <span style="color:#a29bfe; font-weight:700">${store.currentUser.tokens || 0}</span> PromptBits
+                    </div>
+
+                    <button onclick="document.getElementById('dynamicTipModal').remove()" style="background:transparent; border:none; color:#666; padding:10px 20px; cursor:pointer; font-size:0.9rem">Cancelar</button>
+                </div >
                 `;
 
     // Click on overlay (outside modal) to close
