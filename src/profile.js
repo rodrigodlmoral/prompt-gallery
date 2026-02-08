@@ -853,48 +853,38 @@ window.openDetail = (id) => {
             if (btnCopyNeg) btnCopyNeg.style.display = 'none';
         }
 
-        // Negative Prompt Handling
-        const detNegPrompt = document.getElementById('detNegPrompt');
-        const btnCopyNeg = document.getElementById('btnCopyNeg');
-        const negText = p.negative_prompt;
+    }
 
-        if (negText && negText.trim()) {
-            if (detNegPrompt) {
-                detNegPrompt.innerText = negText;
-                detNegPrompt.style.display = 'block';
-            }
+    // Blurring
+    const detImgWrap = document.getElementById('detImgWrap');
+    if (detImgWrap) {
+        detImgWrap.classList.remove('card-blurred');
+        const { applyBlur, warningLabel } = getModeration(p);
+        if (applyBlur) {
+            detImgWrap.classList.add('card-blurred');
+            detImgWrap.dataset.warning = warningLabel;
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        } else {
+            detImgWrap.dataset.warning = '';
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
         }
+    }
 
-        // Blurring
-        const detImgWrap = document.getElementById('detImgWrap');
-        if (detImgWrap) {
-            detImgWrap.classList.remove('card-blurred');
-            const { applyBlur, warningLabel } = getModeration(p);
-            if (applyBlur) {
-                detImgWrap.classList.add('card-blurred');
-                detImgWrap.dataset.warning = warningLabel;
-                const oldOverlay = detImgWrap.querySelector('.blur-overlay');
-                if (oldOverlay) oldOverlay.remove();
-            } else {
-                detImgWrap.dataset.warning = '';
-                const oldOverlay = detImgWrap.querySelector('.blur-overlay');
-                if (oldOverlay) oldOverlay.remove();
-            }
-        }
+    const detCopyBadge = document.getElementById('detCopyBadge');
+    if (detCopyBadge) {
+        detCopyBadge.style.display = 'block';
+        detCopyBadge.innerText = `📋 Copiado ${p.copy_count || 0} veces`;
+    }
 
-        const detCopyBadge = document.getElementById('detCopyBadge');
-        if (detCopyBadge) {
-            detCopyBadge.style.display = 'block';
-            detCopyBadge.innerText = `📋 Copiado ${p.copy_count || 0} veces`;
-        }
-
-        // Comments
-        const commentsEl = document.getElementById('detComments');
-        if (commentsEl) {
-            const currUser = store.currentUser?.username;
-            const isPostOwner = currUser === p.author;
-            commentsEl.innerHTML = (p.comments && p.comments.length > 0)
-                ? p.comments.map(c => `
+    // Comments
+    const commentsEl = document.getElementById('detComments');
+    if (commentsEl) {
+        const currUser = store.currentUser?.username;
+        const isPostOwner = currUser === p.author;
+        commentsEl.innerHTML = (p.comments && p.comments.length > 0)
+            ? p.comments.map(c => `
                 <div style="background:#1a1a1a; padding:10px; border-radius:8px; margin-bottom:10px; border-left:3px solid var(--accent); position:relative">
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px">
                         <span style="font-weight:700; color:var(--accent); font-size:0.85rem">@${window.escapeHTML(c.username)}</span>
@@ -902,253 +892,253 @@ window.openDetail = (id) => {
                     </div>
                     <div style="font-size:0.9rem; color:#eee">${window.escapeHTML(c.text)}</div>
                 </div>`).join('')
-                : '<div style="opacity:0.5; font-size:0.9rem">No hay comentarios aún.</div>';
+            : '<div style="opacity:0.5; font-size:0.9rem">No hay comentarios aún.</div>';
+    }
+
+    // Reactions
+    const reactions = p.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 };
+    const myReaction = (p.userReactions && store.currentUser) ? p.userReactions[store.currentUser.username] : null;
+    ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(type => {
+        const countEl = document.getElementById(`det-${type}-count`);
+        const btnEl = document.getElementById(`btn-react-${type}`);
+        if (countEl) countEl.innerText = reactions[type] || 0;
+        if (btnEl) {
+            if (myReaction === type) btnEl.classList.add('active');
+            else btnEl.classList.remove('active');
         }
+    });
 
-        // Reactions
-        const reactions = p.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 };
-        const myReaction = (p.userReactions && store.currentUser) ? p.userReactions[store.currentUser.username] : null;
-        ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(type => {
-            const countEl = document.getElementById(`det-${type}-count`);
-            const btnEl = document.getElementById(`btn-react-${type}`);
-            if (countEl) countEl.innerText = reactions[type] || 0;
-            if (btnEl) {
-                if (myReaction === type) btnEl.classList.add('active');
-                else btnEl.classList.remove('active');
-            }
-        });
+    modal.style.display = 'flex';
+};
 
-        modal.style.display = 'flex';
-    };
+window.updateSeqDisplay = (p) => {
+    const step = p.content[currentSeqStep];
+    if (!step) return;
 
-    window.updateSeqDisplay = (p) => {
-        const step = p.content[currentSeqStep];
-        if (!step) return;
-
-        // Blurring for current step
-        const { applyBlur, warningLabel } = getModeration(p, step.rating);
-        const detImgWrap = document.getElementById('detImgWrap');
-        if (detImgWrap) {
-            detImgWrap.classList.remove('card-blurred');
-            if (applyBlur) {
-                detImgWrap.classList.add('card-blurred');
-                detImgWrap.dataset.warning = warningLabel;
-                const oldOverlay = detImgWrap.querySelector('.blur-overlay');
-                if (oldOverlay) oldOverlay.remove();
-            } else {
-                detImgWrap.dataset.warning = '';
-                const oldOverlay = detImgWrap.querySelector('.blur-overlay');
-                if (oldOverlay) oldOverlay.remove();
-            }
-        }
-
-        // Reset negative button visibility for sequence updates
-        const btnCopyNegSeq = document.getElementById('btnCopyNeg');
-        if (btnCopyNegSeq) {
-            if (step.negative_prompt && step.negative_prompt.trim()) {
-                btnCopyNegSeq.style.display = 'block';
-            } else {
-                btnCopyNegSeq.style.display = 'none';
-            }
-        }
-
-        const detImg = document.getElementById('detImg');
-        const detPrompt = document.getElementById('detPrompt');
-        const seqCount = document.getElementById('detSeqCount');
-        if (detImg) detImg.src = step.image;
-        if (detPrompt) detPrompt.innerText = step.prompt || '';
-        if (seqCount) seqCount.innerText = `Imagen ${currentSeqStep + 1} de ${p.content.length}`;
-    };
-
-    window.prevSeqStep = () => {
-        const p = store.prompts.find(x => String(x.id) === String(currentId));
-        if (!p || p.type !== 'sequence') return;
-        currentSeqStep = (currentSeqStep - 1 + p.content.length) % p.content.length;
-        window.updateSeqDisplay(p);
-    };
-
-    window.nextSeqStep = () => {
-        const p = store.prompts.find(x => String(x.id) === String(currentId));
-        if (!p || p.type !== 'sequence') return;
-        currentSeqStep = (currentSeqStep + 1) % p.content.length;
-        window.updateSeqDisplay(p);
-    };
-
-    window.toggleOptionsMenu = () => {
-        const menu = document.getElementById('optionsMenu');
-        if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
-    };
-
-    window.doSavePrompt = async () => {
-        if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para guardar.", "warning"); return; }
-        await store.savePrompt(currentId);
-        render();
-        window.toggleOptionsMenu();
-        window.toast("Prompt Guardado", "success");
-    };
-
-    window.doCopyPrompt = async (type = 'main') => {
-        const p = store.prompts.find(x => String(x.id) === String(currentId));
-        if (!p) return;
-
-        let text = '';
-        if (type === 'main') {
-            text = p.type === 'sequence' ? p.content[currentSeqStep]?.prompt : p.prompt;
+    // Blurring for current step
+    const { applyBlur, warningLabel } = getModeration(p, step.rating);
+    const detImgWrap = document.getElementById('detImgWrap');
+    if (detImgWrap) {
+        detImgWrap.classList.remove('card-blurred');
+        if (applyBlur) {
+            detImgWrap.classList.add('card-blurred');
+            detImgWrap.dataset.warning = warningLabel;
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
         } else {
-            text = p.type === 'sequence' ? p.content[currentSeqStep]?.negative_prompt : p.negative_prompt;
+            detImgWrap.dataset.warning = '';
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
         }
+    }
 
-        if (!text) {
-            window.toast("No hay texto para copiar", "warning");
-            return;
-        }
-
-        await navigator.clipboard.writeText(text || '');
-
-        if (type === 'main') {
-            await store.incrementCopyCount(currentId);
-            window.toast("¡Prompt Copiado!", "success");
+    // Reset negative button visibility for sequence updates
+    const btnCopyNegSeq = document.getElementById('btnCopyNeg');
+    if (btnCopyNegSeq) {
+        if (step.negative_prompt && step.negative_prompt.trim()) {
+            btnCopyNegSeq.style.display = 'block';
         } else {
-            window.toast("¡Negative Prompt Copiado!", "info");
+            btnCopyNegSeq.style.display = 'none';
         }
+    }
 
-        // Track Event in GA4
-        window.trackEvent('copy_prompt', {
-            id: p.id,
-            title: p.title,
-            author: p.author,
-            tool: p.tool,
-            type: type
-        });
+    const detImg = document.getElementById('detImg');
+    const detPrompt = document.getElementById('detPrompt');
+    const seqCount = document.getElementById('detSeqCount');
+    if (detImg) detImg.src = step.image;
+    if (detPrompt) detPrompt.innerText = step.prompt || '';
+    if (seqCount) seqCount.innerText = `Imagen ${currentSeqStep + 1} de ${p.content.length}`;
+};
 
+window.prevSeqStep = () => {
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
+    if (!p || p.type !== 'sequence') return;
+    currentSeqStep = (currentSeqStep - 1 + p.content.length) % p.content.length;
+    window.updateSeqDisplay(p);
+};
+
+window.nextSeqStep = () => {
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
+    if (!p || p.type !== 'sequence') return;
+    currentSeqStep = (currentSeqStep + 1) % p.content.length;
+    window.updateSeqDisplay(p);
+};
+
+window.toggleOptionsMenu = () => {
+    const menu = document.getElementById('optionsMenu');
+    if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+};
+
+window.doSavePrompt = async () => {
+    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para guardar.", "warning"); return; }
+    await store.savePrompt(currentId);
+    render();
+    window.toggleOptionsMenu();
+    window.toast("Prompt Guardado", "success");
+};
+
+window.doCopyPrompt = async (type = 'main') => {
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
+    if (!p) return;
+
+    let text = '';
+    if (type === 'main') {
+        text = p.type === 'sequence' ? p.content[currentSeqStep]?.prompt : p.prompt;
+    } else {
+        text = p.type === 'sequence' ? p.content[currentSeqStep]?.negative_prompt : p.negative_prompt;
+    }
+
+    if (!text) {
+        window.toast("No hay texto para copiar", "warning");
+        return;
+    }
+
+    await navigator.clipboard.writeText(text || '');
+
+    if (type === 'main') {
+        await store.incrementCopyCount(currentId);
+        window.toast("¡Prompt Copiado!", "success");
+    } else {
+        window.toast("¡Negative Prompt Copiado!", "info");
+    }
+
+    // Track Event in GA4
+    window.trackEvent('copy_prompt', {
+        id: p.id,
+        title: p.title,
+        author: p.author,
+        tool: p.tool,
+        type: type
+    });
+
+    render();
+};
+
+window.doReportPrompt = () => { window.toast("Post Reportado", "info"); window.toggleOptionsMenu(); };
+window.doHidePrompt = () => { window.toast("Post Oculto", "info"); window.toggleOptionsMenu(); };
+
+window.doBlockUser = async () => {
+    const p = store.prompts.find(x => x.id === currentId);
+    if (!p) return;
+    if (confirm(`¿Bloquear a @${p.author}?`)) {
+        await store.blockUser(p.author);
+        window.closeModals();
         render();
+    }
+};
+
+window.doReact = async (type) => {
+    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para reaccionar.", "warning"); return; }
+    await store.toggleReaction(currentId, type);
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
+    window.openDetail(currentId); // Refresh modal
+};
+
+window.doFullScreen = () => {
+    const side = document.querySelector('.view-img-side');
+    if (side.requestFullscreen) side.requestFullscreen();
+};
+
+window.revealImage = (btn) => {
+    const overlay = btn.closest('.blur-overlay');
+    if (overlay) {
+        overlay.parentElement.classList.remove('card-blurred');
+        overlay.remove();
+    }
+};
+
+window.doDeleteComment = async (cid) => {
+    if (confirm("¿Eliminar comentario?")) {
+        await store.deleteComment(currentId, cid);
+        window.openDetail(currentId);
+    }
+};
+
+window.showSlider = () => {
+    const bot = document.getElementById('commAntiBot');
+    if (bot && bot.style.display === 'none') {
+        bot.style.display = 'flex';
+        window.initCrystalSlider();
+    }
+};
+
+window.initCrystalSlider = () => {
+    const track = document.getElementById('commSlider');
+    const handle = document.getElementById('commSliderHandle');
+    if (!track || !handle) return;
+
+    let isDragging = false;
+    let startX = 0;
+
+    const onStart = (e) => {
+        if (window.sliderUnlocked) return;
+        isDragging = true;
+        startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        handle.style.transition = 'none';
     };
 
-    window.doReportPrompt = () => { window.toast("Post Reportado", "info"); window.toggleOptionsMenu(); };
-    window.doHidePrompt = () => { window.toast("Post Oculto", "info"); window.toggleOptionsMenu(); };
+    const onMove = (e) => {
+        if (!isDragging || window.sliderUnlocked) return;
+        const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const diff = currentX - startX;
+        const max = track.offsetWidth - handle.offsetWidth - 8;
+        const pos = Math.max(0, Math.min(diff, max));
+        handle.style.left = (pos + 4) + 'px';
 
-    window.doBlockUser = async () => {
-        const p = store.prompts.find(x => x.id === currentId);
-        if (!p) return;
-        if (confirm(`¿Bloquear a @${p.author}?`)) {
-            await store.blockUser(p.author);
-            window.closeModals();
-            render();
-        }
-    };
-
-    window.doReact = async (type) => {
-        if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para reaccionar.", "warning"); return; }
-        await store.toggleReaction(currentId, type);
-        const p = store.prompts.find(x => String(x.id) === String(currentId));
-        window.openDetail(currentId); // Refresh modal
-    };
-
-    window.doFullScreen = () => {
-        const side = document.querySelector('.view-img-side');
-        if (side.requestFullscreen) side.requestFullscreen();
-    };
-
-    window.revealImage = (btn) => {
-        const overlay = btn.closest('.blur-overlay');
-        if (overlay) {
-            overlay.parentElement.classList.remove('card-blurred');
-            overlay.remove();
-        }
-    };
-
-    window.doDeleteComment = async (cid) => {
-        if (confirm("¿Eliminar comentario?")) {
-            await store.deleteComment(currentId, cid);
-            window.openDetail(currentId);
-        }
-    };
-
-    window.showSlider = () => {
-        const bot = document.getElementById('commAntiBot');
-        if (bot && bot.style.display === 'none') {
-            bot.style.display = 'flex';
-            window.initCrystalSlider();
-        }
-    };
-
-    window.initCrystalSlider = () => {
-        const track = document.getElementById('commSlider');
-        const handle = document.getElementById('commSliderHandle');
-        if (!track || !handle) return;
-
-        let isDragging = false;
-        let startX = 0;
-
-        const onStart = (e) => {
-            if (window.sliderUnlocked) return;
-            isDragging = true;
-            startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-            handle.style.transition = 'none';
-        };
-
-        const onMove = (e) => {
-            if (!isDragging || window.sliderUnlocked) return;
-            const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-            const diff = currentX - startX;
-            const max = track.offsetWidth - handle.offsetWidth - 8;
-            const pos = Math.max(0, Math.min(diff, max));
-            handle.style.left = (pos + 4) + 'px';
-
-            if (pos >= max - 5) {
-                window.sliderUnlocked = true;
-                isDragging = false;
-                track.classList.add('unlocked');
-                handle.style.left = 'calc(100% - 44px)';
-            }
-        };
-
-        const onEnd = () => {
-            if (!isDragging) return;
+        if (pos >= max - 5) {
+            window.sliderUnlocked = true;
             isDragging = false;
-            if (!window.sliderUnlocked) {
-                handle.style.transition = 'left 0.3s';
-                handle.style.left = '4px';
-            }
-        };
-
-        handle.onmousedown = onStart;
-        handle.ontouchstart = onStart;
-        window.onmousemove = onMove;
-        window.ontouchmove = onMove;
-        window.onmouseup = onEnd;
-        window.ontouchend = onEnd;
-    };
-
-    window.postComm = async () => {
-        if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión.", "warning"); return; }
-        if (!window.sliderUnlocked) return alert("Desliza el diamante 💎 para comentar.");
-        const text = document.getElementById('commInput').value;
-        if (!text) return;
-
-        const res = await store.addComment(currentId, text);
-        if (res.success) {
-            document.getElementById('commInput').value = '';
-            window.sliderUnlocked = false;
-            window.openDetail(currentId);
-        } else {
-            alert(res.msg);
+            track.classList.add('unlocked');
+            handle.style.left = 'calc(100% - 44px)';
         }
     };
 
-    window.openTip = (postId) => {
-        if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para enviar propinas.", "warning"); return; }
-        currentTipPostId = postId;
-        const p = store.prompts.find(x => String(x.id) === String(postId));
+    const onEnd = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        if (!window.sliderUnlocked) {
+            handle.style.transition = 'left 0.3s';
+            handle.style.left = '4px';
+        }
+    };
 
-        const existing = document.getElementById('dynamicTipModal');
-        if (existing) existing.remove();
+    handle.onmousedown = onStart;
+    handle.ontouchstart = onStart;
+    window.onmousemove = onMove;
+    window.ontouchmove = onMove;
+    window.onmouseup = onEnd;
+    window.ontouchend = onEnd;
+};
 
-        const overlay = document.createElement('div');
-        overlay.id = 'dynamicTipModal';
-        overlay.className = 'modal-overlay';
-        overlay.style.zIndex = 999999;
-        overlay.innerHTML = `
+window.postComm = async () => {
+    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión.", "warning"); return; }
+    if (!window.sliderUnlocked) return alert("Desliza el diamante 💎 para comentar.");
+    const text = document.getElementById('commInput').value;
+    if (!text) return;
+
+    const res = await store.addComment(currentId, text);
+    if (res.success) {
+        document.getElementById('commInput').value = '';
+        window.sliderUnlocked = false;
+        window.openDetail(currentId);
+    } else {
+        alert(res.msg);
+    }
+};
+
+window.openTip = (postId) => {
+    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para enviar propinas.", "warning"); return; }
+    currentTipPostId = postId;
+    const p = store.prompts.find(x => String(x.id) === String(postId));
+
+    const existing = document.getElementById('dynamicTipModal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'dynamicTipModal';
+    overlay.className = 'modal-overlay';
+    overlay.style.zIndex = 999999;
+    overlay.innerHTML = `
         <div class="modal-container" style="max-width:400px; text-align:center">
             <div style="font-size:3rem; margin-bottom:10px">💎</div>
             <h2>Enviar a @${p.author}</h2>
@@ -1162,57 +1152,57 @@ window.openDetail = (id) => {
             <div style="font-size:0.85rem; margin-bottom:20px">Saldo: ${store.currentUser.tokens || 0} bits</div>
             <button class="btn-outline" onclick="document.getElementById('dynamicTipModal').remove()">Cancelar</button>
         </div>`;
-        document.body.appendChild(overlay);
-    };
+    document.body.appendChild(overlay);
+};
 
-    window.doSendTip = async (amount) => {
-        if (await window.askConfirm(`¿Enviar ${amount} bits?`, '💎')) {
-            const res = await store.sendTip(currentTipPostId, amount);
-            if (res.success) {
-                window.toast("¡Enviado!", "success");
-                const dtm = document.getElementById('dynamicTipModal');
-                if (dtm) dtm.remove();
-                window.openDetail(currentId);
-            } else {
-                alert(res.msg);
-            }
+window.doSendTip = async (amount) => {
+    if (await window.askConfirm(`¿Enviar ${amount} bits?`, '💎')) {
+        const res = await store.sendTip(currentTipPostId, amount);
+        if (res.success) {
+            window.toast("¡Enviado!", "success");
+            const dtm = document.getElementById('dynamicTipModal');
+            if (dtm) dtm.remove();
+            window.openDetail(currentId);
+        } else {
+            alert(res.msg);
         }
-    };
+    }
+};
 
-    window.toast = (msg, type) => {
-        alert(msg); // Placeholder for toast system if needed
-    };
+window.toast = (msg, type) => {
+    alert(msg); // Placeholder for toast system if needed
+};
 
-    let confirmResolver = null;
-    window.askConfirm = (msg, icon) => {
-        return new Promise(resolve => {
-            const modal = document.getElementById('confirmModal');
-            document.getElementById('confirmText').innerText = msg;
-            document.getElementById('confirmIcon').innerText = icon || '❓';
-            modal.style.display = 'flex';
-            confirmResolver = resolve;
-        });
-    };
+let confirmResolver = null;
+window.askConfirm = (msg, icon) => {
+    return new Promise(resolve => {
+        const modal = document.getElementById('confirmModal');
+        document.getElementById('confirmText').innerText = msg;
+        document.getElementById('confirmIcon').innerText = icon || '❓';
+        modal.style.display = 'flex';
+        confirmResolver = resolve;
+    });
+};
 
-    window.confirmResolve = (val) => {
-        document.getElementById('confirmModal').style.display = 'none';
-        if (confirmResolver) confirmResolver(val);
-    };
+window.confirmResolve = (val) => {
+    document.getElementById('confirmModal').style.display = 'none';
+    if (confirmResolver) confirmResolver(val);
+};
 
-    // No change needed for profile.js search yet as it uses the same header logic if shared, but they are separate files.
-    window.renderTagSelector = () => {
-        const root = document.getElementById('tagSelectorRoot');
-        if (!root) return;
+// No change needed for profile.js search yet as it uses the same header logic if shared, but they are separate files.
+window.renderTagSelector = () => {
+    const root = document.getElementById('tagSelectorRoot');
+    if (!root) return;
 
-        const selectedHTML = Array.from(window.selectedTags).length > 0
-            ? Array.from(window.selectedTags).map(tag => `
+    const selectedHTML = Array.from(window.selectedTags).length > 0
+        ? Array.from(window.selectedTags).map(tag => `
             <button class="tag-chip selected" onclick="window.toggleTag('${tag}')">
                 ${tag} <span style="font-size:0.6rem; opacity:0.6">✕</span>
             </button>
         `).join('')
-            : '<div style="color:#555; font-size:0.75rem; font-style:italic">Ninguna etiqueta seleccionada</div>';
+        : '<div style="color:#555; font-size:0.75rem; font-style:italic">Ninguna etiqueta seleccionada</div>';
 
-        const categoriesHTML = Object.entries(TAG_CATEGORIES).map(([category, tags]) => `
+    const categoriesHTML = Object.entries(TAG_CATEGORIES).map(([category, tags]) => `
         <div class="tag-category">
             <div class="tag-category-header" onclick="window.toggleTagCategory('${category}')">
                 <span>${category}</span>
@@ -1220,14 +1210,14 @@ window.openDetail = (id) => {
             </div>
             <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : 'display:none'}">
                 ${tags.map(tag => {
-            const isSelected = window.selectedTags.has(tag);
-            return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
-        }).join('')}
+        const isSelected = window.selectedTags.has(tag);
+        return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
+    }).join('')}
             </div>
         </div>
     `).join('');
 
-        root.innerHTML = `
+    root.innerHTML = `
         <div class="tag-selector-container">
             <div class="selected-tags-box">
                 <h4>Etiquetas Seleccionadas</h4>
@@ -1251,215 +1241,215 @@ window.openDetail = (id) => {
             </div>
         </div>
     `;
-    };
+};
 
-    window.toggleSearchUI = () => {
-        window.showSearchUI = !window.showSearchUI;
-        window.renderTagSelector();
-    };
+window.toggleSearchUI = () => {
+    window.showSearchUI = !window.showSearchUI;
+    window.renderTagSelector();
+};
 
-    window.doAutoTag = async () => {
-        const btn = document.getElementById('autoTagBtn');
-        const isSequence = document.querySelector('input[name="postType"]:checked')?.value === 'sequence';
-        let file;
+window.doAutoTag = async () => {
+    const btn = document.getElementById('autoTagBtn');
+    const isSequence = document.querySelector('input[name="postType"]:checked')?.value === 'sequence';
+    let file;
 
-        if (isSequence) {
-            file = document.querySelector('.seq-card input[type="file"]')?.files[0];
-        } else {
-            file = document.getElementById('upFile')?.files[0];
-        }
+    if (isSequence) {
+        file = document.querySelector('.seq-card input[type="file"]')?.files[0];
+    } else {
+        file = document.getElementById('upFile')?.files[0];
+    }
 
-        if (!file) {
-            window.toast('Por favor, selecciona una imagen primero', 'warning');
-            return;
-        }
+    if (!file) {
+        window.toast('Por favor, selecciona una imagen primero', 'warning');
+        return;
+    }
 
-        try {
-            btn.disabled = true;
-            btn.innerHTML = '🪄 Analizando...';
-            window.toast('IA analizando imagen...', 'info');
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '🪄 Analizando...';
+        window.toast('IA analizando imagen...', 'info');
 
-            const reader = new FileReader();
-            const base64Promise = new Promise((resolve) => {
-                reader.onload = () => resolve(reader.result.split(',')[1]);
-                reader.readAsDataURL(file);
+        const reader = new FileReader();
+        const base64Promise = new Promise((resolve) => {
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.readAsDataURL(file);
+        });
+
+        const base64Image = await base64Promise;
+        const ALL_TAGS = Object.values(TAG_CATEGORIES).flat();
+
+        const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                "model": "google/gemini-2.0-flash-lite-001",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": `De la siguiente lista de etiquetas, elige las 3-5 más adecuadas para describir esta imagen. Devuelve ÚNICAMENTE un array JSON de strings: ${ALL_TAGS.join(', ')}`
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": { "url": `data:${file.type};base64,${base64Image}` }
+                            }
+                        ]
+                    }
+                ]
+            })
+        });
+
+        const data = await response.json();
+        const aiContent = data.choices?.[0]?.message?.content || "";
+        const match = aiContent.match(/\[.*\]/s);
+
+        if (match) {
+            const suggested = JSON.parse(match[0]);
+            suggested.forEach(tag => {
+                if (ALL_TAGS.includes(tag)) window.selectedTags.add(tag);
             });
-
-            const base64Image = await base64Promise;
-            const ALL_TAGS = Object.values(TAG_CATEGORIES).flat();
-
-            const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    "model": "google/gemini-2.0-flash-lite-001",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": `De la siguiente lista de etiquetas, elige las 3-5 más adecuadas para describir esta imagen. Devuelve ÚNICAMENTE un array JSON de strings: ${ALL_TAGS.join(', ')}`
-                                },
-                                {
-                                    "type": "image_url",
-                                    "image_url": { "url": `data:${file.type};base64,${base64Image}` }
-                                }
-                            ]
-                        }
-                    ]
-                })
-            });
-
-            const data = await response.json();
-            const aiContent = data.choices?.[0]?.message?.content || "";
-            const match = aiContent.match(/\[.*\]/s);
-
-            if (match) {
-                const suggested = JSON.parse(match[0]);
-                suggested.forEach(tag => {
-                    if (ALL_TAGS.includes(tag)) window.selectedTags.add(tag);
-                });
-                window.toast('✨ Sugerencias de IA añadidas', 'success');
-                window.renderTagSelector();
-            } else {
-                throw new Error('Respuesta inválida de IA');
-            }
-
-        } catch (err) {
-            console.error('Auto-Tag Error:', err);
-            window.toast('Error con la IA', 'error');
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = '✨ IA Auto-Tag';
-        }
-    };
-
-    window.toggleTagCategory = (category) => {
-        const id = `cat-content-${category.replace(/\s+/g, '-')}`;
-        const content = document.getElementById(id);
-        if (content) {
-            const isClosed = content.style.display === 'none' || content.style.display === '';
-            // Close all others
-            document.querySelectorAll('.tag-category-content').forEach(el => el.style.display = 'none');
-            // Toggle current
-            content.style.display = isClosed ? 'flex' : 'none';
-            window.openCategory = isClosed ? category : null;
-        }
-    };
-
-    window.toggleTag = (tag) => {
-        if (window.selectedTags.has(tag)) {
-            window.selectedTags.delete(tag);
-        } else {
-            if (window.selectedTags.size >= 10) {
-                window.toast("Máximo 10 etiquetas permitidas", "error");
-                return;
-            }
-            window.selectedTags.add(tag);
-        }
-        // Re-render chips visual state only
-        window.renderTagSelector();
-    };
-
-    window.filterTags = (query) => {
-        const term = query.toLowerCase();
-        const container = document.getElementById('tagCategoriesContainer');
-        if (!container) return;
-
-        if (!term) {
+            window.toast('✨ Sugerencias de IA añadidas', 'success');
             window.renderTagSelector();
-            return;
+        } else {
+            throw new Error('Respuesta inválida de IA');
         }
 
-        let resultsHTML = '';
-        Object.entries(TAG_CATEGORIES).forEach(([category, tags]) => {
-            const matches = tags.filter(t => t.toLowerCase().includes(term));
-            if (matches.length > 0) {
-                resultsHTML += `
+    } catch (err) {
+        console.error('Auto-Tag Error:', err);
+        window.toast('Error con la IA', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '✨ IA Auto-Tag';
+    }
+};
+
+window.toggleTagCategory = (category) => {
+    const id = `cat-content-${category.replace(/\s+/g, '-')}`;
+    const content = document.getElementById(id);
+    if (content) {
+        const isClosed = content.style.display === 'none' || content.style.display === '';
+        // Close all others
+        document.querySelectorAll('.tag-category-content').forEach(el => el.style.display = 'none');
+        // Toggle current
+        content.style.display = isClosed ? 'flex' : 'none';
+        window.openCategory = isClosed ? category : null;
+    }
+};
+
+window.toggleTag = (tag) => {
+    if (window.selectedTags.has(tag)) {
+        window.selectedTags.delete(tag);
+    } else {
+        if (window.selectedTags.size >= 10) {
+            window.toast("Máximo 10 etiquetas permitidas", "error");
+            return;
+        }
+        window.selectedTags.add(tag);
+    }
+    // Re-render chips visual state only
+    window.renderTagSelector();
+};
+
+window.filterTags = (query) => {
+    const term = query.toLowerCase();
+    const container = document.getElementById('tagCategoriesContainer');
+    if (!container) return;
+
+    if (!term) {
+        window.renderTagSelector();
+        return;
+    }
+
+    let resultsHTML = '';
+    Object.entries(TAG_CATEGORIES).forEach(([category, tags]) => {
+        const matches = tags.filter(t => t.toLowerCase().includes(term));
+        if (matches.length > 0) {
+            resultsHTML += `
                 <div class="tag-category" style="margin-bottom:12px">
                     <div style="font-size:0.75rem; color:#666; margin-bottom:8px; margin-left:5px; text-transform:uppercase; font-weight:bold">${category}</div>
                     <div style="display:flex; flex-wrap:wrap; gap:8px">
                         ${matches.map(tag => {
-                    const isSelected = window.selectedTags.has(tag);
-                    return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
-                }).join('')}
+                const isSelected = window.selectedTags.has(tag);
+                return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
+            }).join('')}
                     </div>
                 </div>
             `;
-            }
-        });
-
-        container.innerHTML = resultsHTML || '<div style="color:#666; font-size:0.8rem; padding:10px">No se encontraron etiquetas.</div>';
-    };
-
-    window.openCreate = () => {
-        if (!store.currentUser) {
-            if (window.toast) window.toast("Debes iniciar sesión para compartir prompts.", "warning");
-            window.location.href = '/';
-            return;
         }
-        seqStepCount = 0;
-        const modal = document.getElementById('createModal');
-        if (modal) {
-            modal.style.display = 'flex';
-            // RESET TAGS for new post
-            window.selectedTags.clear();
-            window.renderTagSelector();
-            // Reset single preview
-            const sp = document.getElementById('singlePreview');
-            if (sp) sp.style.display = 'none';
-            // Reset sequence container
-            const sc = document.getElementById('seqContainer');
-            if (sc) sc.innerHTML = '';
-            // Ensure single fields are visible by default
-            window.togglePostType('single');
-        }
-    };
+    });
 
-    window.togglePostType = (type) => {
-        if (type === 'sequence' && (!store.currentUser || (store.currentUser.level || 0) < 1)) {
-            alert("⚠️ Función Bloquedada: Necesitas ser Nivel 1 o superior para subir secuencias (aporta al menos 10 prompts sencillos).");
-            const singleRadio = document.querySelector('input[name="postType"][value="single"]');
-            if (singleRadio) singleRadio.checked = true;
-            return;
-        }
-        document.getElementById('singleFields').style.display = type === 'single' ? 'block' : 'none';
-        document.getElementById('sequenceFields').style.display = type === 'sequence' ? 'block' : 'none';
-        if (type === 'sequence' && seqStepCount === 0) {
-            window.addSeqStep();
-        }
-    };
+    container.innerHTML = resultsHTML || '<div style="color:#666; font-size:0.8rem; padding:10px">No se encontraron etiquetas.</div>';
+};
 
-    window.toggleOrigCreator = (type) => {
-        document.getElementById('otherCreatorFields').style.display = type === 'other' ? 'flex' : 'none';
-    };
+window.openCreate = () => {
+    if (!store.currentUser) {
+        if (window.toast) window.toast("Debes iniciar sesión para compartir prompts.", "warning");
+        window.location.href = '/';
+        return;
+    }
+    seqStepCount = 0;
+    const modal = document.getElementById('createModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // RESET TAGS for new post
+        window.selectedTags.clear();
+        window.renderTagSelector();
+        // Reset single preview
+        const sp = document.getElementById('singlePreview');
+        if (sp) sp.style.display = 'none';
+        // Reset sequence container
+        const sc = document.getElementById('seqContainer');
+        if (sc) sc.innerHTML = '';
+        // Ensure single fields are visible by default
+        window.togglePostType('single');
+    }
+};
 
-    window.checkToolConfig = () => {
-        const tool = document.getElementById('upTool').value;
-        const sdTools = ['SD 1.5', 'SD 2.0', 'SDXL', 'Fooocus', 'ComfyUI'];
-        const panel = document.getElementById('upExtraConfig');
-        if (sdTools.includes(tool)) {
-            panel.style.display = 'block';
-            if (document.getElementById('extraRowsContainer').children.length === 0) {
-                window.addExtraRow();
-            }
-        } else {
-            panel.style.display = 'none';
+window.togglePostType = (type) => {
+    if (type === 'sequence' && (!store.currentUser || (store.currentUser.level || 0) < 1)) {
+        alert("⚠️ Función Bloquedada: Necesitas ser Nivel 1 o superior para subir secuencias (aporta al menos 10 prompts sencillos).");
+        const singleRadio = document.querySelector('input[name="postType"][value="single"]');
+        if (singleRadio) singleRadio.checked = true;
+        return;
+    }
+    document.getElementById('singleFields').style.display = type === 'single' ? 'block' : 'none';
+    document.getElementById('sequenceFields').style.display = type === 'sequence' ? 'block' : 'none';
+    if (type === 'sequence' && seqStepCount === 0) {
+        window.addSeqStep();
+    }
+};
+
+window.toggleOrigCreator = (type) => {
+    document.getElementById('otherCreatorFields').style.display = type === 'other' ? 'flex' : 'none';
+};
+
+window.checkToolConfig = () => {
+    const tool = document.getElementById('upTool').value;
+    const sdTools = ['SD 1.5', 'SD 2.0', 'SDXL', 'Fooocus', 'ComfyUI'];
+    const panel = document.getElementById('upExtraConfig');
+    if (sdTools.includes(tool)) {
+        panel.style.display = 'block';
+        if (document.getElementById('extraRowsContainer').children.length === 0) {
+            window.addExtraRow();
         }
-    };
+    } else {
+        panel.style.display = 'none';
+    }
+};
 
-    window.addExtraRow = () => {
-        const container = document.getElementById('extraRowsContainer');
-        const div = document.createElement('div');
-        div.className = 'extra-config-row';
-        div.style.cssText = 'display:flex; gap:10px; margin-bottom:10px; align-items:center';
-        div.innerHTML = `
+window.addExtraRow = () => {
+    const container = document.getElementById('extraRowsContainer');
+    const div = document.createElement('div');
+    div.className = 'extra-config-row';
+    div.style.cssText = 'display:flex; gap:10px; margin-bottom:10px; align-items:center';
+    div.innerHTML = `
         <select class="form-input extra-type" style="margin:0; flex:1">
             <option value="CHECKPOINT">CHECKPOINT</option>
             <option value="LORA">LORA</option>
@@ -1468,22 +1458,22 @@ window.openDetail = (id) => {
         <input type="text" class="form-input extra-val" placeholder="Nombre/Valor..." style="margin:0; flex:2">
         <button class="btn-icon" onclick="this.parentElement.remove()" style="background:#444; width:24px; height:24px; flex-shrink:0">×</button>
     `;
-        container.appendChild(div);
-    };
+    container.appendChild(div);
+};
 
-    window.toggleNeg = (id) => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
-    };
+window.toggleNeg = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+};
 
-    window.addSeqStep = () => {
-        seqStepCount++;
-        const container = document.getElementById('seqContainer');
-        const stepDiv = document.createElement('div');
-        stepDiv.className = 'seq-step';
-        stepDiv.style.cssText = 'border:1px solid #333; padding:15px; border-radius:8px; margin-bottom:15px';
-        const negId = `seqNeg-${seqStepCount}`;
-        stepDiv.innerHTML = `
+window.addSeqStep = () => {
+    seqStepCount++;
+    const container = document.getElementById('seqContainer');
+    const stepDiv = document.createElement('div');
+    stepDiv.className = 'seq-step';
+    stepDiv.style.cssText = 'border:1px solid #333; padding:15px; border-radius:8px; margin-bottom:15px';
+    const negId = `seqNeg-${seqStepCount}`;
+    stepDiv.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
             <strong>Paso ${seqStepCount}</strong>
             <button class="btn-outline" onclick="this.parentElement.parentElement.remove()" style="padding:5px 10px">Eliminar</button>
@@ -1509,257 +1499,257 @@ window.openDetail = (id) => {
             <textarea class="form-input seqNegPrompt" placeholder="Negative prompt para este paso..." rows="2" style="border-color:#ff4444; background:rgba(255,0,0,0.05)"></textarea>
         </div>
     `;
-        container.appendChild(stepDiv);
-    };
+    container.appendChild(stepDiv);
+};
 
-    window.previewFile = (input, previewId) => {
-        const preview = document.getElementById(previewId);
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = preview.querySelector('img');
-                if (img) img.src = e.target.result;
-                preview.style.display = 'flex';
-            };
-            reader.readAsDataURL(input.files[0]);
+window.previewFile = (input, previewId) => {
+    const preview = document.getElementById(previewId);
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = preview.querySelector('img');
+            if (img) img.src = e.target.result;
+            preview.style.display = 'flex';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+};
+
+window.doPublish = () => {
+    const postType = document.querySelector('input[name="postType"]:checked')?.value || 'single';
+    const title = document.getElementById('upTitle').value;
+    const tool = document.getElementById('upTool').value;
+    const isPrivate = document.getElementById('upPrivate').checked;
+    const needsReference = document.getElementById('upReference').checked;
+    const origCreatorType = document.querySelector('input[name="origCreator"]:checked')?.value || 'me';
+    const origCreator = origCreatorType === 'other' ? {
+        name: document.getElementById('upOrigName').value,
+        url: document.getElementById('upOrigUrl').value
+    } : null;
+
+    if (!title) return alert("El título es obligatorio");
+    if (origCreatorType === 'other' && !origCreator.name) return alert("Falta el nombre del creador original");
+
+    const extraConfig = [];
+    document.querySelectorAll('.extra-config-row').forEach(row => {
+        const type = row.querySelector('.extra-type').value;
+        const val = row.querySelector('.extra-val').value;
+        if (val.trim()) {
+            extraConfig.push({ type, val: val.trim() });
         }
-    };
+    });
 
-    window.doPublish = () => {
-        const postType = document.querySelector('input[name="postType"]:checked')?.value || 'single';
-        const title = document.getElementById('upTitle').value;
-        const tool = document.getElementById('upTool').value;
-        const isPrivate = document.getElementById('upPrivate').checked;
-        const needsReference = document.getElementById('upReference').checked;
-        const origCreatorType = document.querySelector('input[name="origCreator"]:checked')?.value || 'me';
-        const origCreator = origCreatorType === 'other' ? {
-            name: document.getElementById('upOrigName').value,
-            url: document.getElementById('upOrigUrl').value
-        } : null;
+    const pubBtn = document.getElementById('pubBtn');
 
-        if (!title) return alert("El título es obligatorio");
-        if (origCreatorType === 'other' && !origCreator.name) return alert("Falta el nombre del creador original");
-
-        const extraConfig = [];
-        document.querySelectorAll('.extra-config-row').forEach(row => {
-            const type = row.querySelector('.extra-type').value;
-            const val = row.querySelector('.extra-val').value;
-            if (val.trim()) {
-                extraConfig.push({ type, val: val.trim() });
-            }
-        });
-
-        const pubBtn = document.getElementById('pubBtn');
-
-        if (isEditing) {
-            // --- UPDATE FLOW ---
-            const updateData = {
-                title,
-                tool,
-                isPrivate,
-                needsReference,
-                origCreator,
-                extraConfig,
-                rating: document.getElementById('upRating').value,
-                prompt: document.getElementById('upPrompt').value,
-                negative_prompt: document.getElementById('upNegPrompt')?.value || ''
-            };
-
-            if (pubBtn) {
-                pubBtn.disabled = true;
-                pubBtn.innerText = "Actualizando...";
-            }
-
-            if (postType === 'single') {
-                const file = document.getElementById('upFile').files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = async () => {
-                        updateData.image = reader.result;
-                        const res = await store.updatePrompt(editingId, updateData);
-                        handleUpdateResult(res);
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    const existing = store.prompts.find(x => x.id === editingId);
-                    updateData.image = existing?.image;
-                    (async () => {
-                        const res = await store.updatePrompt(editingId, updateData);
-                        handleUpdateResult(res);
-                    })();
-                }
-            } else {
-                // Sequence Update
-                const steps = Array.from(document.querySelectorAll('.seq-step'));
-                const content = [];
-                let loaded = 0;
-                if (steps.length === 0) {
-                    if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Actualizar"; }
-                    return alert("Añade al menos un paso");
-                }
-                steps.forEach((step, idx) => {
-                    const file = step.querySelector('.seqFile').files[0];
-                    const prompt = step.querySelector('.seqPrompt').value;
-                    const negPrompt = step.querySelector('.seqNegPrompt').value;
-                    const rating = step.querySelector('.seqRating').value;
-                    if (!file) {
-                        const existing = store.prompts.find(x => x.id === editingId);
-                        content[idx] = { image: existing?.content[idx]?.image, prompt, negative_prompt: negPrompt, rating };
-                        loaded++;
-                        if (loaded === steps.length) finalizeUpdate();
-                    } else {
-                        const reader = new FileReader();
-                        reader.onload = async () => {
-                            content[idx] = { image: reader.result, prompt, negative_prompt: negPrompt, rating };
-                            loaded++;
-                            if (loaded === steps.length) await finalizeUpdate();
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-
-                async function finalizeUpdate() {
-                    updateData.type = 'sequence';
-                    updateData.content = content.filter(c => c); // Remove empty slots
-                    const res = await store.updatePrompt(editingId, updateData);
-                    handleUpdateResult(res);
-                }
-            }
-
-            async function handleUpdateResult(res) {
-                if (res.success) {
-                    window.closeModals();
-                    await store.init();
-                    render();
-                    window.toast("Prompt Actualizado", "success");
-                } else {
-                    alert(res.msg);
-                    if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Actualizar"; }
-                }
-            }
-            return;
-        }
+    if (isEditing) {
+        // --- UPDATE FLOW ---
+        const updateData = {
+            title,
+            tool,
+            isPrivate,
+            needsReference,
+            origCreator,
+            extraConfig,
+            rating: document.getElementById('upRating').value,
+            prompt: document.getElementById('upPrompt').value,
+            negative_prompt: document.getElementById('upNegPrompt')?.value || ''
+        };
 
         if (pubBtn) {
             pubBtn.disabled = true;
-            pubBtn.innerText = "Publicando...";
+            pubBtn.innerText = "Actualizando...";
         }
 
         if (postType === 'single') {
             const file = document.getElementById('upFile').files[0];
-            if (!file) {
-                if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
-                if (window.toast) window.toast("Imagen obligatoria", "error"); return;
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    updateData.image = reader.result;
+                    const res = await store.updatePrompt(editingId, updateData);
+                    handleUpdateResult(res);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                const existing = store.prompts.find(x => x.id === editingId);
+                updateData.image = existing?.image;
+                (async () => {
+                    const res = await store.updatePrompt(editingId, updateData);
+                    handleUpdateResult(res);
+                })();
             }
-            const negPrompt = document.getElementById('upNegPrompt').value;
-            const reader = new FileReader();
-            reader.onload = async () => {
-                const res = await store.addPrompt({
-                    title,
-                    tool,
-                    rating: document.getElementById('upRating').value,
-                    image: reader.result,
-                    prompt: document.getElementById('upPrompt').value,
-                    negative_prompt: negPrompt,
-                    type: 'single',
-                    isPrivate,
-                    needsReference,
-                    origCreator,
-                    extraConfig
-                });
-                if (!res.success) {
-                    alert(res.msg);
-                    if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
-                } else {
-                    window.closeModals();
-                    await store.init(); // Refresh data
-                    render();
-
-                    // Track Event in GA4
-                    window.trackEvent('publish_post', {
-                        title: title,
-                        tool: tool,
-                        type: 'single'
-                    });
-
-                    if (res.leveledUp) {
-                        setTimeout(() => window.showLevelUpModal(res.newLevel), 500);
-                    }
-                }
-            };
-            reader.readAsDataURL(file);
         } else {
+            // Sequence Update
             const steps = Array.from(document.querySelectorAll('.seq-step'));
-            if (steps.length === 0) {
-                if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
-                return alert("Añade al menos un paso");
-            }
-
             const content = [];
             let loaded = 0;
-
+            if (steps.length === 0) {
+                if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Actualizar"; }
+                return alert("Añade al menos un paso");
+            }
             steps.forEach((step, idx) => {
                 const file = step.querySelector('.seqFile').files[0];
                 const prompt = step.querySelector('.seqPrompt').value;
                 const negPrompt = step.querySelector('.seqNegPrompt').value;
                 const rating = step.querySelector('.seqRating').value;
                 if (!file) {
-                    if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
-                    return alert(`Falta imagen en paso ${idx + 1}`);
-                }
-
-                const reader = new FileReader();
-                reader.onload = async () => {
-                    content.push({ image: reader.result, prompt, negative_prompt: negPrompt, rating });
+                    const existing = store.prompts.find(x => x.id === editingId);
+                    content[idx] = { image: existing?.content[idx]?.image, prompt, negative_prompt: negPrompt, rating };
                     loaded++;
-                    if (loaded === steps.length) {
-                        const res = await store.addPrompt({
-                            title,
-                            tool,
-                            type: 'sequence',
-                            content,
-                            isPrivate,
-                            needsReference,
-                            origCreator,
-                            extraConfig
-                        });
-                        if (!res.success) {
-                            alert("❌ Error: " + res.msg);
-                            if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
-                        } else {
-                            seqStepCount = 0;
-                            window.closeModals();
-                            await store.init();
-                            render();
-
-                            // Track Event in GA4
-                            window.trackEvent('publish_post', {
-                                title: title,
-                                tool: tool,
-                                type: 'sequence',
-                                steps: steps.length
-                            });
-                        }
-                    }
-                };
-                reader.readAsDataURL(file);
+                    if (loaded === steps.length) finalizeUpdate();
+                } else {
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                        content[idx] = { image: reader.result, prompt, negative_prompt: negPrompt, rating };
+                        loaded++;
+                        if (loaded === steps.length) await finalizeUpdate();
+                    };
+                    reader.readAsDataURL(file);
+                }
             });
-        }
-    };
 
-    window.showLevelUpModal = (newLevel) => {
-        const lvlInfo = LEVEL_REQS[newLevel] || LEVEL_REQS[0];
-        const bgEmojis = ["✨", "🎉", "💎", "🎊", "🔥", "🚀", "🌟"];
-        let bgHtml = '';
-        for (let i = 0; i < 30; i++) {
-            const left = Math.random() * 100;
-            const animDelay = Math.random() * 2;
-            const dur = 3 + Math.random() * 3;
-            const emoji = bgEmojis[Math.floor(Math.random() * bgEmojis.length)];
-            bgHtml += `<div style="position:absolute; top:-10%; left:${left}%; font-size:${1 + Math.random()}rem; animation: fall ${dur}s linear infinite; animation-delay:-${animDelay}s; opacity:0.6; user-select:none;">${emoji}</div>`;
+            async function finalizeUpdate() {
+                updateData.type = 'sequence';
+                updateData.content = content.filter(c => c); // Remove empty slots
+                const res = await store.updatePrompt(editingId, updateData);
+                handleUpdateResult(res);
+            }
         }
 
-        const modalHtml = `
+        async function handleUpdateResult(res) {
+            if (res.success) {
+                window.closeModals();
+                await store.init();
+                render();
+                window.toast("Prompt Actualizado", "success");
+            } else {
+                alert(res.msg);
+                if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Actualizar"; }
+            }
+        }
+        return;
+    }
+
+    if (pubBtn) {
+        pubBtn.disabled = true;
+        pubBtn.innerText = "Publicando...";
+    }
+
+    if (postType === 'single') {
+        const file = document.getElementById('upFile').files[0];
+        if (!file) {
+            if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
+            if (window.toast) window.toast("Imagen obligatoria", "error"); return;
+        }
+        const negPrompt = document.getElementById('upNegPrompt').value;
+        const reader = new FileReader();
+        reader.onload = async () => {
+            const res = await store.addPrompt({
+                title,
+                tool,
+                rating: document.getElementById('upRating').value,
+                image: reader.result,
+                prompt: document.getElementById('upPrompt').value,
+                negative_prompt: negPrompt,
+                type: 'single',
+                isPrivate,
+                needsReference,
+                origCreator,
+                extraConfig
+            });
+            if (!res.success) {
+                alert(res.msg);
+                if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
+            } else {
+                window.closeModals();
+                await store.init(); // Refresh data
+                render();
+
+                // Track Event in GA4
+                window.trackEvent('publish_post', {
+                    title: title,
+                    tool: tool,
+                    type: 'single'
+                });
+
+                if (res.leveledUp) {
+                    setTimeout(() => window.showLevelUpModal(res.newLevel), 500);
+                }
+            }
+        };
+        reader.readAsDataURL(file);
+    } else {
+        const steps = Array.from(document.querySelectorAll('.seq-step'));
+        if (steps.length === 0) {
+            if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
+            return alert("Añade al menos un paso");
+        }
+
+        const content = [];
+        let loaded = 0;
+
+        steps.forEach((step, idx) => {
+            const file = step.querySelector('.seqFile').files[0];
+            const prompt = step.querySelector('.seqPrompt').value;
+            const negPrompt = step.querySelector('.seqNegPrompt').value;
+            const rating = step.querySelector('.seqRating').value;
+            if (!file) {
+                if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
+                return alert(`Falta imagen en paso ${idx + 1}`);
+            }
+
+            const reader = new FileReader();
+            reader.onload = async () => {
+                content.push({ image: reader.result, prompt, negative_prompt: negPrompt, rating });
+                loaded++;
+                if (loaded === steps.length) {
+                    const res = await store.addPrompt({
+                        title,
+                        tool,
+                        type: 'sequence',
+                        content,
+                        isPrivate,
+                        needsReference,
+                        origCreator,
+                        extraConfig
+                    });
+                    if (!res.success) {
+                        alert("❌ Error: " + res.msg);
+                        if (pubBtn) { pubBtn.disabled = false; pubBtn.innerText = "Publicar"; }
+                    } else {
+                        seqStepCount = 0;
+                        window.closeModals();
+                        await store.init();
+                        render();
+
+                        // Track Event in GA4
+                        window.trackEvent('publish_post', {
+                            title: title,
+                            tool: tool,
+                            type: 'sequence',
+                            steps: steps.length
+                        });
+                    }
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+};
+
+window.showLevelUpModal = (newLevel) => {
+    const lvlInfo = LEVEL_REQS[newLevel] || LEVEL_REQS[0];
+    const bgEmojis = ["✨", "🎉", "💎", "🎊", "🔥", "🚀", "🌟"];
+    let bgHtml = '';
+    for (let i = 0; i < 30; i++) {
+        const left = Math.random() * 100;
+        const animDelay = Math.random() * 2;
+        const dur = 3 + Math.random() * 3;
+        const emoji = bgEmojis[Math.floor(Math.random() * bgEmojis.length)];
+        bgHtml += `<div style="position:absolute; top:-10%; left:${left}%; font-size:${1 + Math.random()}rem; animation: fall ${dur}s linear infinite; animation-delay:-${animDelay}s; opacity:0.6; user-select:none;">${emoji}</div>`;
+    }
+
+    const modalHtml = `
     <div id="levelUpModalCanvas" onclick="this.remove()">
         <style>
             @keyframes fall {
@@ -1789,154 +1779,154 @@ window.openDetail = (id) => {
         </div>
     </div>`;
 
-        const div = document.createElement('div');
-        div.innerHTML = modalHtml;
-        document.body.appendChild(div.firstElementChild);
-    };
+    const div = document.createElement('div');
+    div.innerHTML = modalHtml;
+    document.body.appendChild(div.firstElementChild);
+};
 
-    window.closeModals = () => {
-        const modals = ['viewModal', 'settingsModal', 'confirmModal', 'createModal'];
-        modals.forEach(m => {
-            const el = document.getElementById(m);
-            if (el) el.style.display = 'none';
-        });
-        const dtm = document.getElementById('dynamicTipModal');
-        if (dtm) dtm.remove();
-    };
+window.closeModals = () => {
+    const modals = ['viewModal', 'settingsModal', 'confirmModal', 'createModal'];
+    modals.forEach(m => {
+        const el = document.getElementById(m);
+        if (el) el.style.display = 'none';
+    });
+    const dtm = document.getElementById('dynamicTipModal');
+    if (dtm) dtm.remove();
+};
 
-    window.doLogout = () => {
-        store.logout();
-        window.location.href = '/';
-    };
+window.doLogout = () => {
+    store.logout();
+    window.location.href = '/';
+};
 
-    window.doFollow = async (username) => {
-        if (!store.currentUser) return window.location.href = '/';
-        await store.followUser(username);
-        render();
-    };
+window.doFollow = async (username) => {
+    if (!store.currentUser) return window.location.href = '/';
+    await store.followUser(username);
+    render();
+};
 
-    window.setProfileTab = (tab) => {
-        profileTab = tab;
-        render();
-    };
+window.setProfileTab = (tab) => {
+    profileTab = tab;
+    render();
+};
 
-    window.openSettings = () => {
-        const modal = document.getElementById('settingsModal');
-        if (modal) modal.style.display = 'flex';
-    };
+window.openSettings = () => {
+    const modal = document.getElementById('settingsModal');
+    if (modal) modal.style.display = 'flex';
+};
 
-    window.previewAvatar = (input) => {
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                document.getElementById('previewAvatar').style.backgroundImage = `url('${e.target.result}')`;
-            }
-            reader.readAsDataURL(input.files[0]);
+window.previewAvatar = (input) => {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('previewAvatar').style.backgroundImage = `url('${e.target.result}')`;
         }
-    };
+        reader.readAsDataURL(input.files[0]);
+    }
+};
 
-    window.saveSettings = async () => {
-        const username = document.getElementById('setUser').value;
-        const avatarFile = document.getElementById('setAvatarFile').files[0];
+window.saveSettings = async () => {
+    const username = document.getElementById('setUser').value;
+    const avatarFile = document.getElementById('setAvatarFile').files[0];
 
-        const finishSave = async (avatarData) => {
-            const canEditSocials = store.currentUser && store.currentUser.level >= 2;
-            const socials = canEditSocials ? {
-                ig: document.getElementById('setIg').value,
-                fb: document.getElementById('setFb').value,
-                x: document.getElementById('setX').value,
-                tg: document.getElementById('setTg').value,
-                th: document.getElementById('setTh').value,
-                fv: document.getElementById('setFv').value
-            } : (store.currentUser.socials || {});
-            const moderation = {
-                suggestive: document.getElementById('setModSugg').value,
-                nsfw: document.getElementById('setModNsfw').value
-            };
-            const updateData = { username, socials, moderation };
-            if (avatarData) updateData.avatar = avatarData;
-            const res = await store.updateUserSettings(updateData);
-            if (res.success) { render(); window.closeModals(); }
-            else alert(res.msg);
+    const finishSave = async (avatarData) => {
+        const canEditSocials = store.currentUser && store.currentUser.level >= 2;
+        const socials = canEditSocials ? {
+            ig: document.getElementById('setIg').value,
+            fb: document.getElementById('setFb').value,
+            x: document.getElementById('setX').value,
+            tg: document.getElementById('setTg').value,
+            th: document.getElementById('setTh').value,
+            fv: document.getElementById('setFv').value
+        } : (store.currentUser.socials || {});
+        const moderation = {
+            suggestive: document.getElementById('setModSugg').value,
+            nsfw: document.getElementById('setModNsfw').value
         };
-
-        if (avatarFile) {
-            const reader = new FileReader();
-            reader.onload = () => finishSave(reader.result);
-            reader.readAsDataURL(avatarFile);
-        } else finishSave(null);
+        const updateData = { username, socials, moderation };
+        if (avatarData) updateData.avatar = avatarData;
+        const res = await store.updateUserSettings(updateData);
+        if (res.success) { render(); window.closeModals(); }
+        else alert(res.msg);
     };
 
-    window.doChangePassword = () => {
-        const np = document.getElementById('newPassInput').value;
-        if (np.length < 6) { if (window.toast) window.toast("Mínimo 6 chars", "error"); return; }
-        store.changePassword(np);
-    };
+    if (avatarFile) {
+        const reader = new FileReader();
+        reader.onload = () => finishSave(reader.result);
+        reader.readAsDataURL(avatarFile);
+    } else finishSave(null);
+};
 
-    window.doDeleteAccount = async () => {
-        if (await window.askConfirm('⚠️ PELIGRO ⚠️\n¿Eliminar tu cuenta permanentemente?\nEsta acción NO se puede deshacer.', '🔥')) {
-            const confirmation = prompt("Escribe 'ELIMINAR' para confirmar borrado total:");
-            if (confirmation === 'ELIMINAR') {
-                store.deleteAccount();
-                window.location.href = '/';
-            }
+window.doChangePassword = () => {
+    const np = document.getElementById('newPassInput').value;
+    if (np.length < 6) { if (window.toast) window.toast("Mínimo 6 chars", "error"); return; }
+    store.changePassword(np);
+};
+
+window.doDeleteAccount = async () => {
+    if (await window.askConfirm('⚠️ PELIGRO ⚠️\n¿Eliminar tu cuenta permanentemente?\nEsta acción NO se puede deshacer.', '🔥')) {
+        const confirmation = prompt("Escribe 'ELIMINAR' para confirmar borrado total:");
+        if (confirmation === 'ELIMINAR') {
+            store.deleteAccount();
+            window.location.href = '/';
         }
-    };
+    }
+};
 
-    window.togglePass = (id, btn) => {
-        const el = document.getElementById(id);
-        if (el.type === 'password') { el.type = 'text'; btn.innerText = '🙈'; }
-        else { el.type = 'password'; btn.innerText = '👁️'; }
-    };
+window.togglePass = (id, btn) => {
+    const el = document.getElementById(id);
+    if (el.type === 'password') { el.type = 'text'; btn.innerText = '🙈'; }
+    else { el.type = 'password'; btn.innerText = '👁️'; }
+};
 
-    window.openLevelProgress = () => {
+window.openLevelProgress = () => {
 
-        if (!store.currentUser) { alert("Error: No has iniciado sesión."); return; }
+    if (!store.currentUser) { alert("Error: No has iniciado sesión."); return; }
 
-        // Bloquear scroll del fondo
-        document.body.style.overflow = 'hidden';
+    // Bloquear scroll del fondo
+    document.body.style.overflow = 'hidden';
 
-        // Clean old instances
-        const oldModal = document.getElementById('levelModalDynamic');
-        if (oldModal) oldModal.remove();
+    // Clean old instances
+    const oldModal = document.getElementById('levelModalDynamic');
+    if (oldModal) oldModal.remove();
 
-        const u = store.currentUser;
-        const postsCount = u.prompts_count || 0;
-        const copiesCount = u.total_copies || 0;
-        const currentLvl = u.level || 0;
+    const u = store.currentUser;
+    const postsCount = u.prompts_count || 0;
+    const copiesCount = u.total_copies || 0;
+    const currentLvl = u.level || 0;
 
-        // Find next level requirements
-        const nextLvlIdx = Math.min(currentLvl + 1, LEVEL_REQS.length - 1);
-        const nextLvlReq = LEVEL_REQS[nextLvlIdx];
-        const isMax = currentLvl >= LEVEL_REQS.length - 1;
+    // Find next level requirements
+    const nextLvlIdx = Math.min(currentLvl + 1, LEVEL_REQS.length - 1);
+    const nextLvlReq = LEVEL_REQS[nextLvlIdx];
+    const isMax = currentLvl >= LEVEL_REQS.length - 1;
 
-        // Calcular progreso
-        let progressPosts = 0;
-        let progressCopies = 0;
+    // Calcular progreso
+    let progressPosts = 0;
+    let progressCopies = 0;
 
-        if (!isMax) {
-            const prevReqPosts = LEVEL_REQS[currentLvl].posts;
-            const nextReqPosts = nextLvlReq.posts;
-            progressPosts = Math.min(100, Math.max(0, ((postsCount - prevReqPosts) / (nextReqPosts - prevReqPosts)) * 100));
+    if (!isMax) {
+        const prevReqPosts = LEVEL_REQS[currentLvl].posts;
+        const nextReqPosts = nextLvlReq.posts;
+        progressPosts = Math.min(100, Math.max(0, ((postsCount - prevReqPosts) / (nextReqPosts - prevReqPosts)) * 100));
 
-            if (nextLvlReq.copies > 0) {
-                const prevReqCopies = LEVEL_REQS[currentLvl].copies || 0;
-                const nextReqCopies = nextLvlReq.copies;
-                progressCopies = Math.min(100, Math.max(0, ((copiesCount - prevReqCopies) / (nextReqCopies - prevReqCopies)) * 100));
-            } else {
-                progressCopies = 100; // Si no pide copias, está al 100%
-            }
+        if (nextLvlReq.copies > 0) {
+            const prevReqCopies = LEVEL_REQS[currentLvl].copies || 0;
+            const nextReqCopies = nextLvlReq.copies;
+            progressCopies = Math.min(100, Math.max(0, ((copiesCount - prevReqCopies) / (nextReqCopies - prevReqCopies)) * 100));
         } else {
-            progressPosts = 100;
-            progressCopies = 100;
+            progressCopies = 100; // Si no pide copias, está al 100%
         }
+    } else {
+        progressPosts = 100;
+        progressCopies = 100;
+    }
 
-        // El progreso real es el MÍNIMO de ambos (el que falte más)
-        const totalProgress = isMax ? 100 : (progressPosts + progressCopies) / 2;
-        // O mejor, mostrar ambas barras si el nivel pide ambas
-        const needsCopies = nextLvlReq.copies > 0;
+    // El progreso real es el MÍNIMO de ambos (el que falte más)
+    const totalProgress = isMax ? 100 : (progressPosts + progressCopies) / 2;
+    // O mejor, mostrar ambas barras si el nivel pide ambas
+    const needsCopies = nextLvlReq.copies > 0;
 
-        const html = `
+    const html = `
         <div style="text-align:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #222">
             <div style="font-size:3.5rem; margin-bottom:10px">${LEVEL_REQS[currentLvl].icon}</div>
             <h2 style="margin:0; font-size:1.8rem; color:#fff">Nivel ${currentLvl}</h2>
@@ -1977,9 +1967,9 @@ window.openDetail = (id) => {
         
         <div style="display:flex; flex-direction:column; gap:12px">
             ${LEVEL_REQS.map((l, idx) => {
-            const isUnlocked = postsCount >= l.posts && copiesCount >= (l.copies || 0);
-            const isCurrent = currentLvl === idx;
-            return `
+        const isUnlocked = postsCount >= l.posts && copiesCount >= (l.copies || 0);
+        const isCurrent = currentLvl === idx;
+        return `
                 <div style="display:flex; gap:15px; align-items:start; padding:15px; border-radius:12px; border:1px solid ${isCurrent ? '#2563eb' : (isUnlocked ? '#333' : '#1a1a1a')}; background:${isCurrent ? 'rgba(37, 99, 235, 0.1)' : (isUnlocked ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.3)')}; opacity:${isUnlocked ? 1 : 0.4}; transition:0.3s">
                     <div style="font-size:1.6rem; background:#111; min-width:50px; height:50px; border-radius:10px; display:flex; align-items:center; justify-content:center; border:2px solid ${l.color}">${l.icon}</div>
                     <div style="flex:1">
@@ -1992,30 +1982,30 @@ window.openDetail = (id) => {
                         </ul>
                     </div>
                 </div>`;
-        }).join('')}
+    }).join('')}
         </div>
 
         <button class="btn" style="width:100%; margin-top:30px; height:54px; font-weight:800; font-size:1.1rem; background:#2563eb; color:white; border:none; border-radius:14px; cursor:pointer; box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2)" onclick="window.closeLevelProgress(this)">Entendido</button>
     `;
 
-        window.closeLevelProgress = (btn) => {
-            btn.closest('.modal-overlay').remove();
+    window.closeLevelProgress = (btn) => {
+        btn.closest('.modal-overlay').remove();
+        document.body.style.overflow = '';
+    };
+
+    const modalDiv = document.createElement('div');
+    modalDiv.id = 'levelModalDynamic';
+    modalDiv.className = 'modal-overlay';
+    modalDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; z-index:2147483647; padding:20px; color:white; font-family:Inter, sans-serif;';
+
+    modalDiv.onclick = (e) => {
+        if (e.target === modalDiv) {
+            modalDiv.remove();
             document.body.style.overflow = '';
-        };
+        }
+    };
 
-        const modalDiv = document.createElement('div');
-        modalDiv.id = 'levelModalDynamic';
-        modalDiv.className = 'modal-overlay';
-        modalDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; z-index:2147483647; padding:20px; color:white; font-family:Inter, sans-serif;';
-
-        modalDiv.onclick = (e) => {
-            if (e.target === modalDiv) {
-                modalDiv.remove();
-                document.body.style.overflow = '';
-            }
-        };
-
-        modalDiv.innerHTML = `
+    modalDiv.innerHTML = `
         <style>
             #levelModalDynamic .modal-container::-webkit-scrollbar { width: 6px; }
             #levelModalDynamic .modal-container::-webkit-scrollbar-track { background: transparent; }
@@ -2027,89 +2017,89 @@ window.openDetail = (id) => {
         </div>
     `;
 
-        document.body.appendChild(modalDiv);
-    };
+    document.body.appendChild(modalDiv);
+};
 
 
 
-    // --- CONFIRMATION & TOAST SYSTEM ---
+// --- CONFIRMATION & TOAST SYSTEM ---
 
-    window.askConfirm = (msg, icon = '❓') => {
-        return new Promise((resolve) => {
-            let modal = document.getElementById('confirmModal');
-            // If modal doesn't exist, try to find it in DOM or fallback
-            if (!modal) {
-                if (confirm(msg)) resolve(true);
-                else resolve(false);
-                return;
-            }
-
-            const text = document.getElementById('confirmText');
-            const ico = document.getElementById('confirmIcon');
-
-            // Define cleanup function
-            const cleanup = (val) => {
-                modal.style.display = 'none';
-                resolve(val);
-            };
-
-            window.confirmResolve = cleanup;
-
-            if (modal && text) {
-                text.innerText = msg;
-                if (ico) ico.innerText = icon;
-                modal.style.display = 'flex';
-            }
-        });
-    };
-
-    window.toast = (message, type = 'info') => {
-        let container = document.querySelector('.toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.className = 'toast-container';
-            document.body.appendChild(container);
+window.askConfirm = (msg, icon = '❓') => {
+    return new Promise((resolve) => {
+        let modal = document.getElementById('confirmModal');
+        // If modal doesn't exist, try to find it in DOM or fallback
+        if (!modal) {
+            if (confirm(msg)) resolve(true);
+            else resolve(false);
+            return;
         }
 
-        const toast = document.createElement('div');
-        toast.className = `pg-toast ${type}`;
+        const text = document.getElementById('confirmText');
+        const ico = document.getElementById('confirmIcon');
 
-        let icon = '🔔';
-        if (type === 'success') icon = '✅';
-        if (type === 'error') icon = '❌';
+        // Define cleanup function
+        const cleanup = (val) => {
+            modal.style.display = 'none';
+            resolve(val);
+        };
 
-        toast.innerHTML = `
+        window.confirmResolve = cleanup;
+
+        if (modal && text) {
+            text.innerText = msg;
+            if (ico) ico.innerText = icon;
+            modal.style.display = 'flex';
+        }
+    });
+};
+
+window.toast = (message, type = 'info') => {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `pg-toast ${type}`;
+
+    let icon = '🔔';
+    if (type === 'success') icon = '✅';
+    if (type === 'error') icon = '❌';
+
+    toast.innerHTML = `
         <div class="toast-icon">${icon}</div>
         <div class="toast-content">${message}</div>
     `;
 
-        container.appendChild(toast);
+    container.appendChild(toast);
 
-        // Auto-remove
-        setTimeout(() => {
-            toast.classList.add('hide');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    };
+    // Auto-remove
+    setTimeout(() => {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+};
 
 
 
-    window.openDirectTip = (recipientId, username) => {
-        if (!store.currentUser) {
-            alert("Debes iniciar sesión para enviar propinas.");
-            return;
-        }
+window.openDirectTip = (recipientId, username) => {
+    if (!store.currentUser) {
+        alert("Debes iniciar sesión para enviar propinas.");
+        return;
+    }
 
-        // Remove any existing dynamic tip modal
-        const existingModal = document.getElementById('dynamicTipModal');
-        if (existingModal) existingModal.remove();
+    // Remove any existing dynamic tip modal
+    const existingModal = document.getElementById('dynamicTipModal');
+    if (existingModal) existingModal.remove();
 
-        // Create modal dynamically
-        const overlay = document.createElement('div');
-        overlay.id = 'dynamicTipModal';
-        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index:9000000; display:flex; align-items:center; justify-content:center;';
+    // Create modal dynamically
+    const overlay = document.createElement('div');
+    overlay.id = 'dynamicTipModal';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index:9000000; display:flex; align-items:center; justify-content:center;';
 
-        overlay.innerHTML = `
+    overlay.innerHTML = `
         <div style="background:#1a1a2e; border:1px solid #333; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
             <div style="font-size:3rem; margin-bottom:10px">💎</div>
             <h2 style="color:#fff; margin:0 0 5px 0">Apoyar a @${username}</h2>
@@ -2130,41 +2120,41 @@ window.openDetail = (id) => {
         </div>
     `;
 
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) overlay.remove();
-        });
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
 
-        document.body.appendChild(overlay);
-    };
+    document.body.appendChild(overlay);
+};
 
-    window.doSendDirectTip = async (recipientId, amount) => {
-        if (await window.askConfirm(`¿Enviar ${amount} PromptBits a este creador?`, '💎')) {
-            window.toast("Enviando PromptBits...", "info");
-            const res = await store.sendTip(null, amount, recipientId);
-            if (res.success) {
-                window.toast(res.msg, 'success');
-                const dtm = document.getElementById('dynamicTipModal');
-                if (dtm) dtm.remove();
-                render();
-            } else {
-                window.toast("❌ " + res.msg, 'error');
-            }
+window.doSendDirectTip = async (recipientId, amount) => {
+    if (await window.askConfirm(`¿Enviar ${amount} PromptBits a este creador?`, '💎')) {
+        window.toast("Enviando PromptBits...", "info");
+        const res = await store.sendTip(null, amount, recipientId);
+        if (res.success) {
+            window.toast(res.msg, 'success');
+            const dtm = document.getElementById('dynamicTipModal');
+            if (dtm) dtm.remove();
+            render();
+        } else {
+            window.toast("❌ " + res.msg, 'error');
         }
-    };
+    }
+};
 
-    const init = async () => {
-        // Normal initialization
-        await store.init();
-        if (profileUser) {
-            await store.fetchUserProfileByUsername(profileUser);
-        }
-        window.initDone = true;
-        render();
-    };
+const init = async () => {
+    // Normal initialization
+    await store.init();
+    if (profileUser) {
+        await store.fetchUserProfileByUsername(profileUser);
+    }
+    window.initDone = true;
+    render();
+};
 
-    // --- USER ACTIVITY LOGS ---
+// --- USER ACTIVITY LOGS ---
 
-    const ActivityModal = () => `
+const ActivityModal = () => `
 <div id="activityModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) { document.getElementById('activityModal').style.display='none'; store.unsubscribeUserLogs(); }">
     <div class="modal-container" style="max-width:500px; height:80vh; display:flex; flex-direction:column">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px">
@@ -2177,78 +2167,78 @@ window.openDetail = (id) => {
     </div>
 </div>`;
 
-    window.openActivity = async () => {
-        const modal = document.getElementById('activityModal');
-        if (!modal) return;
-        modal.style.display = 'flex';
+window.openActivity = async () => {
+    const modal = document.getElementById('activityModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
 
-        // Initial fetch
-        const logs = await store.getUserActivityLogs();
-        renderActivityLogs(logs);
+    // Initial fetch
+    const logs = await store.getUserActivityLogs();
+    renderActivityLogs(logs);
 
-        // Realtime subscription
-        store.subscribeToUserLogs((newLog) => {
-            // Prepend new log to current list (visual only)
-            const container = document.getElementById('activityList');
-            if (container) {
-                // Remove "No activity" or "Loading" msg if exists
-                const emptyMsg = container.querySelector('.empty-state');
-                if (emptyMsg) emptyMsg.remove();
+    // Realtime subscription
+    store.subscribeToUserLogs((newLog) => {
+        // Prepend new log to current list (visual only)
+        const container = document.getElementById('activityList');
+        if (container) {
+            // Remove "No activity" or "Loading" msg if exists
+            const emptyMsg = container.querySelector('.empty-state');
+            if (emptyMsg) emptyMsg.remove();
 
-                // Render single log and prepend
-                const logHtml = createLogItemHtml(newLog);
-                container.insertAdjacentHTML('afterbegin', logHtml);
-            }
-        });
-    };
-
-    const createLogItemHtml = (log) => {
-        let icon = '📝';
-        let title = 'Acción';
-        let detail = '';
-        let color = '#888';
-
-        // Details extraction
-        const d = log.details || {};
-
-        switch (log.action) {
-            case 'login': icon = '🔑'; title = 'Iniciaste Sesión'; color = '#a29bfe'; break;
-            case 'signup': icon = '👋'; title = 'Bienvenido a Prompt Gallery'; color = '#a29bfe'; break;
-            case 'publish': icon = '🖼️'; title = 'Publicaste un Post'; detail = d.title || ''; color = '#00cec9'; break;
-            case 'comment': icon = '💬'; title = 'Comentaste'; detail = `en ${d.postTitle || 'un post'}`; break;
-            case 'like': icon = '👍'; title = 'Te gustó'; detail = `${d.postTitle || 'un post'}`; break;
-            case 'love': icon = '❤️'; title = 'Te encantó'; detail = `${d.postTitle || 'un post'}`; break;
-            case 'fire': icon = '🔥'; title = 'Diste fuego'; detail = `${d.postTitle || 'un post'}`; break;
-            case 'funny': icon = '😂'; title = 'Te divirtió'; detail = `${d.postTitle || 'un post'}`; break;
-            case 'sad': icon = '😢'; title = 'Te entristeció'; detail = `${d.postTitle || 'un post'}`; break;
-            case 'dislike': icon = '👎'; title = 'No te gustó'; detail = `${d.postTitle || 'un post'}`; break;
-            case 'follow': icon = '👤'; title = 'Seguiste a un usuario'; detail = `@${d.target || 'usuario'}`; break;
-            case 'tip': // Valid for legacy logs
-            case 'tip_sent':
-                icon = '💎';
-                color = '#fdcb6e';
-                title = `Enviaste ${d.amount} PromptBits`;
-                detail = `a @${d.recipient || 'usuario'}`;
-                break;
-            case 'tip_received':
-                icon = '🎁';
-                color = '#00b894'; // Green for receiving
-                title = `Recibiste ${d.amount} PromptBits`;
-                detail = `de @${d.sender || 'un usuario'}`;
-                break;
-            case 'level_up':
-                icon = '🆙';
-                color = '#e17055';
-                title = `¡Subiste de Nivel!`;
-                detail = `Alcanzaste el Nivel ${d.newLevel}`;
-                break;
+            // Render single log and prepend
+            const logHtml = createLogItemHtml(newLog);
+            container.insertAdjacentHTML('afterbegin', logHtml);
         }
+    });
+};
 
-        const time = new Date(log.created_at).toLocaleString('es-MX', {
-            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
+const createLogItemHtml = (log) => {
+    let icon = '📝';
+    let title = 'Acción';
+    let detail = '';
+    let color = '#888';
 
-        return `
+    // Details extraction
+    const d = log.details || {};
+
+    switch (log.action) {
+        case 'login': icon = '🔑'; title = 'Iniciaste Sesión'; color = '#a29bfe'; break;
+        case 'signup': icon = '👋'; title = 'Bienvenido a Prompt Gallery'; color = '#a29bfe'; break;
+        case 'publish': icon = '🖼️'; title = 'Publicaste un Post'; detail = d.title || ''; color = '#00cec9'; break;
+        case 'comment': icon = '💬'; title = 'Comentaste'; detail = `en ${d.postTitle || 'un post'}`; break;
+        case 'like': icon = '👍'; title = 'Te gustó'; detail = `${d.postTitle || 'un post'}`; break;
+        case 'love': icon = '❤️'; title = 'Te encantó'; detail = `${d.postTitle || 'un post'}`; break;
+        case 'fire': icon = '🔥'; title = 'Diste fuego'; detail = `${d.postTitle || 'un post'}`; break;
+        case 'funny': icon = '😂'; title = 'Te divirtió'; detail = `${d.postTitle || 'un post'}`; break;
+        case 'sad': icon = '😢'; title = 'Te entristeció'; detail = `${d.postTitle || 'un post'}`; break;
+        case 'dislike': icon = '👎'; title = 'No te gustó'; detail = `${d.postTitle || 'un post'}`; break;
+        case 'follow': icon = '👤'; title = 'Seguiste a un usuario'; detail = `@${d.target || 'usuario'}`; break;
+        case 'tip': // Valid for legacy logs
+        case 'tip_sent':
+            icon = '💎';
+            color = '#fdcb6e';
+            title = `Enviaste ${d.amount} PromptBits`;
+            detail = `a @${d.recipient || 'usuario'}`;
+            break;
+        case 'tip_received':
+            icon = '🎁';
+            color = '#00b894'; // Green for receiving
+            title = `Recibiste ${d.amount} PromptBits`;
+            detail = `de @${d.sender || 'un usuario'}`;
+            break;
+        case 'level_up':
+            icon = '🆙';
+            color = '#e17055';
+            title = `¡Subiste de Nivel!`;
+            detail = `Alcanzaste el Nivel ${d.newLevel}`;
+            break;
+    }
+
+    const time = new Date(log.created_at).toLocaleString('es-MX', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    return `
     <div style="display:flex; gap:15px; padding:15px; background:rgba(255,255,255,0.03); border-radius:8px; margin-bottom:10px; align-items:center; border-left:3px solid ${color}; animation: fadeIn 0.5s ease">
         <div style="font-size:1.5rem">${icon}</div>
         <div style="flex:1">
@@ -2257,41 +2247,26 @@ window.openDetail = (id) => {
         </div>
         <div style="font-size:0.75rem; color:#666; white-space:nowrap">${time}</div>
     </div>`;
-    };
+};
 
-    const renderActivityLogs = (logs) => {
-        const container = document.getElementById('activityList');
-        if (!container) return;
+// --- ADMIN ACTIONS ---
+window.doClaimGhosts = async () => {
+    if (!confirm("Esto buscará todos los posts antiguos con tu nombre y actualizará su ID al actual. ¿Continuar?")) return;
+    if (window.toast) window.toast("Iniciando reparación...", "info");
 
-        if (!logs || logs.length === 0) {
-            container.innerHTML = `<div class="empty-state" style="text-align:center; padding:40px; color:#666">
-            <div style="font-size:2rem; margin-bottom:10px">📭</div>
-            No hay actividad reciente.
-        </div>`;
-            return;
+    try {
+        const res = await store.claimGhostPosts();
+        if (res.success) {
+            if (window.toast) window.toast(res.msg, "success");
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            if (window.toast) window.toast(res.msg, "error");
+            else alert(res.msg);
         }
+    } catch (err) {
+        console.error("Claim handler error:", err);
+        alert("Error crítico en la reparación");
+    }
+};
 
-        container.innerHTML = logs.map(createLogItemHtml).join('');
-    };
-
-    // --- ADMIN ACTIONS ---
-    window.doClaimGhosts = async () => {
-        if (!confirm("Esto buscará todos los posts antiguos con tu nombre y actualizará su ID al actual. ¿Continuar?")) return;
-        if (window.toast) window.toast("Iniciando reparación...", "info");
-
-        try {
-            const res = await store.claimGhostPosts();
-            if (res.success) {
-                if (window.toast) window.toast(res.msg, "success");
-                setTimeout(() => window.location.reload(), 1500);
-            } else {
-                if (window.toast) window.toast(res.msg, "error");
-                else alert(res.msg);
-            }
-        } catch (err) {
-            console.error("Claim handler error:", err);
-            alert("Error crítico en la reparación");
-        }
-    };
-
-    init();
+init();
