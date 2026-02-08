@@ -152,7 +152,7 @@ const store = {
                 })(),
                 created_at: (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : p.created,
                 reactions: p.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 },
-                userReactions: p.user_reactions || {},
+                userReactions: (p.reactions && p.reactions._u) ? p.reactions._u : {},
                 comments: p.comments || [],
                 savedBy: p.saved_by || [],
                 saved_by: p.saved_by || [],
@@ -617,38 +617,38 @@ const store = {
         if (!prompt) return { success: false };
 
         const username = this.currentUser.username;
-        let reactions = { ...(prompt.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 }) };
-        let userReactions = { ...(prompt.userReactions || {}) };
+        let reactions = { ...(prompt.reactions || {}) };
 
-        const oldReaction = userReactions[username];
+        // Inicializar si no existen las claves básicas
+        ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(k => {
+            if (typeof reactions[k] !== 'number') reactions[k] = 0;
+        });
+
+        let uMap = reactions._u || {};
+        const oldReaction = uMap[username];
 
         if (oldReaction === type) {
-            // REMOVE REACTION
-            reactions[type] = Math.max(0, (reactions[type] || 0) - 1);
-            delete userReactions[username];
+            reactions[type] = Math.max(0, reactions[type] - 1);
+            delete uMap[username];
         } else {
-            // CHANGE OR ADD REACTION
             if (oldReaction) {
-                reactions[oldReaction] = Math.max(0, (reactions[oldReaction] || 0) - 1);
+                reactions[oldReaction] = Math.max(0, reactions[oldReaction] - 1);
             }
             reactions[type] = (reactions[type] || 0) + 1;
-            userReactions[username] = type;
+            uMap[username] = type;
         }
 
+        reactions._u = uMap;
+
         try {
-            await pb.collection('prompts').update(postId, {
-                reactions: reactions,
-                user_reactions: userReactions
-            });
-
-            // LOCAL UPDATE FOR INSTANT UI
+            await pb.collection('prompts').update(postId, { reactions: reactions });
             prompt.reactions = reactions;
-            prompt.userReactions = userReactions;
-
+            prompt.userReactions = uMap;
+            if (window.render) window.render();
             this.logActivity(type, { postTitle: prompt.title || 'Post' });
             return { success: true };
         } catch (error) {
-            console.error("Reaction failed:", error);
+            console.error("Error al reaccionar:", error);
             return { success: false };
         }
     },

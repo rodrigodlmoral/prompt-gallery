@@ -1204,7 +1204,6 @@ window.doAutoTag = async () => {
 
         const base64Image = await base64Promise;
         const ALL_TAGS = Object.values(TAG_CATEGORIES).flat();
-
         const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {

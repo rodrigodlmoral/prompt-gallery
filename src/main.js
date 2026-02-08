@@ -710,7 +710,7 @@ const Gallery = () => {
     ${list.map((p, idx) => {
         const { applyBlur, warningLabel } = getModeration(p);
         const reactions = p.reactions || { like: 0, love: 0, fire: 0, funny: 0 };
-        const totalReacts = Object.values(reactions).reduce((a, b) => a + b, 0);
+        const totalReacts = Object.values(reactions).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0);
 
         const card = `<div class="card">
                 <div class="card-img-wrap ${p.type !== 'sequence' && applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" data-warning="${applyBlur ? warningLabel : ''}" style="height:100%; cursor:pointer">

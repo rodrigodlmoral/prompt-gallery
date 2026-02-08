@@ -1074,41 +1074,33 @@ header nav {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 25px;
-}
-
-.reactions-flex {
   display: flex !important;
-  gap: 8px !important;
+  gap: 10px !important;
   flex-wrap: nowrap !important;
   overflow-x: auto !important;
-  padding-bottom: 10px;
+  padding: 5px 0 15px 0;
   -ms-overflow-style: none;
-  /* IE and Edge */
   scrollbar-width: none;
-  /* Firefox */
 }
 
 .reactions-flex::-webkit-scrollbar {
   display: none;
-  /* Chrome, Safari and Opera */
 }
 
 .react-btn {
-  background: rgba(255, 255, 255, 0.08);
-  /* Aumentado de 0.03 */
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  /* Aumentado de 0.1 */
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
-  padding: 6px 12px;
+  padding: 8px 14px;
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s;
   font-size: 1.1rem;
-  /* Aumentado ligeramente */
   color: white;
+  flex-shrink: 0;
+  /* Evitar que se encojan en la fila unica */
 }
 
 .react-btn small {
