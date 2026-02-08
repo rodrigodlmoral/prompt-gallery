@@ -1071,14 +1071,15 @@ header nav {
 }
 
 .reactions-flex {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
   display: flex !important;
-  gap: 10px !important;
+  gap: 12px !important;
   flex-wrap: nowrap !important;
   overflow-x: auto !important;
-  padding: 5px 0 15px 0;
+  padding: 10px 5px 20px 5px !important;
+  /* Más espacio abajo */
+  margin: 15px 0 !important;
+  flex-shrink: 0 !important;
+  /* Evitar que el contenedor se aplaste */
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
@@ -1088,19 +1089,21 @@ header nav {
 }
 
 .react-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 8px 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 1.1rem;
-  color: white;
-  flex-shrink: 0;
-  /* Evitar que se encojan en la fila unica */
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 12px !important;
+  padding: 10px 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  font-size: 1.15rem !important;
+  color: white !important;
+  flex-shrink: 0 !important;
+  min-height: 44px !important;
+  /* Altura minima real */
+  line-height: 1 !important;
 }
 
 .react-btn small {

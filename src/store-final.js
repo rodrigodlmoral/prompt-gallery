@@ -627,6 +627,7 @@ const store = {
         let uMap = reactions._u || {};
         const oldReaction = uMap[username];
 
+        // ACTUALIZACIÓN OPTIMISTA (LOCAL)
         if (oldReaction === type) {
             reactions[type] = Math.max(0, reactions[type] - 1);
             delete uMap[username];
@@ -637,18 +638,20 @@ const store = {
             reactions[type] = (reactions[type] || 0) + 1;
             uMap[username] = type;
         }
-
         reactions._u = uMap;
+
+        // Sync local immediately
+        prompt.reactions = reactions;
+        prompt.userReactions = uMap;
+        if (window.render) window.render();
 
         try {
             await pb.collection('prompts').update(postId, { reactions: reactions });
-            prompt.reactions = reactions;
-            prompt.userReactions = uMap;
-            if (window.render) window.render();
             this.logActivity(type, { postTitle: prompt.title || 'Post' });
             return { success: true };
         } catch (error) {
-            console.error("Error al reaccionar:", error);
+            console.error("Error al sincronizar reacción:", error);
+            // Revertir si falla el servidor (opcional, pero ayuda a la consistencia)
             return { success: false };
         }
     },
