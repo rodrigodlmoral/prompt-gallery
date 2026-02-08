@@ -6,7 +6,7 @@ import { uploadToCloudinary } from './uploadService.js';
 import { TAG_CATEGORIES } from './data/tags.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 const MAINTENANCE_END_TIME = new Date('2026-02-05T04:35:00-06:00').getTime(); // 4:35 AM Local
 
 const renderMaintenance = () => {
