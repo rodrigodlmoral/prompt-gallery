@@ -956,9 +956,53 @@ window.doBlockUser = async () => {
 
 window.doReact = async (type) => {
     if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para reaccionar.", "warning"); return; }
-    await store.toggleReaction(currentId, type);
+
     const p = store.prompts.find(x => String(x.id) === String(currentId));
-    window.openDetail(currentId); // Refresh modal
+    if (!p) return;
+
+    // --- TRUE OPTIMISTIC UI (Manual Calculation) ---
+    const user = store.currentUser.username;
+    const currentReactions = p.reactions || {};
+    const currentUserReactions = p.userReactions || {};
+    const oldUserReaction = currentUserReactions[username]; // Note: in profile.js 'username' variable refers to logged user elsewhere? No, store has it.
+
+    // Clone for local manipulation
+    let newCounts = { ...currentReactions };
+    let newMyReaction = null;
+
+    if (currentUserReactions[user] === type) {
+        newCounts[type] = Math.max(0, (newCounts[type] || 0) - 1);
+        newMyReaction = null;
+    } else {
+        if (currentUserReactions[user]) {
+            newCounts[currentUserReactions[user]] = Math.max(0, (newCounts[currentUserReactions[user]] || 0) - 1);
+        }
+        newCounts[type] = (newCounts[type] || 0) + 1;
+        newMyReaction = type;
+    }
+
+    // UPDATE DOM IMMEDIATELY
+    ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(t => {
+        const el = document.getElementById(`det-${t}-count`);
+        const btn = document.getElementById(`btn-react-${t}`);
+        if (el) el.innerText = newCounts[t] || 0;
+        if (btn) {
+            if (newMyReaction === t) {
+                btn.classList.add('active');
+                btn.style.transform = "scale(1.2)";
+                setTimeout(() => btn.style.transform = "scale(1)", 200);
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+    });
+
+    // --- SYNC WITH STORE & SERVER ---
+    try {
+        await store.toggleReaction(currentId, type);
+    } catch (e) {
+        console.error("Reaction Sync Failed", e);
+    }
 };
 
 window.doFullScreen = () => {
