@@ -962,22 +962,25 @@ window.doReact = async (type) => {
 
     // --- TRUE OPTIMISTIC UI (Manual Calculation) ---
     const user = store.currentUser.username;
-    const currentReactions = p.reactions || {};
-    const currentUserReactions = p.userReactions || {};
-    const oldUserReaction = currentUserReactions[username]; // Note: in profile.js 'username' variable refers to logged user elsewhere? No, store has it.
+    if (!p.reactions) p.reactions = {};
+    if (!p.userReactions) p.userReactions = {};
 
-    // Clone for local manipulation
-    let newCounts = { ...currentReactions };
+    const oldUserReaction = p.userReactions[user];
+
+    // Calculate new state
     let newMyReaction = null;
-
-    if (currentUserReactions[user] === type) {
-        newCounts[type] = Math.max(0, (newCounts[type] || 0) - 1);
+    if (oldUserReaction === type) {
+        // Toggle OFF
+        p.reactions[type] = Math.max(0, (p.reactions[type] || 0) - 1);
+        delete p.userReactions[user];
         newMyReaction = null;
     } else {
-        if (currentUserReactions[user]) {
-            newCounts[currentUserReactions[user]] = Math.max(0, (newCounts[currentUserReactions[user]] || 0) - 1);
+        // Toggle ON or Switch
+        if (oldUserReaction) {
+            p.reactions[oldUserReaction] = Math.max(0, (p.reactions[oldUserReaction] || 0) - 1);
         }
-        newCounts[type] = (newCounts[type] || 0) + 1;
+        p.reactions[type] = (p.reactions[type] || 0) + 1;
+        p.userReactions[user] = type;
         newMyReaction = type;
     }
 
@@ -985,7 +988,7 @@ window.doReact = async (type) => {
     ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(t => {
         const el = document.getElementById(`det-${t}-count`);
         const btn = document.getElementById(`btn-react-${t}`);
-        if (el) el.innerText = newCounts[t] || 0;
+        if (el) el.innerText = p.reactions[t] || 0;
         if (btn) {
             if (newMyReaction === t) {
                 btn.classList.add('active');
