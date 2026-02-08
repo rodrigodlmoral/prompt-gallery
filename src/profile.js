@@ -287,10 +287,15 @@ const Gallery = () => {
                 <div class="card-overlay" data-post-id="${p.id}" style="cursor:pointer">
                     <div style="font-weight:700; font-size:0.9rem; margin-bottom:5px">${window.escapeHTML(p.title)}</div>
                     <div style="font-size:0.8rem; opacity:0.8; margin-bottom:10px">por @${window.escapeHTML(p.author)}</div>
-                    <div class="card-stats" style="font-size:0.75rem; display:flex; gap:8px; flex-wrap:wrap">
-                        <span title="Me gusta">👍 ${reactions.like || 0}</span>
-                        <span title="Copiado" style="color:var(--accent); font-weight:700">📋 ${p.copy_count || 0}</span>
-                        <span style="color:#a29bfe; font-weight:700">💎 ${p.tokens_received || 0}</span>
+                    <div class="card-stats">
+                        ${reactions.like > 0 ? `<span title="Me gusta">👍 ${reactions.like}</span>` : ''}
+                        ${reactions.love > 0 ? `<span title="Me encanta">❤️ ${reactions.love}</span>` : ''}
+                        ${reactions.fire > 0 ? `<span title="Fuego">🔥 ${reactions.fire}</span>` : ''}
+                        ${reactions.funny > 0 ? `<span title="Divertido">😂 ${reactions.funny}</span>` : ''}
+                        ${reactions.dislike > 0 ? `<span title="No me gusta">👎 ${reactions.dislike}</span>` : ''}
+                        ${reactions.sad > 0 ? `<span title="Triste">😢 ${reactions.sad}</span>` : ''}
+                        <span title="Copiado" style="color:var(--accent)">📋 ${p.copy_count || 0}</span>
+                        <span title="PromptBits" onclick="event.stopPropagation(); window.openTip('${p.id}')" style="color:#a29bfe; cursor:pointer">💎 ${p.tokens_received || 0}</span>
                     </div>
                 </div>
 
