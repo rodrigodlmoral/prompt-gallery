@@ -383,7 +383,7 @@ const Header = () => `
         </nav>
     </div>
 
-    <!--Mobile Search Overlay-- >
+    <!-- Mobile Search Overlay -->
     <div class="search-mobile-overlay">
         <div class="container" style="display:flex; align-items:center; gap:10px; height:100%">
             <button class="btn-icon" onclick="document.querySelector('.search-mobile-overlay').classList.remove('active')" style="font-size:1.2rem; color:#fff">✕</button>
@@ -391,7 +391,6 @@ const Header = () => `
                 <input type="search" class="search-input" id="searchMobileInput" placeholder="Buscar prompts..." value="${searchQuery}" autocomplete="off" onkeydown="if(event.key === 'Enter'){ window.handleSearch(this.value); document.querySelector('.search-mobile-overlay').classList.remove('active'); }">
             </div>
         </div>
-    </div>
     </div>
     ${store.currentUser ? `
     <div class="container" style="padding:10px 20px; display:flex; gap:10px; overflow-x:auto; background:rgba(0,0,0,0.3)">
@@ -802,7 +801,7 @@ const TipModal = () => `
 
 // --- MODALS ---
 const AuthModal = () => `
-        <div id = "authModal" class="modal-overlay" style = "display:none;"> <div class="modal-container">
+        <div id="authModal" class="modal-overlay" style="display:none;"> <div class="modal-container">
             <div id="loginForm">
                 <h2>Entrar</h2>
                 <input type="text" id="logUser" class="form-input" placeholder="Usuario o Email">
@@ -850,7 +849,7 @@ const AuthModal = () => `
             </div></div>`;
 
 const CreateModal = () => `
-                <div id = "createModal" class="modal-overlay" style = "display:none;"><div class="modal-container">
+                <div id="createModal" class="modal-overlay" style="display:none;"><div class="modal-container">
     <h2>Compartir Prompt</h2>
     
     <div class="form-group">
@@ -944,7 +943,7 @@ const SettingsModal = () => {
     const mod = u.moderation || { suggestive: 'ON', nsfw: 'BLUR' };
 
     return `
-    <div id = "settingsModal" class="modal-overlay" style = "display:none;">
+    <div id="settingsModal" class="modal-overlay" style="display:none;">
         <div class="modal-container" style="max-width:600px">
             <h2>Configuración de Perfil</h2>
 
