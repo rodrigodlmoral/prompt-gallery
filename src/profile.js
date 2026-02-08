@@ -833,6 +833,22 @@ window.openDetail = (id) => {
         if (seqCount) seqCount.style.display = 'none';
         if (detImg) detImg.src = p.image || '';
         if (detPrompt) detPrompt.innerText = p.prompt || '';
+
+        // Negative Prompt Handling
+        const detNegPrompt = document.getElementById('detNegPrompt');
+        const btnCopyNeg = document.getElementById('btnCopyNeg');
+        const negText = p.negative_prompt;
+
+        if (negText && negText.trim()) {
+            if (detNegPrompt) {
+                detNegPrompt.innerText = negText;
+                detNegPrompt.style.display = 'block';
+            }
+            if (btnCopyNeg) btnCopyNeg.style.display = 'block';
+        } else {
+            if (detNegPrompt) detNegPrompt.style.display = 'none';
+            if (btnCopyNeg) btnCopyNeg.style.display = 'none';
+        }
     }
 
     // Blurring
@@ -912,6 +928,16 @@ window.updateSeqDisplay = (p) => {
         }
     }
 
+    // Reset negative button visibility for sequence updates
+    const btnCopyNegSeq = document.getElementById('btnCopyNeg');
+    if (btnCopyNegSeq) {
+        if (step.negative_prompt && step.negative_prompt.trim()) {
+            btnCopyNegSeq.style.display = 'block';
+        } else {
+            btnCopyNegSeq.style.display = 'none';
+        }
+    }
+
     const detImg = document.getElementById('detImg');
     const detPrompt = document.getElementById('detPrompt');
     const seqCount = document.getElementById('detSeqCount');
@@ -947,22 +973,40 @@ window.doSavePrompt = async () => {
     window.toast("Prompt Guardado", "success");
 };
 
-window.doCopyPrompt = async () => {
+window.doCopyPrompt = async (type = 'main') => {
     const p = store.prompts.find(x => String(x.id) === String(currentId));
     if (!p) return;
-    const text = p.type === 'sequence' ? p.content[currentSeqStep]?.prompt : p.prompt;
+
+    let text = '';
+    if (type === 'main') {
+        text = p.type === 'sequence' ? p.content[currentSeqStep]?.prompt : p.prompt;
+    } else {
+        text = p.type === 'sequence' ? p.content[currentSeqStep]?.negative_prompt : p.negative_prompt;
+    }
+
+    if (!text) {
+        window.toast("No hay texto para copiar", "warning");
+        return;
+    }
+
     await navigator.clipboard.writeText(text || '');
-    await store.incrementCopyCount(currentId);
+
+    if (type === 'main') {
+        await store.incrementCopyCount(currentId);
+        window.toast("¡Prompt Copiado!", "success");
+    } else {
+        window.toast("¡Negative Prompt Copiado!", "info");
+    }
 
     // Track Event in GA4
     window.trackEvent('copy_prompt', {
         id: p.id,
         title: p.title,
         author: p.author,
-        tool: p.tool
+        tool: p.tool,
+        type: type
     });
 
-    window.toast("¡Copiado!", "success");
     render();
 };
 

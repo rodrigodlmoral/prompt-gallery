@@ -979,7 +979,10 @@ const DetailModal = () => `
                     <div style="position:relative">
                         <div id="detPrompt" class="prompt-area"></div>
                         <div id="detNegPrompt" class="prompt-area" style="display:none; margin-top:10px; border-color:#ff4444; background:rgba(255,0,0,0.05); color:#ff6666"></div>
-                        <button class="btn-outline" onclick="window.doCopyPrompt()" style="width:100%; margin-top:10px">📋 Copiar Prompt</button>
+                        <div id="copyButtonsWrap" style="display:flex; flex-direction:column; gap:8px; margin-top:10px">
+                            <button class="btn-outline" onclick="window.doCopyPrompt('main')" style="width:100%">📋 Copiar Prompt</button>
+                            <button id="btnCopyNeg" class="btn-outline" onclick="window.doCopyPrompt('negative')" style="width:100%; display:none; border-color:rgba(255,68,68,0.4); color:#ff6666">❌ Copiar Neg. Prompt</button>
+                        </div>
                     </div>
                     
                     <div class="reactions-flex" style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap">
@@ -1834,6 +1837,10 @@ window.openDetail = (id) => {
         currentId = id;
         currentSeqStep = 0;
 
+        // Reset negative copy button
+        const btnCopyNeg = document.getElementById('btnCopyNeg');
+        if (btnCopyNeg) btnCopyNeg.style.display = 'none';
+
         // RESET SLIDER ON EVERY OPEN
         window.sliderUnlocked = false;
         const slider = document.getElementById('commSlider');
@@ -1983,6 +1990,22 @@ window.openDetail = (id) => {
         const detPrompt = document.getElementById('detPrompt');
         const detImg = document.getElementById('detImg');
 
+        // Show/Hide Negative Prompt and Button
+        const detNegPrompt = document.getElementById('detNegPrompt');
+        const btnCopyNegCurrent = document.getElementById('btnCopyNeg');
+        const negText = p.type === 'sequence' ? p.content[0]?.negative_prompt : p.negative_prompt;
+
+        if (negText && negText.trim()) {
+            if (detNegPrompt) {
+                detNegPrompt.innerText = negText;
+                detNegPrompt.style.display = 'block';
+            }
+            if (btnCopyNegCurrent) btnCopyNegCurrent.style.display = 'block';
+        } else {
+            if (detNegPrompt) detNegPrompt.style.display = 'none';
+            if (btnCopyNegCurrent) btnCopyNegCurrent.style.display = 'none';
+        }
+
         if (p.type === 'sequence' && p.content && p.content.length > 0) {
             if (prevBtn) prevBtn.style.display = 'flex';
             if (nextBtn) nextBtn.style.display = 'flex';
@@ -1995,6 +2018,9 @@ window.openDetail = (id) => {
             if (detPrompt) detPrompt.innerText = p.prompt || '';
             if (detImg) detImg.src = p.image || '';
 
+            // The detNeg block here is now redundant as it's handled above for both types
+            // Keeping it commented out for reference if needed, but the new logic covers it.
+            /*
             const detNeg = document.getElementById('detNegPrompt');
             if (detNeg) {
                 if (p.negative_prompt) {
@@ -2009,6 +2035,7 @@ window.openDetail = (id) => {
                     detNeg.style.display = 'none';
                 }
             }
+            */
         }
         // Re-apply blurring logic for single image context
         const detImgWrap = document.getElementById('detImgWrap');
@@ -2123,19 +2150,22 @@ window.updateSeqDisplay = (p) => {
     }
 
     const detNeg = document.getElementById('detNegPrompt');
+    const btnCopyNegCurrent = document.getElementById('btnCopyNeg'); // Get the button
     if (detNeg) {
         let stepNeg = (step && typeof step === 'object') ? step.negative_prompt : '';
         const finalNeg = stepNeg || p.negative_prompt || '';
         if (finalNeg) {
             detNeg.style.display = 'block';
-            detNeg.innerText = `NEGATIVE PROMPT: ${finalNeg}`;
+            detNeg.innerText = finalNeg; // Removed "NEGATIVE PROMPT:" prefix as it's in the HTML
             detNeg.style.backgroundColor = '#331a1a';
             detNeg.style.color = '#ffaaaa';
             detNeg.style.padding = '8px';
             detNeg.style.borderRadius = '4px';
             detNeg.style.marginTop = '10px';
+            if (btnCopyNegCurrent) btnCopyNegCurrent.style.display = 'block';
         } else {
             detNeg.style.display = 'none';
+            if (btnCopyNegCurrent) btnCopyNegCurrent.style.display = 'none';
         }
     }
 
@@ -2240,29 +2270,36 @@ window.doAdminFeaturePrompt = async () => {
     }
 };
 
-window.doCopyPrompt = async (idFromMenu) => {
-    // Si viene de un menú (como el de opciones), usamos ese ID, si no el currentId
-    const targetId = idFromMenu || currentId;
-    const p = store.prompts.find(x => String(x.id) === String(targetId));
+window.doCopyPrompt = async (type = 'main') => {
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
     if (!p) return;
 
-    let textToCopy = '';
-    if (p.type === 'sequence' && p.content) {
-        textToCopy = p.content.map((step, idx) => `Paso ${idx + 1}:\n${step.prompt}`).join('\n\n');
+    let text = '';
+    if (type === 'main') {
+        text = p.type === 'sequence' ? p.content[currentSeqStep]?.prompt : p.prompt;
     } else {
-        textToCopy = p.prompt || '';
+        text = p.type === 'sequence' ? p.content[currentSeqStep]?.negative_prompt : p.negative_prompt;
     }
 
-    const btn = window.event?.currentTarget;
+    if (!text) {
+        window.toast("No hay texto para copiar", "warning");
+        return;
+    }
 
     try {
-        await navigator.clipboard.writeText(textToCopy);
+        await navigator.clipboard.writeText(text);
 
-        // Efecto visual en los botones
-        if (btn && btn.tagName === 'BUTTON') {
-            const oldText = btn.innerText;
-            btn.innerText = "✅ ¡Copiado!";
-            setTimeout(() => btn.innerText = oldText, 2000);
+        if (type === 'main') {
+            await store.incrementCopyCount(currentId);
+            window.toast("¡Prompt Copiado!", "success");
+
+            // Actualizar Badge si existe
+            const badge = document.getElementById('detCopyBadge');
+            if (badge) {
+                badge.innerText = `📋 Copiado ${p.copy_count + 1} veces`;
+            }
+        } else {
+            window.toast("¡Negative Prompt Copiado!", "info");
         }
 
         // Track Event in GA4
@@ -2270,19 +2307,11 @@ window.doCopyPrompt = async (idFromMenu) => {
             id: p.id,
             title: p.title,
             author: p.author,
-            tool: p.tool
+            tool: p.tool,
+            type: type
         });
 
-        // Incrementar contador
-        await store.incrementCopyCount(targetId);
-
-        // Actualizar Badge si el modal está abierto
-        const badge = document.getElementById('detCopyBadge');
-        if (badge && String(currentId) === String(targetId)) {
-            badge.innerText = `📋 Copiado ${p.copy_count} veces`;
-        }
-
-        if (idFromMenu) window.toggleOptionsMenu();
+        render();
     } catch (err) {
         console.error("Error al copiar:", err);
     }
