@@ -7,7 +7,7 @@ import { TAG_CATEGORIES } from './data/tags.js';
 import { DetailModalTemplate } from './components/DetailModal.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 const MAINTENANCE_END_TIME = new Date('2026-02-09T08:00:00-06:00').getTime(); // 8:00 AM Local (Mañana)
 
 const renderMaintenance = () => {
