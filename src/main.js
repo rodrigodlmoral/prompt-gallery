@@ -1733,7 +1733,7 @@ window.doPublish = () => {
                 } else {
                     if (window.toast) window.toast("✅ ¡Publicado con éxito!", "success");
                     window.closeModals();
-                    await store.loadUsers();
+                    // await store.loadUsers(); // Eliminado: Innecesario y causaba error
                     render();
 
                     window.trackEvent('publish_post', { title, tool, type: 'single' });

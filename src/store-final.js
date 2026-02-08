@@ -322,7 +322,10 @@ const store = {
             });
             window.trackEvent(action, details);
         } catch (err) {
-            console.warn("Failed to log activity:", err);
+            // Silenciar error 404 si la colección no existe (común en despliegues nuevos)
+            if (err.status !== 404) {
+                console.warn("Failed to log activity:", err);
+            }
         }
     },
 
