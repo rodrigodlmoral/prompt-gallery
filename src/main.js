@@ -1,4 +1,5 @@
 import './style.css'
+// Deploy Timestamp: 2026-02-08T15:17:00-06:00 (Force Update)
 import './admin_fix.css' // Emergency CSS Fix for Admin Panel
 import { pb } from './pocketbase.js';
 import { store, TOOLS, RATINGS, RATING_INFO, INFO_ICON, LEVEL_REQS } from './store-final.js';
@@ -2580,7 +2581,12 @@ window.doDeleteAccount = () => {
 
 window.doReact = async (type) => {
     if (!store.currentUser) return alert("Inicia sesión para reaccionar");
-    await store.toggleReaction(currentId, type);
+
+    // 1. Trigger Async Action (Do NOT await yet)
+    // The store updates local state SYNCHRONOUSLY inside the async function (optimistic update)
+    const reqPromise = store.toggleReaction(currentId, type);
+
+    // 2. Update UI Immediately (Optimistic)
     const p = store.prompts.find(x => String(x.id) === String(currentId));
     if (p) {
         const user = store.currentUser?.username;
@@ -2596,8 +2602,17 @@ window.doReact = async (type) => {
             }
         });
     }
-    // Opcional: Renderizar galería en segundo plano para sincronizar tarjetas tras capas de stats
+
+    // 3. Render background/others
     if (window.render) window.render();
+
+    // 4. Await server response silently (or handle error if needed)
+    try {
+        await reqPromise;
+    } catch (e) {
+        console.error("Reaction failed:", e);
+        // Could revert UI here if needed, but for now we trust the store handles it or we accept slight desync on error
+    }
 };
 
 window.doFullScreen = () => {

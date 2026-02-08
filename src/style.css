@@ -1072,12 +1072,19 @@ header nav {
 
 .reactions-flex {
   display: flex !important;
-  gap: 12px !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+  /* Allow wrapping if needed, but aim for single line */
+  /* User said "fit in single line", so maybe nowrap is better but with smaller items? 
+     Let's allow scroll for safety but try to fit. 
+     Actually user said "CABER EN UNA SOLA LINEA". 
+     The safest implied request is "don't take up multiple lines vertically".
+     I will keep nowrap but make them small. */
   flex-wrap: nowrap !important;
   overflow-x: auto !important;
-  padding: 10px 5px 20px 5px !important;
-  /* Más espacio abajo */
-  margin: 15px 0 !important;
+  padding: 5px 2px 10px 2px !important;
+  /* Reduced padding */
+  margin: 10px 0 !important;
   flex-shrink: 0 !important;
   /* Evitar que el contenedor se aplaste */
   -ms-overflow-style: none;
@@ -1091,18 +1098,23 @@ header nav {
 .react-btn {
   background: rgba(255, 255, 255, 0.12) !important;
   border: 1px solid rgba(255, 255, 255, 0.25) !important;
-  border-radius: 12px !important;
-  padding: 10px 16px !important;
+  border-radius: 8px !important;
+  /* Slightly squared */
+  padding: 6px 10px !important;
+  /* MUCH SMALLER */
   display: flex !important;
   align-items: center !important;
-  gap: 10px !important;
+  justify-content: center !important;
+  /* Center content */
+  gap: 6px !important;
   cursor: pointer !important;
   transition: all 0.2s !important;
-  font-size: 1.15rem !important;
+  font-size: 0.95rem !important;
+  /* Smaller emoji */
   color: white !important;
   flex-shrink: 0 !important;
-  min-height: 44px !important;
-  /* Altura minima real */
+  min-height: 32px !important;
+  /* Smaller height */
   line-height: 1 !important;
 }
 
@@ -1640,6 +1652,7 @@ header nav {
   font-weight: 800;
   background: linear-gradient(90deg, #fff, #bbb);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -2020,6 +2033,7 @@ header nav {
   font-weight: 900;
   background: linear-gradient(45deg, #FFD700, #FDB931, #FFD700);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 10px;
 }
