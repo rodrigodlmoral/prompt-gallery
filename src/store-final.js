@@ -151,7 +151,8 @@ const store = {
                     return isNaN(d.getTime()) ? 0 : d.getTime();
                 })(),
                 created_at: (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : p.created,
-                reactions: p.reactions || { like: 0, love: 0, fire: 0, funny: 0 },
+                reactions: p.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 },
+                userReactions: p.user_reactions || {},
                 comments: p.comments || [],
                 savedBy: p.saved_by || [],
                 saved_by: p.saved_by || [],
@@ -615,14 +616,41 @@ const store = {
         const prompt = this.prompts.find(p => String(p.id) === String(postId));
         if (!prompt) return { success: false };
 
-        let reactions = { ...(prompt.reactions || { like: 0, love: 0, fire: 0, funny: 0 }) };
-        reactions[type] = (reactions[type] || 0) + 1;
+        const username = this.currentUser.username;
+        let reactions = { ...(prompt.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 }) };
+        let userReactions = { ...(prompt.userReactions || {}) };
+
+        const oldReaction = userReactions[username];
+
+        if (oldReaction === type) {
+            // REMOVE REACTION
+            reactions[type] = Math.max(0, (reactions[type] || 0) - 1);
+            delete userReactions[username];
+        } else {
+            // CHANGE OR ADD REACTION
+            if (oldReaction) {
+                reactions[oldReaction] = Math.max(0, (reactions[oldReaction] || 0) - 1);
+            }
+            reactions[type] = (reactions[type] || 0) + 1;
+            userReactions[username] = type;
+        }
 
         try {
-            await pb.collection('prompts').update(postId, { reactions: reactions });
+            await pb.collection('prompts').update(postId, {
+                reactions: reactions,
+                user_reactions: userReactions
+            });
+
+            // LOCAL UPDATE FOR INSTANT UI
+            prompt.reactions = reactions;
+            prompt.userReactions = userReactions;
+
             this.logActivity(type, { postTitle: prompt.title || 'Post' });
-            return { success: true, count: reactions[type] };
-        } catch (error) { return { success: false }; }
+            return { success: true };
+        } catch (error) {
+            console.error("Reaction failed:", error);
+            return { success: false };
+        }
     },
 
     async addComment(postId, text) {

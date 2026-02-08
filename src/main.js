@@ -2578,14 +2578,14 @@ window.doDeleteAccount = () => {
     }
 };
 
-window.doReact = (type) => {
+window.doReact = async (type) => {
     if (!store.currentUser) return alert("Inicia sesión para reaccionar");
-    store.toggleReaction(currentId, type);
+    await store.toggleReaction(currentId, type);
     const p = store.prompts.find(x => String(x.id) === String(currentId));
     if (p) {
         const user = store.currentUser?.username;
         const myReaction = (p.userReactions && user) ? p.userReactions[user] : null;
-        ['like', 'love', 'fire', 'funny'].forEach(t => {
+        ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(t => {
             const el = document.getElementById(`det-${t}-count`);
             const btn = document.getElementById(`btn-react-${t}`);
             const reactions = p.reactions || {};
@@ -2596,8 +2596,8 @@ window.doReact = (type) => {
             }
         });
     }
-    // No llamamos a render() para evitar cerrar el modal, 
-    // y solo actualizamos la galería si es necesario al cerrar.
+    // Opcional: Renderizar galería en segundo plano para sincronizar tarjetas tras capas de stats
+    if (window.render) window.render();
 };
 
 window.doFullScreen = () => {

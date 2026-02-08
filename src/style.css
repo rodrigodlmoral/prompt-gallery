@@ -1077,6 +1077,23 @@ header nav {
   margin-bottom: 25px;
 }
 
+.reactions-flex {
+  display: flex !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  padding-bottom: 10px;
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.reactions-flex::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari and Opera */
+}
+
 .react-btn {
   background: rgba(255, 255, 255, 0.08);
   /* Aumentado de 0.03 */
