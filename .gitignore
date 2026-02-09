@@ -5,3 +5,8 @@ dist
 .DS_Store
 
 .vercel
+
+_BACKUPS
+backups
+*.zip
+*.rar

@@ -108,12 +108,33 @@ const store = {
 
     async loadPrompts() {
         try {
-            // NO usar sort: '-created' porque causa error 400 en PocketHost
-            const records = await pb.collection('prompts').getList(1, 100);
+            // ESTRATEGIA: Jump to Tail (Salto al final)
+            // Ya que PocketHost falla con 'sort', saltamos a la última página para obtener lo más nuevo.
+            const stats = await pb.collection('prompts').getList(1, 1);
+            const total = stats.totalItems;
 
-            // Ordenar en el cliente
+            let records = { items: [] };
+            if (total > 0) {
+                const limit = 200;
+                const lastPage = Math.ceil(total / limit);
+
+                // Obtenemos la última página (los más recientes)
+                const batch1 = await pb.collection('prompts').getList(lastPage, limit);
+                records.items = batch1.items;
+
+                // Si la última página es pequeña, unimos con la anterior para asegurar volumen
+                if (records.items.length < limit && lastPage > 1) {
+                    const batch2 = await pb.collection('prompts').getList(lastPage - 1, limit);
+                    records.items = [...batch2.items, ...records.items].slice(-limit);
+                }
+            }
+
+            // Ordenar en el cliente (Descendente: más nuevo primero)
             const sortedItems = records.items.sort((a, b) => {
-                return new Date(b.created) - new Date(a.created);
+                const getVal = (p) => (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : p.created;
+                const dateA = new Date(getVal(a));
+                const dateB = new Date(getVal(b));
+                return dateB - dateA;
             });
 
             this.prompts = sortedItems.map(p => ({
@@ -124,9 +145,14 @@ const store = {
                 image: p.image_url || p.image, // Normalización de campo de imagen
                 author: p.author_name || p.expand?.author?.name || 'Explorador',
                 author_id: p.author,
-                createdAt: new Date(p.created || p.created_at_original).getTime(),
-                created_at: p.created,
-                reactions: p.reactions || { like: 0, love: 0, fire: 0, funny: 0 },
+                createdAt: (() => {
+                    const val = (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : (p.created || p.created_at_original);
+                    const d = new Date(val);
+                    return isNaN(d.getTime()) ? 0 : d.getTime();
+                })(),
+                created_at: (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : p.created,
+                reactions: p.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 },
+                userReactions: (p.reactions && p.reactions._u) ? p.reactions._u : {},
                 comments: p.comments || [],
                 savedBy: p.saved_by || [],
                 saved_by: p.saved_by || [],
@@ -297,7 +323,10 @@ const store = {
             });
             window.trackEvent(action, details);
         } catch (err) {
-            console.warn("Failed to log activity:", err);
+            // Silenciar error 404 si la colección no existe (común en despliegues nuevos)
+            if (err.status !== 404) {
+                console.warn("Failed to log activity:", err);
+            }
         }
     },
 
@@ -426,13 +455,12 @@ const store = {
                 tool: data.tool,
                 rating: data.rating,
                 content: processedContent,
-                extra_config: data.extraConfig,
                 tags: data.tags || [], // NUEVO
+                created_at_custom: new Date().toISOString(), // Usamos ISO para asegurar orden correcto
                 reactions: { like: 0, love: 0, fire: 0, funny: 0 },
                 comments: [],
                 saved_by: []
             });
-            console.log("[DEBUG] Post Created in DB. Tags saved:", record.tags);
 
             // --- LEVEL UP LOGIC (POSTS + COPIAS) ---
             const oldLevel = this.currentUser.level || 0;
@@ -588,14 +616,44 @@ const store = {
         const prompt = this.prompts.find(p => String(p.id) === String(postId));
         if (!prompt) return { success: false };
 
-        let reactions = { ...(prompt.reactions || { like: 0, love: 0, fire: 0, funny: 0 }) };
-        reactions[type] = (reactions[type] || 0) + 1;
+        const username = this.currentUser.username;
+        let reactions = { ...(prompt.reactions || {}) };
+
+        // Inicializar si no existen las claves básicas
+        ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(k => {
+            if (typeof reactions[k] !== 'number') reactions[k] = 0;
+        });
+
+        let uMap = reactions._u || {};
+        const oldReaction = uMap[username];
+
+        // ACTUALIZACIÓN OPTIMISTA (LOCAL)
+        if (oldReaction === type) {
+            reactions[type] = Math.max(0, reactions[type] - 1);
+            delete uMap[username];
+        } else {
+            if (oldReaction) {
+                reactions[oldReaction] = Math.max(0, reactions[oldReaction] - 1);
+            }
+            reactions[type] = (reactions[type] || 0) + 1;
+            uMap[username] = type;
+        }
+        reactions._u = uMap;
+
+        // Sync local immediately
+        prompt.reactions = reactions;
+        prompt.userReactions = uMap;
+        if (window.render) window.render();
 
         try {
             await pb.collection('prompts').update(postId, { reactions: reactions });
             this.logActivity(type, { postTitle: prompt.title || 'Post' });
-            return { success: true, count: reactions[type] };
-        } catch (error) { return { success: false }; }
+            return { success: true };
+        } catch (error) {
+            console.error("Error al sincronizar reacción:", error);
+            // Revertir si falla el servidor (opcional, pero ayuda a la consistencia)
+            return { success: false };
+        }
     },
 
     async addComment(postId, text) {
@@ -1029,6 +1087,328 @@ const store = {
             }
         } catch (err) {
             console.warn('⚠️ Error checking author level:', err);
+        }
+    },
+
+    // --- MASTED UNIFICATION: CENTRALIZED MODAL & REACTION LOGIC ---
+    activePostId: null,
+    currentSeqStep: 0,
+    sliderUnlocked: false,
+
+    getModeration(p, forcedRating) {
+        let rating = forcedRating || p.rating || 'SFW / Apto';
+        if (!forcedRating && p.type === 'sequence' && p.content && p.content.length > 0) {
+            rating = p.content[0].rating || 'SFW / Apto';
+        }
+        const mod = this.currentUser?.moderation || { suggestive: 'ON', nsfw: 'BLUR' };
+        let applyBlur = false; let warningLabel = '';
+        if (rating === 'Sugestivo' && mod.suggestive === 'BLUR') { applyBlur = true; warningLabel = 'SUGESTIVO'; }
+        if (rating === 'NSFW / +18' && mod.nsfw === 'BLUR') { applyBlur = true; warningLabel = 'NSFW'; }
+        return { applyBlur, warningLabel };
+    },
+
+    openDetail(id) {
+        const p = this.prompts.find(x => String(x.id) === String(id));
+        if (!p) return;
+        this.activePostId = id;
+        this.currentSeqStep = 0;
+        this.sliderUnlocked = false;
+
+        const modal = document.getElementById('viewModal');
+        if (!modal) return;
+
+        // UI Resets
+        const slider = document.getElementById('commSlider');
+        const handle = document.getElementById('commSliderHandle');
+        const botContainer = document.getElementById('commAntiBot');
+        if (slider) slider.classList.remove('unlocked');
+        if (handle) { handle.style.left = '4px'; handle.style.transition = 'none'; }
+        if (botContainer) botContainer.style.display = 'none';
+
+        document.getElementById('detTitle').innerText = p.title || 'Sin Título';
+
+        const detMetaTop = document.getElementById('detMetaTop');
+        if (detMetaTop) {
+            const d = new Date(p.createdAt || Date.now());
+            detMetaTop.innerText = `${p.tool} • ${p.type === 'sequence' ? 'Secuencia' : 'Imagen Única'} • ${d.toLocaleDateString()}`;
+        }
+
+        const userEl = document.getElementById('detUser');
+        if (userEl) {
+            userEl.innerHTML = `
+                <span style="display:flex; align-items:center; gap:10px">
+                    Por: <span onclick="window.location.href='/profile.html?u=${p.author}'" style="cursor:pointer; text-decoration:underline">${p.author}</span>
+                </span>
+                <div id="detTipsButton" style="margin: 8px 0 10px 0">
+                    <button style="background:rgba(162, 155, 254, 0.15); border:1px solid rgba(162, 155, 254, 0.4); color:#a29bfe; padding:4px 12px; border-radius:4px; font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="window.openTip('${p.id}')">
+                        💎 ${p.tokens_received || 0} PromptBits
+                    </button>
+                </div>`;
+        }
+
+        const tagsEl = document.getElementById('detTags');
+        if (tagsEl) {
+            tagsEl.innerHTML = (p.tags && p.tags.length > 0)
+                ? p.tags.map(t => `<span class="server-tag-pill">${t}</span>`).join('')
+                : '';
+        }
+
+        const badgesEl = document.getElementById('detBadges');
+        if (badgesEl) {
+            let bhtml = `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">🛠️ ${p.tool || 'Desconocido'}</span>`;
+            const r = p.rating || 'SFW / Apto';
+            const icon = r.startsWith('SFW') ? '🟢' : '🔞';
+            bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
+            const refText = (p.needsReference || p.needs_reference) ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
+            bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
+            badgesEl.innerHTML = bhtml;
+        }
+
+        // Setup Reactions & Counts (Initial)
+        this._updateModalUI(p);
+
+        // Sequence vs Single
+        const prevBtn = document.getElementById('detPrevBtn');
+        const nextBtn = document.getElementById('detNextBtn');
+        const seqCount = document.getElementById('detSeqCount');
+        const detImg = document.getElementById('detImg');
+        const detPrompt = document.getElementById('detPrompt');
+
+        if (p.type === 'sequence' && p.content && p.content.length > 0) {
+            if (prevBtn) prevBtn.style.display = 'flex';
+            if (nextBtn) nextBtn.style.display = 'flex';
+            if (seqCount) seqCount.style.display = 'block';
+            this.updateSeqDisplay(p);
+        } else {
+            if (prevBtn) prevBtn.style.display = 'none';
+            if (nextBtn) nextBtn.style.display = 'none';
+            if (seqCount) seqCount.style.display = 'none';
+            if (detImg) detImg.src = p.image || '';
+            if (detPrompt) detPrompt.innerText = p.prompt || '';
+
+            const detNegPrompt = document.getElementById('detNegPrompt');
+            const btnCopyNeg = document.getElementById('btnCopyNeg');
+            const negText = p.negative_prompt;
+            if (negText && negText.trim()) {
+                if (detNegPrompt) { detNegPrompt.innerText = negText; detNegPrompt.style.display = 'block'; }
+                if (btnCopyNeg) btnCopyNeg.style.display = 'block';
+            } else {
+                if (detNegPrompt) detNegPrompt.style.display = 'none';
+                if (btnCopyNeg) btnCopyNeg.style.display = 'none';
+            }
+        }
+
+        const detImgWrap = document.getElementById('detImgWrap');
+        if (detImgWrap) {
+            const { applyBlur, warningLabel } = this.getModeration(p);
+            detImgWrap.classList.toggle('card-blurred', applyBlur);
+            detImgWrap.dataset.warning = applyBlur ? warningLabel : '';
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        }
+
+        const detCopyBadge = document.getElementById('detCopyBadge');
+        if (detCopyBadge) {
+            detCopyBadge.style.display = 'block';
+            detCopyBadge.innerText = `📋 Copiado ${p.copy_count || 0} veces`;
+        }
+
+        const commentsEl = document.getElementById('detComments');
+        if (commentsEl) {
+            const currUser = this.currentUser?.username;
+            const isPostOwner = currUser === p.author;
+            commentsEl.innerHTML = (p.comments && p.comments.length > 0)
+                ? p.comments.map(c => `<div style="background:#1a1a1a; padding:10px; border-radius:8px; margin-bottom:10px; border-left:3px solid var(--accent); position:relative">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px">
+                            <span style="font-weight:700; color:var(--accent); font-size:0.85rem">@${window.escapeHTML(c.username)}</span>
+                            ${(isPostOwner || currUser === c.username) ? `<button onclick="window.doDeleteComment(${c.id})" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; padding:0">🗑️</button>` : ''}
+                        </div>
+                        <div style="font-size:0.9rem; color:#eee; word-break:break-word">${window.escapeHTML(c.text)}</div>
+                    </div>`).join('')
+                : '<div style="opacity:0.5; font-size:0.9rem">No hay comentarios aún.</div>';
+        }
+
+        if (modal.parentNode !== document.body) document.body.appendChild(modal);
+        modal.style.cssText = 'display: flex !important; z-index: 1000000 !important; visibility: visible !important; opacity: 1 !important; background: rgba(0,0,0,0.95) !important; position: fixed !important; top: 0; left: 0; width: 100%; height: 100%;';
+    },
+
+    updateSeqDisplay(p) {
+        const step = p.content[this.currentSeqStep];
+        if (!step) return;
+        const { applyBlur, warningLabel } = this.getModeration(p, step.rating);
+        const detImgWrap = document.getElementById('detImgWrap');
+        if (detImgWrap) {
+            detImgWrap.classList.toggle('card-blurred', applyBlur);
+            detImgWrap.dataset.warning = applyBlur ? warningLabel : '';
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        }
+        const btnCopyNegSeq = document.getElementById('btnCopyNeg');
+        if (btnCopyNegSeq) {
+            const negText = step.negative_prompt || '';
+            btnCopyNegSeq.style.display = (negText.trim()) ? 'block' : 'none';
+        }
+        const detImg = document.getElementById('detImg');
+        const detPrompt = document.getElementById('detPrompt');
+        const seqCount = document.getElementById('detSeqCount');
+        if (detImg) detImg.src = step.image || step.url || step.src || '';
+        if (detPrompt) detPrompt.innerText = step.prompt || p.prompt || '';
+        if (seqCount) seqCount.innerText = `Imagen ${this.currentSeqStep + 1} de ${p.content.length}`;
+    },
+
+    prevSeqStep() {
+        const p = this.prompts.find(x => String(x.id) === String(this.activePostId));
+        if (!p || p.type !== 'sequence') return;
+        this.currentSeqStep = (this.currentSeqStep - 1 + p.content.length) % p.content.length;
+        this.updateSeqDisplay(p);
+    },
+
+    nextSeqStep() {
+        const p = this.prompts.find(x => String(x.id) === String(this.activePostId));
+        if (!p || p.type !== 'sequence') return;
+        this.currentSeqStep = (this.currentSeqStep + 1) % p.content.length;
+        this.updateSeqDisplay(p);
+    },
+
+    async doReact(type) {
+        if (!this.currentUser) {
+            if (window.toast) window.toast("Inicia sesión para reaccionar", "warning");
+            else { const am = document.getElementById('authModal'); if (am) am.style.display = 'flex'; }
+            return;
+        }
+        const p = this.prompts.find(x => String(x.id) === String(this.activePostId));
+        if (!p) return;
+
+        const myOldReaction = (p.userReactions) ? p.userReactions[this.currentUser.username] : null;
+        let newCounts = { ...p.reactions };
+        let newMyReaction;
+
+        if (myOldReaction === type) { newCounts[type] = Math.max(0, (newCounts[type] || 0) - 1); newMyReaction = null; }
+        else {
+            if (myOldReaction) newCounts[myOldReaction] = Math.max(0, (newCounts[myOldReaction] || 0) - 1);
+            newCounts[type] = (newCounts[type] || 0) + 1;
+            newMyReaction = type;
+        }
+
+        this._updateModalUI({ reactions: newCounts, userReactions: { [this.currentUser.username]: newMyReaction } }, true);
+
+        try { await this.toggleReaction(this.activePostId, type); }
+        catch (e) { console.error("Sync failed", e); }
+    },
+
+    _updateModalUI(data, isOptimistic = false) {
+        const reactions = data.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 };
+        const myUsername = this.currentUser?.username;
+        const myReaction = (data.userReactions && myUsername) ? data.userReactions[myUsername] : null;
+
+        ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(t => {
+            const el = document.getElementById(`det-${t}-count`);
+            const btn = document.getElementById(`btn-react-${t}`);
+            if (el) el.innerText = reactions[t] || 0;
+            if (btn) {
+                const isActive = myReaction === t;
+                btn.classList.toggle('active', isActive);
+                if (isOptimistic && isActive) {
+                    btn.style.transform = "scale(1.2)";
+                    setTimeout(() => btn.style.transform = "scale(1)", 200);
+                }
+            }
+        });
+    },
+
+    showSlider() {
+        const bot = document.getElementById('commAntiBot');
+        if (bot && bot.style.display === 'none') {
+            bot.style.display = 'flex';
+            this.initCrystalSlider();
+        }
+    },
+
+    initCrystalSlider() {
+        const track = document.getElementById('commSlider');
+        const handle = document.getElementById('commSliderHandle');
+        if (!track || !handle) return;
+
+        let isDragging = false;
+        let startX = 0;
+
+        const onStart = (e) => {
+            if (this.sliderUnlocked) return;
+            isDragging = true;
+            startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            handle.style.transition = 'none';
+        };
+
+        const onMove = (e) => {
+            if (!isDragging || this.sliderUnlocked) return;
+            const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const diff = currentX - startX;
+            const max = track.offsetWidth - handle.offsetWidth - 8;
+            const pos = Math.max(0, Math.min(diff, max));
+            handle.style.left = (pos + 4) + 'px';
+
+            if (pos >= max - 5) {
+                this.sliderUnlocked = true;
+                isDragging = false;
+                track.classList.add('unlocked');
+                handle.style.left = 'calc(100% - 44px)';
+            }
+        };
+
+        const onEnd = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            if (!this.sliderUnlocked) {
+                handle.style.transition = 'left 0.3s ease';
+                handle.style.left = '4px';
+            }
+        };
+
+        handle.onmousedown = onStart;
+        handle.ontouchstart = onStart;
+        window.onmousemove = onMove;
+        window.ontouchmove = onMove;
+        window.onmouseup = onEnd;
+        window.ontouchend = onEnd;
+    },
+
+    async postComm() {
+        if (!this.currentUser) {
+            if (window.toast) window.toast("Debes iniciar sesión para comentar", "error");
+            return;
+        }
+
+        const input = document.getElementById('commInput');
+        const val = input ? input.value.trim() : '';
+
+        if (!val) return;
+        if (val.length < 5) {
+            if (window.toast) window.toast("Comentario demasiado corto", "info");
+            return;
+        }
+
+        if (!this.sliderUnlocked) {
+            if (window.toast) window.toast("Desliza el diamante 💎 para verificar que eres humano", "info");
+            return;
+        }
+
+        const result = await this.addComment(this.activePostId, val);
+
+        if (result.success) {
+            if (window.toast) window.toast("¡Comentario enviado con éxito!", "success");
+            if (input) input.value = '';
+
+            this.sliderUnlocked = false;
+            const track = document.getElementById('commSlider');
+            const handle = document.getElementById('commSliderHandle');
+            const bot = document.getElementById('commAntiBot');
+            if (track) track.classList.remove('unlocked');
+            if (handle) { handle.style.left = '4px'; handle.style.transition = 'none'; }
+            if (bot) bot.style.display = 'none';
+
+            this.openDetail(this.activePostId);
+        } else {
+            if (window.toast) window.toast(result.msg || "Error al comentar", "error");
         }
     }
 };

@@ -1,8 +1,8 @@
 Iniciando despliegue 
-07/02/2026 14:35:31.14 
+08/02/2026 15:57:08.53 
 Resetting repo... 
 Already on 'main'
-HEAD is now at b764f3e Auto-Deploy Update: 07/02/2026 13:29:19.98
+HEAD is now at 055bf4d Auto-Deploy Update: 08/02/2026 15:49:27.74
 From https://github.com/rodrigodlmoral/prompt-gallery
  * branch            main       -> FETCH_HEAD
 Already up to date.
@@ -17,8 +17,9 @@ C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\profile.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\store-final.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\style.css
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\uploadService.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\DetailModal.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\data\tags.js
-11 archivo(s) copiado(s)
+12 archivo(s) copiado(s)
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\public\vite.svg
 1 archivo(s) copiado(s)
         1 archivo(s) copiado(s).
@@ -27,8 +28,7 @@ C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\public\vite.svg
         1 archivo(s) copiado(s).
         1 archivo(s) copiado(s).
 warning: in the working copy of 'src/counter.js', LF will be replaced by CRLF the next time Git touches it
-[main 69ac487] Auto-Deploy Update: 07/02/2026 14:35:33.29
- 4 files changed, 309 insertions(+), 17 deletions(-)
- create mode 100644 src/data/tags.js
+[main 18b77a2] Auto-Deploy Update: 08/02/2026 15:57:10.02
+ 2 files changed, 27 insertions(+), 38 deletions(-)
 To https://github.com/rodrigodlmoral/prompt-gallery.git
-   b764f3e..69ac487  main -> main
+   055bf4d..18b77a2  main -> main
