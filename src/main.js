@@ -1090,8 +1090,8 @@ const render = () => {
     // Estrategia No-Destructiva: No sobrescribir todo el app.innerHTML si ya existe la estructura
     if (!document.getElementById('main-gallery-container')) {
         app.innerHTML = `
-            ${TopBar()}
-            ${Header()}
+            <div id="topbar-mount"></div>
+            <div id="header-mount"></div>
             <div id="hero-mount"></div>
             <div id="profile-mount" style="display:none"></div>
             <div id="main-gallery-container"></div>
@@ -1104,6 +1104,11 @@ const render = () => {
     }
 
     // Actualizar solo las partes dinámicas
+    const topBarMount = document.getElementById('topbar-mount');
+    if (topBarMount) topBarMount.innerHTML = TopBar();
+
+    const headerMount = document.getElementById('header-mount');
+    if (headerMount) headerMount.innerHTML = Header();
     const heroMount = document.getElementById('hero-mount');
     if (heroMount) heroMount.innerHTML = (currentView === 'home' && !searchQuery) ? HeroCarousel() : '';
 

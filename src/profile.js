@@ -674,8 +674,8 @@ const render = () => {
     // Estrategia No-Destructiva: No sobrescribir todo el app.innerHTML si ya existe la estructura
     if (!document.getElementById('profile-gallery-container')) {
         app.innerHTML = `
-            ${Header()}
-            ${ProfileHeader()}
+            <div id="header-mount"></div>
+            <div id="profile-header-mount"></div>
             <div id="profile-gallery-container"></div>
             <div id="modals-mount"></div>
             ${SettingsModal()}
@@ -686,6 +686,12 @@ const render = () => {
         const modalsMount = document.getElementById('modals-mount');
         if (modalsMount) modalsMount.innerHTML = DetailModalTemplateLocal();
     }
+
+    const headerMount = document.getElementById('header-mount');
+    if (headerMount) headerMount.innerHTML = Header();
+
+    const pHeaderMount = document.getElementById('profile-header-mount');
+    if (pHeaderMount) pHeaderMount.innerHTML = ProfileHeader();
 
     const galleryMount = document.getElementById('profile-gallery-container');
     if (galleryMount) galleryMount.innerHTML = Gallery();
