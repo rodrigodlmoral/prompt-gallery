@@ -1,4 +1,5 @@
 import './style.css'
+// Deploy Timestamp: 2026-02-09T00:16:00-06:00 (Logic Fix + Render Exposure)
 import { store, LEVEL_REQS, TOOLS, RATINGS, RATING_INFO, INFO_ICON } from './store-final.js'
 import { TAG_CATEGORIES } from './data/tags.js';
 import { DetailModalTemplate } from './components/DetailModal.js';
@@ -698,11 +699,9 @@ const render = () => {
     attachEvents();
 
     // Solo scrollear arriba si no es un render incremental
-    if (!window._isIncrementalRender) {
-        window.scrollTo(0, 0);
-    }
     window._isIncrementalRender = false;
 };
+window.render = render;
 
 const attachEvents = () => {
     document.querySelectorAll('[data-post-id]').forEach(el => {
@@ -1812,13 +1811,18 @@ window.doSendDirectTip = async (recipientId, amount) => {
 };
 
 const init = async () => {
+    console.log("[PROFILE] init starting...");
     // Normal initialization
     await store.init();
+    console.log("[PROFILE] store.init done.");
     if (profileUser) {
+        console.log(`[PROFILE] fetching profile for: ${profileUser}`);
         await store.fetchUserProfileByUsername(profileUser);
+        console.log("[PROFILE] fetch done.");
     }
     window.initDone = true;
     render();
+    console.log("[PROFILE] init fully done.");
 };
 
 // --- USER ACTIVITY LOGS ---
