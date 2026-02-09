@@ -1,79 +1,66 @@
 export const TAG_CATEGORIES = {
-    "🎨 1. ARTE TRADICIONAL": [
-        "Bellas artes", "Arte", "Arte Abstracto", "Surrealismo", "Pop Art", "Minimalismo",
-        "Barroco", "Rococó", "Gótico", "Pintura y técnicas", "Acuarela", "Óleo",
-        "Acrílico", "Pastel", "Tinta", "Grabado", "Mural / Fresco", "Técnica Mixta",
-        "Dibujo e ilustración", "Ilustración", "Lápiz / Sketch", "Line Art", "Arte Infantil"
-    ],
-    "💻 2. ARTE DIGITAL / IA": [
-        "Arte digital general", "Concept Art", "Matte Painting", "Collage Digital",
-        "Conceptual Digital", "Arte Experimental", "IA generativa", "AI Conceptual Art",
-        "Generative Abstract", "Neural Style Art", "Procedural Art", "Algorithmic Art",
-        "Fractal Art", "Render 3D", "Low Poly", "Holographic Art", "Metaverse Art",
-        "Virtual Photography", "Anime", "Manga", "Comic Style", "Caricatura",
-        "Kawaii", "Pixel Art", "Arte Vectorial", "Glitch Art", "Neon Art"
-    ],
-    "📸 3. FOTOGRAFÍA RETRATO Y MODA": [
-        "Retrato", "Beauty", "Lifestyle", "Retrato Ambiental", "Corporate Portrait",
-        "Fashion", "Editorial", "High Fashion Concept", "Futuristic Fashion Editorial",
-        "Avant-Garde Fashion", "Underground Fashion", "Gothic Fashion", "Punk Fashion",
-        "Grunge Style", "Emo Aesthetic", "Harajuku Style", "Lolita Fashion"
-    ],
-    "🔥 4. FOTOGRAFÍA SENSUAL / ARTÍSTICA": [
-        "Boudoir", "Boudoir Editorial", "Glamour", "Lingerie", "Fine Art Nude",
-        "Artistic Nude", "Implied Nude", "Silhouette Nude", "Body Detail Nude",
-        "Artistic Body Landscape", "Mature Nude Art", "Erotic Fine Art",
-        "Sensual Portrait", "Sensual Couple Portrait", "Dark Erotic Art",
-        "Alternative Erotic Portrait", "Fetish Fashion", "Latex / PVC Fashion",
-        "Glam Fetish", "Dominatrix Aesthetic", "BDSM Aesthetic Photography",
-        "Pin-Up Photography", "Burlesque Photography", "Cabaret Style"
-    ],
-    "🌍 5. FOTOGRAFÍA DOCUMENTAL Y SOCIAL": [
-        "Documental", "Fotoperiodismo", "Fotografía Humanista", "Fotografía Antropológica",
-        "Cultura", "Etnográfica", "Tradiciones Populares", "Ritual / Ceremonial",
-        "Identidad Cultural", "Tribus Urbanas", "Oficios y Artesanos", "Vida Rural",
-        "Fotografía Cultural", "Street Photography", "Lifestyle Urbano"
-    ],
-    "🌄 6. NATURALEZA Y PAISAJE": [
-        "Paisaje", "Landscape Fine Art", "Minimal Landscape", "Seascape",
-        "Desert Photography", "Forest Photography", "Volcanic Landscape",
-        "Polar Photography", "Naturaleza", "Wildlife", "Fotografía Marina",
-        "Montaña / Senderismo", "Environmental Portrait", "Eco-Art Photography",
-        "Astrofotografía", "Climate Documentary"
-    ],
-    "📷 7. FOTOGRAFÍA ESPECIALIZADA": [
-        "Arquitectura", "Interiorismo", "Real Estate Photography", "Industrial Photography",
-        "Packaging Visual", "Producto", "Tech Product Visual", "Automotriz",
-        "Gastronómica", "Hospitality Photography", "Deportes", "Acción",
-        "Subacuática", "Macro", "Fotografía Nocturna", "Fotografía Aérea / Drone",
-        "Larga Exposición", "Light Painting", "Double Exposure", "ICM Fotografía",
-        "Infrarroja", "Ultravioleta", "Lomography", "Polaroid Style",
-        "Cámara Estenopeica", "Fotograma Experimental"
-    ],
-    "🎬 8. ESTÉTICA CINEMATOGRÁFICA": [
-        "Cinematográfico", "Still Cinematográfico", "Film Noir", "Neo-Noir",
-        "Golden Age Hollywood", "Indie Film Look", "Experimental Cinema",
-        "Analog Film Look", "VHS Aesthetic", "16mm Film Look", "35mm Film Look",
-        "IMAX Cinematic"
-    ],
-    "🎭 9. ARTES ESCÉNICAS Y ENTRETENIMIENTO": [
-        "Teatro / Escénica", "Performance Art", "Conciertos / Música",
-        "Cosplay", "Cosplay Editorial", "Fan Art"
-    ],
-    "🎨 10. ARTE FANTÁSTICO / GEEK": [
-        "Arte Fantástico", "Dark Fantasy", "Fantástico Épico", "Ciencia Ficción",
-        "Cyberpunk", "Futurista", "Fantasy Character Art", "Sci-Fi Character Design",
-        "Creature Design", "Mecha Art", "RPG Character Portrait", "Game Splash Art",
-        "Trading Card Art", "Fantasy Map Art", "Arte para Videojuegos"
-    ],
-    "💼 11. COMERCIAL / MEDIA / BRANDING": [
-        "Publicidad", "Branding Visual", "Campaign Photography", "Key Visual Advertising",
-        "Billboard Advertising Style", "Luxury Branding Visual", "Cover Art",
-        "Poster Art", "Arte Editorial", "Social Media Visual", "Stock Photography",
-        "Visual Web / UI", "NFT Art", "Data Visualization Art"
-    ],
-    "🧠 12. CONCEPTUAL / EXPERIMENTAL": [
-        "Fotografía Conceptual", "Narrativa Visual", "Arte Psicodélico",
-        "Horror / Dark Art", "Ciencia Ficción Artística"
-    ]
+    "💻 ARTE DIGITAL / IA": [
+        "AI Conceptual Art", "Algorithmic Art", "Anime", "Arte Experimental", "Arte Vectorial", "Arte digital general",
+        "Caricatura", "Collage Digital", "Comic Style", "Concept Art", "Conceptual Digital", "Fractal Art",
+        "Generative Abstract", "Glitch Art", "Holographic Art", "IA generativa", "Kawaii", "Low Poly",
+        "Manga", "Matte Painting", "Metaverse Art", "Neon Art", "Neural Style Art", "Pixel Art",
+        "Procedural Art", "Render 3D", "Virtual Photography"
+    ].sort(),
+    "🎨 ARTE FANTÁSTICO / GEEK": [
+        "Arte Fantástico", "Arte para Videojuegos", "Ciencia Ficción", "Creature Design", "Cyberpunk",
+        "Dark Fantasy", "Fantástico Épico", "Fantasy Character Art", "Fantasy Map Art", "Futurista",
+        "Game Splash Art", "Mecha Art", "RPG Character Portrait", "Sci-Fi Character Design", "Trading Card Art"
+    ].sort(),
+    "🎨 ARTE TRADICIONAL": [
+        "Acuarela", "Acrílico", "Arte", "Arte Abstracto", "Arte Infantil", "Barroco", "Bellas artes",
+        "Dibujo e ilustración", "Grabado", "Gótico", "Ilustración", "Line Art", "Lápiz / Sketch",
+        "Minimalismo", "Mural / Fresco", "Óleo", "Pastel", "Pintura y técnicas", "Pop Art",
+        "Rococó", "Surrealismo", "Tinta", "Técnica Mixta"
+    ].sort(),
+    "🎭 ARTES ESCÉNICAS Y ENTRETENIMIENTO": [
+        "Conciertos / Música", "Cosplay", "Cosplay Editorial", "Fan Art", "Performance Art", "Teatro / Escénica"
+    ].sort(),
+    "💼 COMERCIAL / MEDIA / BRANDING": [
+        "Arte Editorial", "Billboard Advertising Style", "Branding Visual", "Campaign Photography",
+        "Cover Art", "Data Visualization Art", "Key Visual Advertising", "Luxury Branding Visual",
+        "NFT Art", "Poster Art", "Publicidad", "Social Media Visual", "Stock Photography", "Visual Web / UI"
+    ].sort(),
+    "🧠 CONCEPTUAL / EXPERIMENTAL": [
+        "Arte Psicodélico", "Ciencia Ficción Artística", "Fotografía Conceptual", "Horror / Dark Art", "Narrativa Visual"
+    ].sort(),
+    "🎬 ESTÉTICA CINEMATOGRÁFICA": [
+        "16mm Film Look", "35mm Film Look", "Analog Film Look", "Cinematográfico", "Experimental Cinema",
+        "Film Noir", "Golden Age Hollywood", "IMAX Cinematic", "Indie Film Look", "Neo-Noir", "Still Cinematográfico", "VHS Aesthetic"
+    ].sort(),
+    "🌍 FOTOGRAFÍA DOCUMENTAL Y SOCIAL": [
+        "Cultura", "Documental", "Etnográfica", "Fotografía Antropológica", "Fotografía Cultural",
+        "Fotografía Humanista", "Fotoperiodismo", "Identidad Cultural", "Lifestyle Urbano", "Oficios y Artesanos",
+        "Ritual / Ceremonial", "Street Photography", "Tradiciones Populares", "Tribus Urbanas", "Vida Rural"
+    ].sort(),
+    "📷 FOTOGRAFÍA ESPECIALIZADA": [
+        "Acción", "Arquitectura", "Automotriz", "Cámara Estenopeica", "Deportes", "Double Exposure",
+        "Fotografía Aérea / Drone", "Fotografía Nocturna", "Fotograma Experimental", "Gastronómica",
+        "Hospitality Photography", "ICM Fotografía", "Industrial Photography", "Infrarroja", "Interiorismo",
+        "Larga Exposición", "Light Painting", "Lomography", "Macro", "Packaging Visual", "Polaroid Style",
+        "Producto", "Real Estate Photography", "Subacuática", "Tech Product Visual", "Ultravioleta"
+    ].sort(),
+    "📸 FOTOGRAFÍA RETRATO Y MODA": [
+        "Avant-Garde Fashion", "Beauty", "Corporate Portrait", "Editorial", "Emo Aesthetic", "Fashion",
+        "Futuristic Fashion Editorial", "Gothic Fashion", "Grunge Style", "Harajuku Style", "High Fashion Concept",
+        "Lifestyle", "Lolita Fashion", "Punk Fashion", "Retrato", "Retrato Ambiental", "Underground Fashion"
+    ].sort(),
+    "🔥 FOTOGRAFÍA SENSUAL / ARTÍSTICA": [
+        "Alternative Erotic Portrait", "Artistic Body Landscape", "Artistic Nude", "BDSM Aesthetic Photography",
+        "Barefoot", "Blowjob", "Body Detail Nude", "Boudoir", "Boudoir Editorial", "Breast", "Burlesque Photography",
+        "Cabaret Style", "Cum", "Dark Erotic Art", "Dominatrix Aesthetic", "Erotic Fine Art", "Explicit female nudity",
+        "Explicit male nudity", "Explicit sex", "Feet", "Fetish Fashion", "Fine Art Nude", "Glam Fetish", "Glamour",
+        "Handjob", "Huge breast", "Implied Nude", "Latex / PVC Fashion", "Lesbian", "Lingerie", "Mature Nude Art",
+        "Nipples", "Pin-Up Photography", "Sensual Couple Portrait", "Sensual Portrait", "Sexual act", "Silhouette Nude",
+        "Vagina", "Xxx"
+    ].sort(),
+    "🌄 NATURALEZA Y PAISAJE": [
+        "Astrofotografía", "Climate Documentary", "Desert Photography", "Eco-Art Photography", "Environmental Portrait",
+        "Forest Photography", "Landscape Fine Art", "Minimal Landscape", "Montaña / Senderismo", "Naturaleza",
+        "Paisaje", "Polar Photography", "Seascape", "Volcanic Landscape", "Wildlife", "Fotografía Marina"
+    ].sort()
 };

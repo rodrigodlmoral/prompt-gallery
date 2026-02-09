@@ -40,4 +40,4 @@ Yo procederé a sobreescribir los archivos actuales con los del backup seleccion
 | **SYNC** | 2026-02-06 15:35 | **Recalc Counts**: Script `recalc_counts.js` ejecutado para sincronizar `prompts_count` real. | ✅ CONTADORES OK |
 | **v8.2** | 2026-02-06 15:45 | **Auto-Decrement**: `removePrompt` ahora recalcula y guarda el conteo real en DB. | ✅ FIX LÓGICO |
 | **v8.3** | 2026-02-06 16:00 | **UX Polish**: Reemplazados `alert()` molestos por `toast()` elegantes. Limpieza de logs. | ✅ UI MEJORADA |
-| **v8.4** | 2026-02-06 16:15 | **Data Fix**: Habilitado guardado de metadato `needs_reference` en DB. | ✅ DB SYNC |
+| **v9.0** | 2026-02-09 00:25 | **Master Unification + MPA Fix**: Centralización de lógica en `store-final.js`, unificación de IDs (#app) y corrección de renderizado en Perfiles. | ✅ ESTABLE |

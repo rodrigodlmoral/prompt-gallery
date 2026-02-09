@@ -3,9 +3,12 @@ import './style.css'
 import './admin_fix.css' // Emergency CSS Fix for Admin Panel
 import { pb } from './pocketbase.js';
 import { store, TOOLS, RATINGS, RATING_INFO, INFO_ICON, LEVEL_REQS } from './store-final.js';
+import { AdvancedFilters } from './components/AdvancedFilters.js';
 import { uploadToCloudinary } from './uploadService.js';
 import { TAG_CATEGORIES } from './data/tags.js';
+import { TAG_ALIASES } from './data/tagAliases.js';
 import { DetailModalTemplate } from './components/DetailModal.js';
+import { SearchSuggestions } from './components/SearchSuggestions.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;
@@ -57,7 +60,16 @@ let currentView = 'home';
 let profileUser = null;
 let profileTab = 'creations';
 let searchQuery = '';
-let filters = { source: 'community', sort: 'newest', time: 'all', tool: 'all', refFilter: 'all', rating: 'all' };
+let filters = {
+    source: 'community',
+    sort: 'newest',
+    time: 'all',
+    tools: [], // Multi-select array
+    refFilter: 'all',
+    ratings: [], // Multi-select array
+    categories: [],
+    tags: []
+};
 
 // --- ADMIN SORT STATE ---
 window.adminSort = { col: 'username', dir: 'asc' };
@@ -113,13 +125,188 @@ window.render = null; // Se asignará cuando se defina render
 // NEW: Gate filter changes
 window.setFilter = (key, value) => {
     if (!store.currentUser) {
-        // Reset select to previous value if possible (hard to do cleanly without state tracking on UI, 
-        // but alerting is the main requirement).
-        const el = event.target;
-        if (el) el.value = filters[key]; // Revert visual change
-        if (window.toast) window.toast("Debes iniciar sesión para usar los filtros.", "warning"); return;
+        if (window.toast) window.toast("Debes iniciar sesión para usar los filtros.", "warning");
+        return;
     }
     filters[key] = value;
+    render();
+};
+
+window.toggleFilter = (key, value) => {
+    if (!store.currentUser) {
+        if (window.toast) window.toast("Debes iniciar sesión para usar los filtros.", "warning");
+        return;
+    }
+    const idx = filters[key].indexOf(value);
+    if (idx > -1) filters[key].splice(idx, 1);
+    else filters[key].push(value);
+    render();
+};
+
+window.getSearchableUsers = () => {
+    const promptAuthors = store.prompts.map(p => ({
+        username: p.author,
+        avatar: p.profiles?.avatar_url || (p.expand?.author?.avatar ? pb.files.getUrl(p.expand.author, p.expand.author.avatar) : null)
+    }));
+
+    const allKnownUsers = [
+        ...Object.values(store.usersCache),
+        ...store.nuclearCache.items,
+        ...promptAuthors
+    ].map(u => window.normalizeProfile ? window.normalizeProfile(u) : u);
+
+    const seenUsernames = new Set();
+    return allKnownUsers.filter(u => {
+        if (!u || !u.username || seenUsernames.has(u.username)) return false;
+        seenUsernames.add(u.username);
+        return true;
+    });
+};
+
+window.handleSearchTyping = (val) => {
+    const query = val.trim().toLowerCase();
+    const mount = document.getElementById('search-suggestions-mount');
+    if (!mount) return;
+
+    if (query.length === 0) {
+        mount.innerHTML = '';
+        return;
+    }
+
+    // 1. FILTER USERS (Strict StartsWith)
+    const uniqueUsers = window.getSearchableUsers();
+
+    const users = uniqueUsers.filter(u => u.username?.toLowerCase().startsWith(query))
+        .sort((a, b) => a.username.localeCompare(b.username))
+        .slice(0, 5);
+
+    // 2. FILTER PROMPTS (Strict StartsWith)
+    const prompts = store.prompts.filter(p => p.title?.toLowerCase().startsWith(query))
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+        .slice(0, 5);
+
+    // 3. FILTER TAGS (Strict StartsWith + Aliases)
+    const allTags = [];
+    Object.values(TAG_CATEGORIES).forEach(tList => allTags.push(...tList));
+    const uniqueTags = [...new Set(allTags)];
+
+    // Check if query matches any English alias
+    const aliasMatches = Object.entries(TAG_ALIASES)
+        .filter(([eng, esp]) => eng.toLowerCase().includes(query))
+        .flatMap(([eng, esp]) => esp);
+
+    const tags = uniqueTags.filter(t => t.toLowerCase().includes(query) || aliasMatches.includes(t))
+        .sort((a, b) => a.localeCompare(b))
+        .slice(0, 8);
+
+    // 4. FILTER CONTENT (Matches within the prompt body) - [REFINED]
+    const contentMatches = store.prompts
+        .filter(p => {
+            const body = (p.prompt || '').toLowerCase();
+            return body.includes(query);
+        })
+        .map(p => {
+            const body = p.prompt || '';
+            const lowerBody = body.toLowerCase();
+            const idx = lowerBody.indexOf(query);
+
+            // Extract snippet
+            const start = Math.max(0, idx - 25);
+            const end = Math.min(body.length, idx + query.length + 35);
+            let snippet = body.substring(start, end);
+
+            // Basic Escape to prevent breaking UI
+            snippet = snippet.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+            return { ...p, matchSnippet: snippet };
+        })
+        .slice(0, 5);
+
+    mount.innerHTML = SearchSuggestions({ users, prompts, tags, contentMatches });
+};
+
+window.handleSearchTypingMobile = (val) => {
+    const query = val.trim().toLowerCase();
+    const mount = document.getElementById('search-mobile-suggestions-mount');
+    if (!mount) return;
+
+    if (query.length === 0) {
+        mount.innerHTML = '';
+        return;
+    }
+
+    const mi = document.getElementById('searchMobileInput'); if (mi) mi.value = val;
+
+    const uniqueUsers = window.getSearchableUsers();
+    const users = uniqueUsers.filter(u => u.username?.toLowerCase().startsWith(query)).slice(0, 5);
+    const prompts = store.prompts.filter(p => p.title?.toLowerCase().startsWith(query)).slice(0, 5);
+    const allTags = [...new Set(Object.values(TAG_CATEGORIES).flat())];
+    const aliasMatches = Object.entries(TAG_ALIASES)
+        .filter(([eng, esp]) => eng.toLowerCase().includes(query))
+        .flatMap(([eng, esp]) => esp);
+    const tags = allTags.filter(t => t.toLowerCase().includes(query) || aliasMatches.includes(t)).slice(0, 8);
+
+    // [REFINED] Mobile Content Match
+    const contentMatches = store.prompts
+        .filter(p => (p.prompt || '').toLowerCase().includes(query))
+        .map(p => {
+            const body = p.prompt || '';
+            const lowerBody = body.toLowerCase();
+            const idx = lowerBody.indexOf(query);
+            const start = Math.max(0, idx - 15);
+            const end = Math.min(body.length, idx + query.length + 25);
+            let snippet = body.substring(start, end).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return { ...p, matchSnippet: snippet };
+        })
+        .slice(0, 5);
+
+    mount.innerHTML = SearchSuggestions({ users, prompts, tags, contentMatches });
+};
+
+window.handleSearch = (val) => {
+    searchQuery = val;
+    // Update both inputs
+    const di = document.getElementById('searchInput'); if (di) di.value = val;
+    const mi = document.getElementById('searchMobileInput'); if (mi) mi.value = val;
+
+    // Clear suggestions
+    const dm = document.getElementById('search-suggestions-mount'); if (dm) dm.innerHTML = '';
+    const mm = document.getElementById('search-mobile-suggestions-mount'); if (mm) mm.innerHTML = '';
+
+    render();
+};
+
+window.handleTagSearch = (tag) => {
+    searchQuery = tag;
+    const desktopInput = document.getElementById('searchInput');
+    if (desktopInput) desktopInput.value = tag;
+
+    // Hide suggestions
+    const mount = document.getElementById('search-suggestions-mount');
+    if (mount) mount.innerHTML = '';
+
+    render();
+};
+
+// Global click to close suggestions
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-bar')) {
+        const mount = document.getElementById('search-suggestions-mount');
+        if (mount) mount.innerHTML = '';
+    }
+});
+
+window.toggleAdvancedFilters = () => {
+    const el = document.getElementById('advFilterPanel');
+    if (el) el.classList.toggle('active');
+};
+
+window.clearAllFilters = () => {
+    filters.tools = [];
+    filters.ratings = [];
+    filters.refFilter = 'all';
+    filters.categories = [];
+    filters.tags = [];
     render();
 };
 // INFO_ICON and RATING_INFO imported from store-final.js
@@ -321,8 +508,8 @@ const getFilteredPrompts = () => {
         });
     }
 
-    if (filters.tool !== 'all') {
-        list = list.filter(p => p.tool === filters.tool);
+    if (filters.tools.length > 0) {
+        list = list.filter(p => filters.tools.includes(p.tool));
     }
 
     if (filters.refFilter !== 'all') {
@@ -330,11 +517,15 @@ const getFilteredPrompts = () => {
         if (filters.refFilter === 'noRef') list = list.filter(p => !p.needsReference);
     }
 
-    if (filters.rating !== 'all') {
+    if (filters.ratings.length > 0) {
         list = list.filter(p => {
             const r = p.type === 'sequence' && p.content && p.content.length > 0 ? p.content[0].rating : p.rating;
-            return r === filters.rating;
+            return filters.ratings.includes(r);
         });
+    }
+
+    if (filters.tags.length > 0) {
+        list = list.filter(p => (p.tags || []).some(t => filters.tags.includes(t)));
     }
 
     // 4. Sorting
@@ -365,8 +556,11 @@ const Header = () => `
         <div class="logo" onclick="window.goHome()" style="cursor:pointer">✨ Prompt Gallery</div>
         
         <!-- Desktop Search -->
-        <div class="search-bar search-desktop">
-            <input type="search" class="search-input" id="searchInput" autocomplete="off" placeholder="Buscar..." value="${searchQuery}" onfocus="this.removeAttribute('readonly');" readonly>
+        <div class="search-bar search-desktop" style="position:relative">
+            <!-- Trap for Chrome Autofill -->
+            <input type="password" style="display:none" autocomplete="new-password">
+            <input type="text" class="search-input" id="searchInput" autocomplete="chrome-off-v2" spellcheck="false" placeholder="Buscar..." value="${searchQuery}" name="gall_find_v${Date.now()}">
+            <div id="search-suggestions-mount"></div>
         </div>
 
         <!-- Mobile Search Toggle -->
@@ -384,18 +578,21 @@ const Header = () => `
         </nav>
     </div>
 
-    <!-- Mobile Search Overlay -->
     <div class="search-mobile-overlay">
-        <div class="container" style="display:flex; align-items:center; gap:10px; height:100%">
-            <button class="btn-icon" onclick="document.querySelector('.search-mobile-overlay').classList.remove('active')" style="font-size:1.2rem; color:#fff">✕</button>
-            <div class="search-bar" style="flex:1; max-width:none">
-                <input type="search" class="search-input" id="searchMobileInput" placeholder="Buscar prompts..." value="${searchQuery}" autocomplete="off" onkeydown="if(event.key === 'Enter'){ window.handleSearch(this.value); document.querySelector('.search-mobile-overlay').classList.remove('active'); }">
+        <div class="container" style="display:flex; flex-direction:column; gap:10px; height:100%; padding-top:20px">
+            <div style="display:flex; align-items:center; gap:10px; width:100%">
+                <button class="btn-icon" onclick="document.querySelector('.search-mobile-overlay').classList.remove('active')" style="font-size:1.2rem; color:#fff">✕</button>
+                <div class="search-bar" style="flex:1; max-width:none; position:relative">
+                    <input type="password" style="display:none" autocomplete="new-password">
+                    <input type="text" class="search-input" id="searchMobileInput" placeholder="Buscar..." value="${searchQuery}" autocomplete="chrome-off-v2" spellcheck="false" name="mgall_find_v${Date.now()}" oninput="window.handleSearchTypingMobile(this.value)" onkeydown="if(event.key === 'Enter'){ window.handleSearch(this.value); document.querySelector('.search-mobile-overlay').classList.remove('active'); }">
+                </div>
             </div>
+            <div id="search-mobile-suggestions-mount" style="flex:1; overflow-y:auto; margin-top:10px"></div>
         </div>
     </div>
     ${store.currentUser ? `
-    <div class="container" style="padding:10px 20px; display:flex; gap:10px; overflow-x:auto; background:rgba(0,0,0,0.3)">
-        <select id="sourceFilter" onchange="window.setFilter('source', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem" ${currentView === 'profile' ? 'disabled' : ''}>
+    <div class="container filters-bar" style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; background:rgba(0,0,0,0.3); align-items:center; justify-content: flex-end">
+        <select id="sourceFilter" onchange="window.setFilter('source', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
             <option value="community" ${filters.source === 'community' ? 'selected' : ''}>👥 Comunidad</option>
             <option value="following" ${filters.source === 'following' ? 'selected' : ''}>⭐ Siguiendo</option>
             <option value="user" ${filters.source === 'user' ? 'selected' : ''}>👤 Tus Prompts / Usuario</option>
@@ -412,22 +609,12 @@ const Header = () => `
             <option value="commented" ${filters.sort === 'commented' ? 'selected' : ''}>💬 Más Comentados</option>
             <option value="oldest" ${filters.sort === 'oldest' ? 'selected' : ''}>👴 Más Antiguos</option>
         </select>
-        <select onchange="window.setFilter('tool', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
-            <option value="all" ${filters.tool === 'all' ? 'selected' : ''}>🛠️ Todas las Herramientas</option>
-            ${TOOLS.map(t => `<option value="${t}" ${filters.tool === t ? 'selected' : ''}>${t}</option>`).join('')}
-        </select>
-        <select onchange="window.setFilter('refFilter', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
-            <option value="all" ${filters.refFilter === 'all' ? 'selected' : ''}>📸 Referencia (Todos)</option>
-            <option value="withRef" ${filters.refFilter === 'withRef' ? 'selected' : ''}>Con Referencia</option>
-            <option value="noRef" ${filters.refFilter === 'noRef' ? 'selected' : ''}>Sin Referencia</option>
-        </select>
-        <select onchange="window.setFilter('rating', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
-            <option value="all" ${filters.rating === 'all' ? 'selected' : ''}>👀 Clasificación (Todos)</option>
-            ${RATINGS.map(r => `<option value="${r}" ${filters.rating === r ? 'selected' : ''}>${r}</option>`).join('')}
-        </select>
+
+        <button class="btn-outline" onclick="window.toggleAdvancedFilters()" style="padding: 6px 12px; font-size: 0.85rem; display: flex; align-items:center; gap:8px; white-space:nowrap; border-radius:8px">
+            🔍 Filtros Avanzados ${(filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)) > 0 ? `<span style="background:#0070ba; color:white; border-radius:10px; padding:0 6px; font-size:0.7rem">${filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)}</span>` : ''}
+        </button>
     </div>
-    ` : ''
-    }
+    ` : ''}
 </header> `;
 
 const HeroCarousel = () => {
@@ -1090,12 +1277,13 @@ const render = () => {
     // Estrategia No-Destructiva: No sobrescribir todo el app.innerHTML si ya existe la estructura
     if (!document.getElementById('main-gallery-container')) {
         app.innerHTML = `
-            ${TopBar()}
-            ${Header()}
+            <div id="topbar-mount"></div>
+            <div id="header-mount"></div>
             <div id="hero-mount"></div>
             <div id="profile-mount" style="display:none"></div>
             <div id="main-gallery-container"></div>
             <div id="modals-mount"></div>
+            <div id="adv-filter-mount"></div>
             ${SettingsModal()}
             ${TipModal()}
         `;
@@ -1103,7 +1291,16 @@ const render = () => {
         if (modalsMount) modalsMount.innerHTML = Modals();
     }
 
+    // Advanced Filter Panel
+    const advFilterMount = document.getElementById('adv-filter-mount');
+    if (advFilterMount) advFilterMount.innerHTML = AdvancedFilters(filters);
+
     // Actualizar solo las partes dinámicas
+    const topBarMount = document.getElementById('topbar-mount');
+    if (topBarMount) topBarMount.innerHTML = TopBar();
+
+    const headerMount = document.getElementById('header-mount');
+    if (headerMount) headerMount.innerHTML = Header();
     const heroMount = document.getElementById('hero-mount');
     if (heroMount) heroMount.innerHTML = (currentView === 'home' && !searchQuery) ? HeroCarousel() : '';
 
@@ -1122,13 +1319,6 @@ const render = () => {
 
     attachEvents();
 
-    // Restaurar los valores visuales de los filtros
-    const selects = document.querySelectorAll('.filters-bar select');
-    const fKeys = ['source', 'time', 'sort', 'tool', 'refFilter', 'rating'];
-    selects.forEach((sel, idx) => {
-        if (fKeys[idx] && filters[fKeys[idx]]) sel.value = filters[fKeys[idx]];
-    });
-
     // Solo scrollear arriba si no es un render incremental por reaccion
     if (!window._isIncrementalRender) {
         window.scrollTo(0, 0);
@@ -1138,7 +1328,9 @@ const render = () => {
 window.render = render;
 
 const attachEvents = () => {
-    document.getElementById('searchInput')?.addEventListener('input', (e) => { searchQuery = e.target.value; render(); });
+    document.getElementById('searchInput')?.addEventListener('input', (e) => {
+        if (window.handleSearchTyping) window.handleSearchTyping(e.target.value);
+    });
     document.getElementById('addBtn')?.addEventListener('click', () => {
         window.selectedTags.clear();
         window.renderTagSelector();
@@ -1784,435 +1976,6 @@ window.doPublish = () => {
     }
 };
 
-<<<<<<< HEAD
-// Obsoletas, eliminadas en favor de store-final.js
-=======
-let currentId = null;
-let currentSeqStep = 0;
-
-
-window.openDetail = (id) => {
-    try {
-        // DEBUG: Alertar si el click llega - (Logs removed for cleanliness)
-        const pId = String(id);
-        const p = store.prompts.find(x => String(x.id) === pId);
-
-        if (!p) {
-            console.error("Post no encontrado:", pId);
-            alert("Error: Post no encontrado (ID: " + pId + ")");
-            return;
-        }
-
-        // DEBUG: Dump exact data structure
-
-        if (!p) return;
-        currentId = id;
-        currentSeqStep = 0;
-
-        // Reset negative copy button
-        const btnCopyNeg = document.getElementById('btnCopyNeg');
-        if (btnCopyNeg) btnCopyNeg.style.display = 'none';
-
-        // RESET SLIDER ON EVERY OPEN
-        window.sliderUnlocked = false;
-        const slider = document.getElementById('commSlider');
-        const handle = document.getElementById('commSliderHandle');
-        const botContainer = document.getElementById('commAntiBot');
-        if (slider) slider.classList.remove('unlocked');
-        if (handle) {
-            handle.style.left = '4px';
-            handle.style.transition = 'none';
-        }
-        if (botContainer) botContainer.style.display = 'none';
-
-        const detTitle = document.getElementById('detTitle');
-        if (detTitle) {
-            // New logic: Is it manually/paid featured OR in the top engagement list?
-            const allVisible = store.prompts.filter(x => !x.isPrivate);
-
-            // Calculate engagement scores for organic featured
-            const autoTopIds = allVisible
-                .map(p => {
-                    const totalReactions = Object.values(p.reactions || {}).reduce((sum, val) => sum + val, 0);
-                    const totalComments = (p.comments || []).length;
-                    const score = (totalReactions * 2) + (totalComments * 3);
-                    return { id: p.id, score };
-                })
-                .sort((a, b) => b.score - a.score)
-                .slice(0, 12)
-                .map(x => x.id);
-
-            const isManual = p.is_featured;
-            const isAuto = autoTopIds.includes(p.id);
-            const showStar = isManual || isAuto;
-
-            let starTitle = isManual ? "DESTACADO (Manual/Pagado)" : "DESTACADO (Popularidad)";
-            if (p.is_featured && p.featured_until) {
-                const unt = new Date(p.featured_until);
-                starTitle += " - Expira: " + unt.toLocaleDateString();
-            }
-
-            detTitle.innerHTML = (showStar ? `<span title="${starTitle}" style="cursor:help; margin-right:8px">⭐</span>` : '') + (p.title || 'Sin Título');
-        }
-
-        // Setup Meta Top (Date/Time) and declare detMetaTop
-        const detMetaTop = document.getElementById('detMetaTop');
-        if (detMetaTop) {
-            const d = new Date(p.createdAt || Date.now());
-            detMetaTop.innerText = `${p.tool} • ${p.type === 'sequence' ? 'Secuencia' : 'Imagen Única'} • ${d.toLocaleDateString()} - ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-        }
-
-        const detExtra = document.getElementById('detExtra');
-        if (detExtra) {
-            if (p.extraConfig && p.extraConfig.length > 0) {
-                detExtra.style.display = 'block';
-                detExtra.innerHTML = p.extraConfig.map(ex => `
-            <div style="margin-bottom:2px">
-                <b>${ex.type}:</b> <span style="color:#aaa">${ex.val}</span>
-            </div>
-            `).join('');
-            } else {
-                detExtra.style.display = 'none';
-                detExtra.innerHTML = '';
-            }
-        }
-
-        // Setup User Link
-        const userEl = document.getElementById('detUser');
-        if (userEl) {
-            const u = null; // Fix: store.users no existe
-            const isMe = store.currentUser && store.currentUser.username === p.author;
-            const isFollowing = (store.currentUser && store.currentUser.following) ? store.currentUser.following.includes(u?.id) : false;
-
-            userEl.innerHTML = `
-            <span style="display:flex; align-items:center; gap:10px">
-                Por: <span onclick="window.closeModals(); window.openUserProfile('${p.author}')" style="cursor:pointer; text-decoration:underline">${p.author}</span>
-                ${!isMe && store.currentUser ? `
-                    <button id="detFollowBtn" class="support-btn" style="padding:2px 8px; font-size:0.7rem;" onclick="window.doFollow('${p.author}', true)">
-                        ${isFollowing ? 'Siguiendo' : 'Seguir'}
-                    </button>
-                ` : ''}
-            </span>
-            `;
-
-            // Insert PromptBits Button RIGHT AFTER the user info
-            const oldTipBtn = userEl.parentNode.querySelector('#detTipsButton');
-            if (oldTipBtn) oldTipBtn.remove();
-
-            userEl.insertAdjacentHTML('afterend', `
-            <div id="detTipsButton" style="margin: 8px 0 10px 0">
-                <button id="tipBtn_${p.id}" style="background:rgba(162, 155, 254, 0.15); border:1px solid rgba(162, 155, 254, 0.4); color:#a29bfe; padding:4px 12px; border-radius:4px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.2s">
-                    💎 ${p.tokens_received || 0} PromptBits
-                </button>
-            </div>
-            `);
-
-            // Attach click handler
-            const tipBtn = document.getElementById(`tipBtn_${p.id}`);
-            if (tipBtn) {
-                tipBtn.onclick = function (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    window.openTip(p.id);
-                };
-            }
-        }
-
-        // Show/hide options based on ownership
-        const optReport = document.getElementById('optReport');
-        const optBlock = document.getElementById('optBlock');
-        const optHide = document.getElementById('optHide');
-
-        if (optReport) optReport.style.display = 'block';
-        if (optBlock) optBlock.style.display = 'block';
-        if (optHide) optHide.style.display = 'block';
-
-        // Setup Badges
-        const badgesEl = document.getElementById('detBadges');
-        if (badgesEl) {
-            let bhtml = `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">🛠️ ${p.tool || 'Desconocido'}</span>`;
-            if (p.type !== 'sequence') {
-                const r = p.rating || 'SFW / Apto';
-                const icon = r.startsWith('SFW') ? '🟢' : '🔞';
-                bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
-            }
-
-            const refText = (p.needsReference || p.needs_reference) ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
-            bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
-
-            badgesEl.innerHTML = bhtml;
-
-            badgesEl.innerHTML = bhtml;
-
-            // Render Tags
-            const tagsEl = document.getElementById('detTags');
-            if (tagsEl) {
-                if (p.tags && p.tags.length > 0) {
-                    tagsEl.innerHTML = p.tags.map(t => `<span class="server-tag-pill">${t}</span>`).join('');
-                } else {
-                    tagsEl.innerHTML = '';
-                }
-            }
-        }
-
-        // Handle sequence vs single
-        const prevBtn = document.getElementById('detPrevBtn');
-        const nextBtn = document.getElementById('detNextBtn');
-        const seqCount = document.getElementById('detSeqCount');
-        const detPrompt = document.getElementById('detPrompt');
-        const detImg = document.getElementById('detImg');
-
-        // Show/Hide Negative Prompt and Button
-        const detNegPrompt = document.getElementById('detNegPrompt');
-        const btnCopyNegCurrent = document.getElementById('btnCopyNeg');
-        const negText = p.type === 'sequence' ? p.content[0]?.negative_prompt : p.negative_prompt;
-
-        if (negText && negText.trim()) {
-            if (detNegPrompt) {
-                detNegPrompt.innerText = negText;
-                detNegPrompt.style.display = 'block';
-            }
-            if (btnCopyNegCurrent) btnCopyNegCurrent.style.display = 'block';
-        } else {
-            if (detNegPrompt) detNegPrompt.style.display = 'none';
-            if (btnCopyNegCurrent) btnCopyNegCurrent.style.display = 'none';
-        }
-
-        if (p.type === 'sequence' && p.content && p.content.length > 0) {
-            if (prevBtn) prevBtn.style.display = 'flex';
-            if (nextBtn) nextBtn.style.display = 'flex';
-            if (seqCount) seqCount.style.display = 'block';
-            window.updateSeqDisplay(p);
-        } else {
-            if (prevBtn) prevBtn.style.display = 'none';
-            if (nextBtn) nextBtn.style.display = 'none';
-            if (seqCount) seqCount.style.display = 'none';
-            if (detPrompt) detPrompt.innerText = p.prompt || '';
-            if (detImg) detImg.src = p.image || '';
-
-            // The detNeg block here is now redundant as it's handled above for both types
-            // Keeping it commented out for reference if needed, but the new logic covers it.
-            /*
-            const detNeg = document.getElementById('detNegPrompt');
-            if (detNeg) {
-                if (p.negative_prompt) {
-                detNeg.style.display = 'block';
-            detNeg.innerText = `NEGATIVE PROMPT: ${p.negative_prompt}`;
-            detNeg.style.backgroundColor = '#331a1a';
-            detNeg.style.color = '#ffaaaa';
-            detNeg.style.padding = '8px';
-            detNeg.style.borderRadius = '4px';
-            detNeg.style.marginTop = '10px';
-                } else {
-                detNeg.style.display = 'none';
-                }
-            }
-            */
-        }
-        // Re-apply blurring logic for single image context
-        const detImgWrap = document.getElementById('detImgWrap');
-        if (detImgWrap) {
-            // IMPORTANT: Clear previous reveal state by removing and re-adding class
-            detImgWrap.classList.remove('card-blurred');
-            const { applyBlur, warningLabel } = getModeration(p);
-
-            if (applyBlur) {
-                detImgWrap.classList.add('card-blurred');
-                detImgWrap.dataset.warning = warningLabel;
-                // Clean existing overlay to force re-render with button
-                const oldOverlay = detImgWrap.querySelector('.blur-overlay');
-                if (oldOverlay) oldOverlay.remove();
-            } else {
-                detImgWrap.dataset.warning = '';
-                const oldOverlay = detImgWrap.querySelector('.blur-overlay');
-                if (oldOverlay) oldOverlay.remove();
-            }
-        }
-
-        const detCopyBadge = document.getElementById('detCopyBadge');
-        if (detCopyBadge) {
-            detCopyBadge.style.display = 'block';
-            detCopyBadge.innerText = `📋 Copiado ${p.copy_count || 0} veces`;
-        }
-
-        // Setup Comments
-        const commentsEl = document.getElementById('detComments');
-        if (commentsEl) {
-            const currUser = store.currentUser?.username;
-            const isPostOwner = currUser === p.author;
-
-            commentsEl.innerHTML = (p.comments && p.comments.length > 0)
-                ? p.comments.map(c => {
-                    const canDelete = isPostOwner || currUser === c.username;
-                    return `<div style="background:#1a1a1a; padding:10px; border-radius:8px; margin-bottom:10px; border-left:3px solid var(--accent); position:relative">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px">
-                    <span style="font-weight:700; color:var(--accent); font-size:0.85rem">@${window.escapeHTML(c.username)}</span>
-                    <div style="display:flex; align-items:center; gap:8px">
-                        <span style="font-size:0.65rem; opacity:0.5">${new Date(c.timestamp).toLocaleDateString()}</span>
-                        ${canDelete ? `<button onclick="window.doDeleteComment(${c.id})" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; padding:0" title="Eliminar comentario">🗑️</button>` : ''}
-                    </div>
-                </div>
-                <div style="font-size:0.9rem; color:#eee; word-break:break-word">${window.escapeHTML(c.text)}</div>
-            </div>`;
-                }).join('')
-                : '<div style="opacity:0.5; font-size:0.9rem">No hay comentarios aún.</div>';
-        }
-
-        // Setup Reactions
-        const reactions = p.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 };
-        const myReaction = (p.userReactions && store.currentUser) ? p.userReactions[store.currentUser.username] : null;
-        ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(type => {
-            const countEl = document.getElementById(`det-${type}-count`);
-            const btnEl = document.getElementById(`btn-react-${type}`);
-            if (countEl) countEl.innerText = reactions[type] || 0;
-            if (btnEl) {
-                if (myReaction === type) btnEl.classList.add('active');
-                else btnEl.classList.remove('active');
-            }
-        });
-
-        const viewModal = document.getElementById('viewModal');
-        if (viewModal) {
-            // MOVE TO BODY to avoid stacking context issues
-            if (viewModal.parentNode !== document.body) {
-                document.body.appendChild(viewModal);
-            }
-            viewModal.style.cssText = 'display: flex !important; z-index: 1000000 !important; visibility: visible !important; opacity: 1 !important; background: rgba(0,0,0,0.95) !important; position: fixed !important; top: 0; left: 0; width: 100%; height: 100%;';
-        } else {
-            alert("Error crítico: Elemento modal no encontrado en el DOM");
-        }
-    } catch (err) {
-        console.error(err);
-        alert("Error al abrir el post: " + err.message);
-    }
-};
-
-window.updateSeqDisplay = (p) => {
-    if (!p || !p.content || p.content.length === 0) return;
-    const step = p.content[currentSeqStep];
-
-    // Blurring for current step
-    const { applyBlur, warningLabel } = getModeration(p, step.rating);
-    const detImgWrap = document.getElementById('detImgWrap');
-    if (detImgWrap) {
-        // IMPORTANT: Clear previous reveal state when switching steps
-        detImgWrap.classList.remove('card-blurred');
-        if (applyBlur) {
-            detImgWrap.classList.add('card-blurred');
-            detImgWrap.dataset.warning = warningLabel;
-            // Clean existing overlay to force re-render with button
-            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
-            if (oldOverlay) oldOverlay.remove();
-        } else {
-            detImgWrap.dataset.warning = '';
-            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
-            if (oldOverlay) oldOverlay.remove();
-        }
-    }
-
-    const detImg = document.getElementById('detImg');
-    const detPrompt = document.getElementById('detPrompt');
-    const detSeqCount = document.getElementById('detSeqCount');
-
-    // FIX: Show Global Prompt or Step Prompt
-    if (detPrompt) {
-        let stepPrompt = '';
-        if (typeof step === 'object') stepPrompt = step.prompt || '';
-        detPrompt.innerText = stepPrompt || p.prompt || '';
-    }
-
-    const detNeg = document.getElementById('detNegPrompt');
-    const btnCopyNegCurrent = document.getElementById('btnCopyNeg'); // Get the button
-    if (detNeg) {
-        let stepNeg = (step && typeof step === 'object') ? step.negative_prompt : '';
-        const finalNeg = stepNeg || p.negative_prompt || '';
-        if (finalNeg) {
-            detNeg.style.display = 'block';
-            detNeg.innerText = finalNeg; // Removed "NEGATIVE PROMPT:" prefix as it's in the HTML
-            detNeg.style.backgroundColor = '#331a1a';
-            detNeg.style.color = '#ffaaaa';
-            detNeg.style.padding = '8px';
-            detNeg.style.borderRadius = '4px';
-            detNeg.style.marginTop = '10px';
-            if (btnCopyNegCurrent) btnCopyNegCurrent.style.display = 'block';
-        } else {
-            detNeg.style.display = 'none';
-            if (btnCopyNegCurrent) btnCopyNegCurrent.style.display = 'none';
-        }
-    }
-
-    if (detImg) {
-        // ROBUST DATA EXTRACTION FOR MODAL
-        let imgUrl = '';
-        let stepRating = 'SFW';
-
-        if (typeof step === 'string') {
-            imgUrl = step;
-        } else if (step && typeof step === 'object') {
-            imgUrl = step.image || step.url || step.src || '';
-            stepRating = step.rating || 'SFW';
-        }
-
-        if (detImg) {
-            detImg.src = imgUrl;
-            const { applyBlur, warningLabel } = getModeration(p, stepRating);
-            const container = detImg.parentElement;
-            container.className = 'view-img-side' + (applyBlur ? ' card-blurred' : '');
-            let blurOverlay = container.querySelector('.blur-overlay');
-            if (applyBlur) {
-                if (!blurOverlay) {
-                    blurOverlay = document.createElement('div');
-                    blurOverlay.className = 'blur-overlay';
-                    container.appendChild(blurOverlay);
-                }
-                blurOverlay.innerHTML = `<span>🔞 ${warningLabel}</span><button class="btn" style="margin-top:10px; background: #ff4444; color: white; border:none; padding: 5px 10px; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); window.revealImage(this)">👁️ Revelar Imagen</button>`;
-            } else if (blurOverlay) {
-                blurOverlay.remove();
-            }
-        }
-    }
-
-    const detCopyBadge = document.getElementById('detCopyBadge');
-    if (detCopyBadge) {
-        detCopyBadge.style.display = 'block';
-        detCopyBadge.innerText = `📋 Copiado ${p.copy_count || 0} veces`;
-    }
-
-    if (detPrompt) detPrompt.innerText = step.prompt || '';
-    if (detSeqCount) detSeqCount.innerText = `${currentSeqStep + 1} / ${p.content.length}`;
-
-    // Update Meta Badges for the current step in sequence
-    const badgesEl = document.getElementById('detBadges');
-    if (badgesEl) {
-        let bhtml = `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">🛠️ ${p.tool || 'Desconocido'}</span>`;
-
-        const r = step.rating || 'SFW / Apto';
-        const icon = r.startsWith('SFW') ? '🟢' : '🔞';
-        bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
-
-        // Referencia (Global del post original)
-        const refText = (p.needsReference || p.needs_reference) ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
-        bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
-
-        badgesEl.innerHTML = bhtml;
-    }
-};
-
-window.prevSeqStep = () => {
-    const p = store.prompts.find(x => x.id === currentId);
-    if (!p || !p.content) return;
-    currentSeqStep = (currentSeqStep - 1 + p.content.length) % p.content.length;
-    window.updateSeqDisplay(p);
-};
-
-window.nextSeqStep = () => {
-    const p = store.prompts.find(x => x.id === currentId);
-    if (!p || !p.content) return;
-    currentSeqStep = (currentSeqStep + 1) % p.content.length;
-    window.updateSeqDisplay(p);
-};
->>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
-
 // --- OPTIONS MENU FUNCTIONS ---
 window.toggleOptionsMenu = () => {
     const menu = document.getElementById('optionsMenu');
@@ -2628,61 +2391,6 @@ window.doDeleteAccount = () => {
         window.location.reload();
     }
 };
-
-<<<<<<< HEAD
-// Eliminada en favor de store.doReact
-=======
-window.doReact = async (type) => {
-    if (!store.currentUser) return alert("Inicia sesión para reaccionar");
-
-    const p = store.prompts.find(x => String(x.id) === String(currentId));
-    if (!p) return;
-
-    // --- PURE OPTIMISTIC DOM UPDATE ---
-    // We update the DOM immediately for speed, but we DON'T touch the 'p' object here.
-    // store.toggleReaction will handle the data sync correctly.
-    const user = store.currentUser.username;
-    const currentReactions = { ...(p.reactions || {}) };
-    const myOldReaction = (p.userReactions) ? p.userReactions[user] : null;
-
-    let newCounts = { ...currentReactions };
-    let newMyReaction = null;
-
-    if (myOldReaction === type) {
-        newCounts[type] = Math.max(0, (newCounts[type] || 0) - 1);
-        newMyReaction = null;
-    } else {
-        if (myOldReaction) {
-            newCounts[myOldReaction] = Math.max(0, (newCounts[myOldReaction] || 0) - 1);
-        }
-        newCounts[type] = (newCounts[type] || 0) + 1;
-        newMyReaction = type;
-    }
-
-    // Update DOM Immediately
-    ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(t => {
-        const el = document.getElementById(`det-${t}-count`);
-        const btn = document.getElementById(`btn-react-${t}`);
-        if (el) el.innerText = newCounts[t] || 0;
-        if (btn) {
-            if (newMyReaction === t) {
-                btn.classList.add('active');
-                btn.style.transform = "scale(1.2)";
-                setTimeout(() => btn.style.transform = "scale(1)", 200);
-            } else {
-                btn.classList.remove('active');
-            }
-        }
-    });
-
-    // --- SYNC WITH SERVER ---
-    try {
-        await store.toggleReaction(currentId, type);
-    } catch (e) {
-        console.error("Reaction Sync Failed", e);
-    }
-};
->>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
 
 window.doFullScreen = () => {
     const img = document.getElementById('detImg');

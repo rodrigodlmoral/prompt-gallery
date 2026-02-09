@@ -1,7 +1,12 @@
 import './style.css'
+// Deploy Timestamp: 2026-02-09T00:55:00-06:00 (Unified Advanced Filters)
 import { store, LEVEL_REQS, TOOLS, RATINGS, RATING_INFO, INFO_ICON } from './store-final.js'
+import { pb } from './pocketbase.js';
+import { AdvancedFilters } from './components/AdvancedFilters.js';
 import { TAG_CATEGORIES } from './data/tags.js';
+import { TAG_ALIASES } from './data/tagAliases.js';
 import { DetailModalTemplate } from './components/DetailModal.js';
+import { SearchSuggestions } from './components/SearchSuggestions.js';
 
 const app = document.getElementById('app');
 
@@ -10,6 +15,93 @@ let currentView = 'profile'; // Fixed view for this file
 let profileUser = new URLSearchParams(window.location.search).get('u') || '';
 let profileTab = 'creations';
 let searchQuery = '';
+let filters = {
+    source: 'community',
+    sort: 'newest',
+    time: 'all',
+    tools: [],
+    refFilter: 'all',
+    ratings: [],
+    categories: [],
+    tags: []
+};
+
+window.getSearchableUsers = () => {
+    const promptAuthors = store.prompts.map(p => ({
+        username: p.author,
+        avatar: p.profiles?.avatar_url || (p.expand?.author?.avatar ? pb.files.getUrl(p.expand.author, p.expand.author.avatar) : null)
+    }));
+    const allKnownUsers = [
+        ...Object.values(store.usersCache),
+        ...store.nuclearCache.items,
+        ...promptAuthors
+    ].map(u => window.normalizeProfile ? window.normalizeProfile(u) : u);
+    const seenUsernames = new Set();
+    return allKnownUsers.filter(u => {
+        if (!u || !u.username || seenUsernames.has(u.username)) return false;
+        seenUsernames.add(u.username);
+        return true;
+    });
+};
+
+window.handleSearchTyping = (val) => {
+    const query = val.trim().toLowerCase();
+    const mount = document.getElementById('search-suggestions-mount');
+    if (!mount) return;
+    if (query.length === 0) {
+        mount.innerHTML = '';
+        return;
+    }
+    const uniqueUsers = window.getSearchableUsers();
+    const users = uniqueUsers.filter(u => u.username?.toLowerCase().startsWith(query)).sort((a, b) => a.username.localeCompare(b.username)).slice(0, 5);
+    const prompts = store.prompts.filter(p => p.title?.toLowerCase().startsWith(query)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5);
+
+    const allTags = [...new Set(Object.values(TAG_CATEGORIES).flat())];
+    const aliasMatches = Object.entries(TAG_ALIASES)
+        .filter(([eng, esp]) => eng.toLowerCase().includes(query))
+        .flatMap(([eng, esp]) => esp);
+
+    const tags = allTags.filter(t => t.toLowerCase().includes(query) || aliasMatches.includes(t))
+        .sort((a, b) => a.localeCompare(b))
+        .slice(0, 8);
+
+    const contentMatches = store.prompts
+        .filter(p => (p.prompt || '').toLowerCase().includes(query))
+        .map(p => {
+            const body = p.prompt || '';
+            const idx = body.toLowerCase().indexOf(query);
+            const start = Math.max(0, idx - 25);
+            const end = Math.min(body.length, idx + query.length + 35);
+            let snippet = body.substring(start, end).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return { ...p, matchSnippet: snippet };
+        })
+        .slice(0, 5);
+    mount.innerHTML = SearchSuggestions({ users, prompts, tags, contentMatches });
+};
+
+window.handleSearch = (val) => {
+    searchQuery = val;
+    const di = document.getElementById('searchInput'); if (di) di.value = val;
+    const mount = document.getElementById('search-suggestions-mount'); if (mount) mount.innerHTML = '';
+
+    // In profile, search filters the current user posts usually, but we keep it global or per requirements
+    render();
+};
+
+window.handleTagSearch = (tag) => {
+    searchQuery = tag;
+    const di = document.getElementById('searchInput'); if (di) di.value = tag;
+    const mount = document.getElementById('search-suggestions-mount'); if (mount) mount.innerHTML = '';
+    render();
+};
+
+// Global click to close suggestions
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-bar')) {
+        const mount = document.getElementById('search-suggestions-mount');
+        if (mount) mount.innerHTML = '';
+    }
+});
 // Obsoleta, ahora en store (store.activePostId, store.currentSeqStep)
 let currentTipPostId = null;
 window.sliderUnlocked = false;
@@ -54,6 +146,32 @@ setInterval(() => {
 // --- HELPERS ---
 window.openUserProfile = (username) => {
     window.location.href = `/profile.html?u=${encodeURIComponent(username)}`;
+};
+
+window.setFilter = (key, value) => {
+    filters[key] = value;
+    if (window.render) window.render();
+};
+
+window.toggleFilter = (key, value) => {
+    const idx = filters[key].indexOf(value);
+    if (idx > -1) filters[key].splice(idx, 1);
+    else filters[key].push(value);
+    if (window.render) window.render();
+};
+
+window.toggleAdvancedFilters = () => {
+    const el = document.getElementById('advFilterPanel');
+    if (el) el.classList.toggle('active');
+};
+
+window.clearAllFilters = () => {
+    filters.tools = [];
+    filters.ratings = [];
+    filters.refFilter = 'all';
+    filters.categories = [];
+    filters.tags = [];
+    if (window.render) window.render();
 };
 
 window.escapeHTML = (str) => {
@@ -103,7 +221,7 @@ const renderCollage = (p) => {
     else if (count >= 6) gridStyle = 'grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr;';
 
     return `
-    < div class="card-collage" style = "${gridStyle}" >
+    <div class="card-collage" style = "${gridStyle}" >
         ${items.map((step, idx) => {
         const { applyBlur } = getModeration(p, step.rating);
         let spanStyle = '';
@@ -118,16 +236,19 @@ const renderCollage = (p) => {
             </div>`;
     }).join('')
         }
-    </div > `;
+    </div> `;
 };
 
 // --- COMPONENTS ---
 const Header = () => `
-    < header style = "height:auto; display:flex; flex-direction:column" >
+    <header style = "height:auto; display:flex; flex-direction:column" >
         <div class="container" style="height:72px; border-bottom:1px solid #222">
             <div class="logo" onclick="window.location.href='/'" style="cursor:pointer">✨ Prompt Gallery</div>
-            <div class="search-bar search-desktop">
-                <input type="search" class="search-input" id="searchInput" placeholder="Buscar..." value="${searchQuery}" readonly>
+            <div class="search-bar search-desktop" style="position:relative">
+                <!-- Trap for Chrome Autofill -->
+                <input type="password" style="display:none" autocomplete="new-password">
+                <input type="text" class="search-input" id="searchInput" placeholder="Buscar..." value="${searchQuery}" autocomplete="chrome-off-v3" spellcheck="false" name="prof_find_v${Date.now()}">
+                <div id="search-suggestions-mount"></div>
             </div>
             <nav>
                 ${store.currentUser ? `
@@ -141,7 +262,25 @@ const Header = () => `
             ` : `<button class="btn" onclick="window.location.href='/'">Iniciar Sesión</button>`}
             </nav>
         </div>
-</header > `;
+        <div class="container filters-bar" style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; background:rgba(0,0,0,0.3); align-items:center; justify-content: flex-end">
+            <select onchange="window.setFilter('time', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
+                <option value="all" ${filters.time === 'all' ? 'selected' : ''}>📅 Todo el tiempo</option>
+                <option value="today" ${filters.time === 'today' ? 'selected' : ''}>Hoy</option>
+                <option value="week" ${filters.time === 'week' ? 'selected' : ''}>Esta Semana</option>
+                <option value="month" ${filters.time === 'month' ? 'selected' : ''}>Este Mes</option>
+            </select>
+            <select onchange="window.setFilter('sort', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
+                <option value="newest" ${filters.sort === 'newest' ? 'selected' : ''}>🔥 Más Recientes</option>
+                <option value="popular" ${filters.sort === 'popular' ? 'selected' : ''}>❤️ Más Populares</option>
+                <option value="commented" ${filters.sort === 'commented' ? 'selected' : ''}>💬 Más Comentados</option>
+                <option value="oldest" ${filters.sort === 'oldest' ? 'selected' : ''}>👴 Más Antiguos</option>
+            </select>
+            
+            <button class="btn-outline" onclick="window.toggleAdvancedFilters()" style="padding: 6px 12px; font-size: 0.85rem; display: flex; align-items:center; gap:8px; white-space:nowrap; border-radius:8px">
+                🔍 Filtros Avanzados ${(filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)) > 0 ? `<span style="background:#0070ba; color:white; border-radius:10px; padding:0 6px; font-size:0.7rem">${filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)}</span>` : ''}
+            </button>
+        </div>
+</header> `;
 
 const ProfileHeader = () => {
     console.log(`[PROFILE] ProfileHeader: profileUser = "${profileUser}"`);
@@ -158,17 +297,17 @@ const ProfileHeader = () => {
         // Si ya pasó un tiempo razonable y sigue sin cargar, asumimos error
         if (window.initDone) {
             return `
-    < div style = "height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif" >
+    <div style = "height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif" >
                  <div style="font-size:3rem">🤷‍♂️</div>
                  <p style="margin-top:20px; letter-spacing:1px; font-size:0.9rem">USUARIO NO ENCONTRADO</p>
                  <button class="btn-outline" onclick="window.location.href='/'" style="margin-top:20px">Volver al Inicio</button>
-             </div > `;
+             </div> `;
         }
         return `
-    < div style = "height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif" >
+    <div style = "height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif" >
             <div style="font-size:3rem; animation: pulse 1s infinite">✨</div>
             <p style="margin-top:20px; letter-spacing:1px; font-size:0.9rem">CARGANDO PERFIL...</p>
-        </div > `;
+        </div> `;
     }
 
     const isAdmin = user.role === 'admin' || user.username === 'rodrigodlmoral' || user.username === 'rodridomrock' || user.name === 'rodrigodlmoral';
@@ -181,7 +320,7 @@ const ProfileHeader = () => {
     const lvlInfo = getLevelInfo(user.level || 0);
 
     return `
-    < div class="profile-header" >
+    <div class="profile-header" >
         <div class="container" style="padding: 40px 0 0 0;">
             <div style="display:flex; gap:30px; align-items:center; margin-bottom:30px">
                 <div class="user-avatar-lg" style="background-image:url('${user.avatar || 'https://robohash.org/' + user.username}')"></div>
@@ -255,7 +394,7 @@ const ProfileHeader = () => {
                 ${isMe ? `<button class="profile-tab ${profileTab === 'saved' ? 'active' : ''}" onclick="window.setProfileTab('saved')">Guardados</button>` : ''}
             </div>
         </div>
-    </div > `;
+    </div> `;
 };
 
 const Gallery = () => {
@@ -269,14 +408,45 @@ const Gallery = () => {
 
     let list = [...store.prompts].filter(p => {
         if (p.is_private && (!store.currentUser || store.currentUser.id !== p.author_id)) return false;
-        // FIX v4.6: Compare ID with ID (p.author was username)
-        return profileTab === 'creations' ? p.author_id === user.id : p.savedBy?.includes(user.id);
+        // Scope Check (Creations vs Saved)
+        const inScope = profileTab === 'creations' ? p.author_id === user.id : p.savedBy?.includes(user.id);
+        if (!inScope) return false;
+
+        // Apply Filters (Sync with main.js logic)
+        if (filters.tools.length > 0 && !filters.tools.includes(p.tool)) return false;
+        if (filters.ratings.length > 0 && !filters.ratings.includes(p.rating)) return false;
+        if (filters.refFilter === 'withRef' && !p.needs_reference) return false;
+        if (filters.refFilter === 'noRef' && p.needs_reference) return false;
+        if (filters.tags.length > 0 && !(p.tags || []).some(t => filters.tags.includes(t))) return false;
+
+        if (filters.time !== 'all') {
+            const now = Date.now();
+            const ms = { today: 86400000, week: 604800000, month: 2592000000 };
+            const pTime = p.createdAt; // Unified field in store-final.js
+            if (!pTime || (now - pTime > ms[filters.time])) return false;
+        }
+
+        return true;
     });
 
-    if (list.length === 0) return `< div class="container" style = "padding:100px; text-align:center; color:#666" > No hay prompts aquí todavía.</div > `;
+    // Sort Logic (Default: newest first)
+    list.sort((a, b) => {
+        if (filters.sort === 'popular') {
+            const getScore = (p) => Object.values(p.reactions || {}).reduce((sum, val) => typeof val === 'number' ? sum + val : sum, 0);
+            return getScore(b) - getScore(a);
+        } else if (filters.sort === 'oldest') {
+            return (a.createdAt || 0) - (b.createdAt || 0);
+        } else if (filters.sort === 'commented') {
+            return (b.comments?.length || 0) - (a.comments?.length || 0);
+        }
+        // Default: newest
+        return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+
+    if (list.length === 0) return `<div class="container" style = "padding:100px; text-align:center; color:#666" > No hay prompts que coincidan con los filtros.</div> `;
 
     return `
-    < div class="container gallery-grid" style = "margin-top:20px" >
+    <div class="container gallery-grid" style = "margin-top:20px" >
         ${list.map(p => {
         const { applyBlur, warningLabel } = getModeration(p);
         const reactions = p.reactions || { like: 0 };
@@ -309,7 +479,7 @@ const Gallery = () => {
             </div>`;
     }).join('')
         }
-    </div > `;
+    </div> `;
 };
 
 // --- ACTION FUNCTIONS ---
@@ -350,7 +520,7 @@ window.doEditPrompt = (id) => {
                 lastStep.querySelector('.seqRating').value = step.rating;
                 const fileInput = lastStep.querySelector('.seqFile');
                 const prev = document.createElement('div');
-                prev.innerHTML = `< small > Imagen actual guardada.</small > <br><img src="${step.image}" style="height:50px; border:1px solid #444; margin-top:5px">`;
+                prev.innerHTML = `<small > Imagen actual guardada.</small> <br><img src="${step.image}" style="height:50px; border:1px solid #444; margin-top:5px">`;
                 fileInput.parentElement.insertBefore(prev, fileInput);
             });
         }
@@ -671,39 +841,48 @@ const ConfirmModal = () => `
 // --- LOGIC ---
 // --- LOGIC ---
 const render = () => {
-<<<<<<< HEAD
     // Estrategia No-Destructiva: No sobrescribir todo el app.innerHTML si ya existe la estructura
     if (!document.getElementById('profile-gallery-container')) {
         app.innerHTML = `
-            ${Header()}
-            ${ProfileHeader()}
+            <div id="header-mount"></div>
+            <div id="profile-header-mount"></div>
             <div id="profile-gallery-container"></div>
             <div id="modals-mount"></div>
+            <div id="adv-filter-mount"></div>
             ${SettingsModal()}
             ${CreateModal()}
             ${ConfirmModal()}
             ${ActivityModal()}
         `;
         const modalsMount = document.getElementById('modals-mount');
-        if (modalsMount) modalsMount.innerHTML = DetailModalTemplateLocal();
+        if (modalsMount) modalsMount.innerHTML = DetailModalTemplate();
     }
+
+    const headerMount = document.getElementById('header-mount');
+    if (headerMount) headerMount.innerHTML = Header();
+
+    const pHeaderMount = document.getElementById('profile-header-mount');
+    if (pHeaderMount) pHeaderMount.innerHTML = ProfileHeader();
 
     const galleryMount = document.getElementById('profile-gallery-container');
     if (galleryMount) galleryMount.innerHTML = Gallery();
 
-=======
-    app.innerHTML = Header() + ProfileHeader() + Gallery() + DetailModalTemplateLocal() + SettingsModal() + CreateModal() + ConfirmModal() + ActivityModal();
->>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
+    // Advanced Filter Panel
+    const advFilterMount = document.getElementById('adv-filter-mount');
+    if (advFilterMount) advFilterMount.innerHTML = AdvancedFilters(filters);
+
     attachEvents();
 
     // Solo scrollear arriba si no es un render incremental
-    if (!window._isIncrementalRender) {
-        window.scrollTo(0, 0);
-    }
     window._isIncrementalRender = false;
 };
+window.render = render;
 
 const attachEvents = () => {
+    document.getElementById('searchInput')?.addEventListener('input', (e) => {
+        if (window.handleSearchTyping) window.handleSearchTyping(e.target.value);
+    });
+
     document.querySelectorAll('[data-post-id]').forEach(el => {
         el.addEventListener('click', () => {
             const id = el.getAttribute('data-post-id');
@@ -720,215 +899,10 @@ window.nextSeqStep = () => store.nextSeqStep();
 window.revealImage = (btn) => store.revealImage(btn);
 window.getModeration = (p, f) => store.getModeration(p, f);
 
-<<<<<<< HEAD
 // Comment Logic wrappers
 window.showSlider = () => store.showSlider();
 window.initCrystalSlider = () => store.initCrystalSlider();
 window.postComm = () => store.postComm();
-=======
-    const modal = document.getElementById('viewModal');
-    if (!modal) return;
-
-    // UI Resets
-    const slider = document.getElementById('commSlider');
-    const handle = document.getElementById('commSliderHandle');
-    const botContainer = document.getElementById('commAntiBot');
-    if (slider) slider.classList.remove('unlocked');
-    if (handle) { handle.style.left = '4px'; handle.style.transition = 'none'; }
-    if (botContainer) botContainer.style.display = 'none';
-
-    document.getElementById('detTitle').innerText = p.title || 'Sin Título';
-
-    const detMetaTop = document.getElementById('detMetaTop');
-    if (detMetaTop) {
-        const d = new Date(p.createdAt || Date.now());
-        detMetaTop.innerText = `${p.tool} • ${p.type === 'sequence' ? 'Secuencia' : 'Imagen Única'} • ${d.toLocaleDateString()}`;
-    }
-
-    const userEl = document.getElementById('detUser');
-    if (userEl) {
-        userEl.innerHTML = `
-            <span style="display:flex; align-items:center; gap:10px">
-                Por: <span onclick="window.location.href='/profile.html?u=${p.author}'" style="cursor:pointer; text-decoration:underline">${p.author}</span>
-            </span>
-            <div id="detTipsButton" style="margin: 8px 0 10px 0">
-                <button style="background:rgba(162, 155, 254, 0.15); border:1px solid rgba(162, 155, 254, 0.4); color:#a29bfe; padding:4px 12px; border-radius:4px; font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="window.openTip('${p.id}')">
-                    💎 ${p.tokens_received || 0} PromptBits
-                </button>
-            </div>`;
-    }
-
-    const badgesEl = document.getElementById('detBadges');
-    if (badgesEl) {
-        let bhtml = `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">🛠️ ${p.tool || 'Desconocido'}</span>`;
-
-        // Add Rating Badge
-        const r = p.rating || 'SFW / Apto';
-        const icon = r.startsWith('SFW') ? '🟢' : '🔞';
-        bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
-
-        const refText = (p.needsReference || p.needs_reference) ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
-        bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
-
-        badgesEl.innerHTML = bhtml;
-
-        // Render Tags
-        const tagsEl = document.getElementById('detTags');
-        if (tagsEl) {
-            if (p.tags && p.tags.length > 0) {
-                tagsEl.innerHTML = p.tags.map(t => `<span class="server-tag-pill">${t}</span>`).join('');
-            } else {
-                tagsEl.innerHTML = '';
-            }
-        }
-    }
-
-    // Sequence vs Single
-    const prevBtn = document.getElementById('detPrevBtn');
-    const nextBtn = document.getElementById('detNextBtn');
-    const seqCount = document.getElementById('detSeqCount');
-    const detImg = document.getElementById('detImg');
-    const detPrompt = document.getElementById('detPrompt');
-
-    if (p.type === 'sequence' && p.content && p.content.length > 0) {
-        if (prevBtn) prevBtn.style.display = 'flex';
-        if (nextBtn) nextBtn.style.display = 'flex';
-        if (seqCount) seqCount.style.display = 'block';
-        window.updateSeqDisplay(p);
-    } else {
-        if (prevBtn) prevBtn.style.display = 'none';
-        if (nextBtn) nextBtn.style.display = 'none';
-        if (seqCount) seqCount.style.display = 'none';
-        if (detImg) detImg.src = p.image || '';
-        if (detPrompt) detPrompt.innerText = p.prompt || '';
-
-        // Negative Prompt Handling
-        const detNegPrompt = document.getElementById('detNegPrompt');
-        const btnCopyNeg = document.getElementById('btnCopyNeg');
-        const negText = p.negative_prompt;
-
-        if (negText && negText.trim()) {
-            if (detNegPrompt) {
-                detNegPrompt.innerText = negText;
-                detNegPrompt.style.display = 'block';
-            }
-            if (btnCopyNeg) btnCopyNeg.style.display = 'block';
-        } else {
-            if (detNegPrompt) detNegPrompt.style.display = 'none';
-            if (btnCopyNeg) btnCopyNeg.style.display = 'none';
-        }
-
-    }
-
-    // Blurring
-    const detImgWrap = document.getElementById('detImgWrap');
-    if (detImgWrap) {
-        detImgWrap.classList.remove('card-blurred');
-        const { applyBlur, warningLabel } = getModeration(p);
-        if (applyBlur) {
-            detImgWrap.classList.add('card-blurred');
-            detImgWrap.dataset.warning = warningLabel;
-            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
-            if (oldOverlay) oldOverlay.remove();
-        } else {
-            detImgWrap.dataset.warning = '';
-            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
-            if (oldOverlay) oldOverlay.remove();
-        }
-    }
-
-    const detCopyBadge = document.getElementById('detCopyBadge');
-    if (detCopyBadge) {
-        detCopyBadge.style.display = 'block';
-        detCopyBadge.innerText = `📋 Copiado ${p.copy_count || 0} veces`;
-    }
-
-    // Comments
-    const commentsEl = document.getElementById('detComments');
-    if (commentsEl) {
-        const currUser = store.currentUser?.username;
-        const isPostOwner = currUser === p.author;
-        commentsEl.innerHTML = (p.comments && p.comments.length > 0)
-            ? p.comments.map(c => `
-                <div style="background:#1a1a1a; padding:10px; border-radius:8px; margin-bottom:10px; border-left:3px solid var(--accent); position:relative">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px">
-                        <span style="font-weight:700; color:var(--accent); font-size:0.85rem">@${window.escapeHTML(c.username)}</span>
-                        ${(isPostOwner || currUser === c.username) ? `<button onclick="window.doDeleteComment(${c.id})" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; padding:0">🗑️</button>` : ''}
-                    </div>
-                    <div style="font-size:0.9rem; color:#eee">${window.escapeHTML(c.text)}</div>
-                </div>`).join('')
-            : '<div style="opacity:0.5; font-size:0.9rem">No hay comentarios aún.</div>';
-    }
-
-    // Reactions
-    const reactions = p.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 };
-    const myReaction = (p.userReactions && store.currentUser) ? p.userReactions[store.currentUser.username] : null;
-    ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(type => {
-        const countEl = document.getElementById(`det-${type}-count`);
-        const btnEl = document.getElementById(`btn-react-${type}`);
-        if (countEl) countEl.innerText = reactions[type] || 0;
-        if (btnEl) {
-            if (myReaction === type) btnEl.classList.add('active');
-            else btnEl.classList.remove('active');
-        }
-    });
-
-    modal.style.display = 'flex';
-};
-
-window.updateSeqDisplay = (p) => {
-    const step = p.content[currentSeqStep];
-    if (!step) return;
-
-    // Blurring for current step
-    const { applyBlur, warningLabel } = getModeration(p, step.rating);
-    const detImgWrap = document.getElementById('detImgWrap');
-    if (detImgWrap) {
-        detImgWrap.classList.remove('card-blurred');
-        if (applyBlur) {
-            detImgWrap.classList.add('card-blurred');
-            detImgWrap.dataset.warning = warningLabel;
-            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
-            if (oldOverlay) oldOverlay.remove();
-        } else {
-            detImgWrap.dataset.warning = '';
-            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
-            if (oldOverlay) oldOverlay.remove();
-        }
-    }
-
-    // Reset negative button visibility for sequence updates
-    const btnCopyNegSeq = document.getElementById('btnCopyNeg');
-    if (btnCopyNegSeq) {
-        if (step.negative_prompt && step.negative_prompt.trim()) {
-            btnCopyNegSeq.style.display = 'block';
-        } else {
-            btnCopyNegSeq.style.display = 'none';
-        }
-    }
-
-    const detImg = document.getElementById('detImg');
-    const detPrompt = document.getElementById('detPrompt');
-    const seqCount = document.getElementById('detSeqCount');
-    if (detImg) detImg.src = step.image;
-    if (detPrompt) detPrompt.innerText = step.prompt || '';
-    if (seqCount) seqCount.innerText = `Imagen ${currentSeqStep + 1} de ${p.content.length}`;
-};
-
-window.prevSeqStep = () => {
-    const p = store.prompts.find(x => String(x.id) === String(currentId));
-    if (!p || p.type !== 'sequence') return;
-    currentSeqStep = (currentSeqStep - 1 + p.content.length) % p.content.length;
-    window.updateSeqDisplay(p);
-};
-
-window.nextSeqStep = () => {
-    const p = store.prompts.find(x => String(x.id) === String(currentId));
-    if (!p || p.type !== 'sequence') return;
-    currentSeqStep = (currentSeqStep + 1) % p.content.length;
-    window.updateSeqDisplay(p);
-};
->>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
 
 window.toggleOptionsMenu = () => {
     const menu = document.getElementById('optionsMenu');
@@ -944,24 +918,14 @@ window.doSavePrompt = async () => {
 };
 
 window.doCopyPrompt = async (type = 'main') => {
-<<<<<<< HEAD
     const p = store.prompts.find(x => String(x.id) === String(store.activePostId));
-=======
-    const p = store.prompts.find(x => String(x.id) === String(currentId));
->>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
     if (!p) return;
 
     let text = '';
     if (type === 'main') {
-<<<<<<< HEAD
         text = p.type === 'sequence' ? p.content[store.currentSeqStep]?.prompt : p.prompt;
     } else {
         text = p.type === 'sequence' ? p.content[store.currentSeqStep]?.negative_prompt : p.negative_prompt;
-=======
-        text = p.type === 'sequence' ? p.content[currentSeqStep]?.prompt : p.prompt;
-    } else {
-        text = p.type === 'sequence' ? p.content[currentSeqStep]?.negative_prompt : p.negative_prompt;
->>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
     }
 
     if (!text) {
@@ -972,11 +936,7 @@ window.doCopyPrompt = async (type = 'main') => {
     await navigator.clipboard.writeText(text || '');
 
     if (type === 'main') {
-<<<<<<< HEAD
         await store.incrementCopyCount(store.activePostId);
-=======
-        await store.incrementCopyCount(currentId);
->>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
         window.toast("¡Prompt Copiado!", "success");
     } else {
         window.toast("¡Negative Prompt Copiado!", "info");
@@ -1007,59 +967,8 @@ window.doBlockUser = async () => {
     }
 };
 
-<<<<<<< HEAD
 // Eliminadas en favor de store.doReact
 // window.doReact = ...
-=======
-window.doReact = async (type) => {
-    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para reaccionar.", "warning"); return; }
-
-    const p = store.prompts.find(x => String(x.id) === String(currentId));
-    if (!p) return;
-
-    // --- PURE OPTIMISTIC DOM UPDATE ---
-    const user = store.currentUser.username;
-    const currentReactions = { ...(p.reactions || {}) };
-    const myOldReaction = (p.userReactions) ? p.userReactions[user] : null;
-
-    let newCounts = { ...currentReactions };
-    let newMyReaction = null;
-
-    if (myOldReaction === type) {
-        newCounts[type] = Math.max(0, (newCounts[type] || 0) - 1);
-        newMyReaction = null;
-    } else {
-        if (myOldReaction) {
-            newCounts[myOldReaction] = Math.max(0, (newCounts[myOldReaction] || 0) - 1);
-        }
-        newCounts[type] = (newCounts[type] || 0) + 1;
-        newMyReaction = type;
-    }
-
-    // Update DOM Immediately
-    ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(t => {
-        const el = document.getElementById(`det-${t}-count`);
-        const btn = document.getElementById(`btn-react-${t}`);
-        if (el) el.innerText = newCounts[t] || 0;
-        if (btn) {
-            if (newMyReaction === t) {
-                btn.classList.add('active');
-                btn.style.transform = "scale(1.2)";
-                setTimeout(() => btn.style.transform = "scale(1)", 200);
-            } else {
-                btn.classList.remove('active');
-            }
-        }
-    });
-
-    // --- SYNC WITH SERVER ---
-    try {
-        await store.toggleReaction(currentId, type);
-    } catch (e) {
-        console.error("Reaction Sync Failed", e);
-    }
-};
->>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
 
 // window.initCrystalSlider = ... 
 
@@ -1135,7 +1044,6 @@ window.renderTagSelector = () => {
 
     const selectedHTML = Array.from(window.selectedTags).length > 0
         ? Array.from(window.selectedTags).map(tag => `
-<<<<<<< HEAD
                 <button class="tag-chip selected" onclick="window.toggleTag('${tag}')">
                     ${tag} <span style="font-size:0.6rem; opacity:0.6">✕</span>
                 </button>
@@ -1150,22 +1058,6 @@ window.renderTagSelector = () => {
                     </div>
                     <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : 'display:none'}">
                         ${tags.map(tag => {
-=======
-            <button class="tag-chip selected" onclick="window.toggleTag('${tag}')">
-                ${tag} <span style="font-size:0.6rem; opacity:0.6">✕</span>
-            </button>
-        `).join('')
-        : '<div style="color:#555; font-size:0.75rem; font-style:italic">Ninguna etiqueta seleccionada</div>';
-
-    const categoriesHTML = Object.entries(TAG_CATEGORIES).map(([category, tags]) => `
-        <div class="tag-category">
-            <div class="tag-category-header" onclick="window.toggleTagCategory('${category}')">
-                <span>${category}</span>
-                <span>${window.openCategory === category ? '▲' : '▼'}</span>
-            </div>
-            <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : 'display:none'}">
-                ${tags.map(tag => {
->>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
         const isSelected = window.selectedTags.has(tag);
         return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
     }).join('')}
@@ -1174,7 +1066,6 @@ window.renderTagSelector = () => {
                 `).join('');
 
     root.innerHTML = `
-<<<<<<< HEAD
                 <div class="tag-selector-container">
                     <div class="selected-tags-box">
                         <h4>Etiquetas Seleccionadas</h4>
@@ -1198,117 +1089,6 @@ window.renderTagSelector = () => {
                     </div>
                 </div>
                 `;
-};
-
-window.toggleSearchUI = () => {
-    window.showSearchUI = !window.showSearchUI;
-    window.renderTagSelector();
-};
-
-window.doAutoTag = async () => {
-    const btn = document.getElementById('autoTagBtn');
-    const isSequence = document.querySelector('input[name="postType"]:checked')?.value === 'sequence';
-    let file;
-
-    if (isSequence) {
-        file = document.querySelector('.seq-card input[type="file"]')?.files[0];
-    } else {
-        file = document.getElementById('upFile')?.files[0];
-    }
-
-    if (!file) {
-        window.toast('Por favor, selecciona una imagen primero', 'warning');
-        return;
-    }
-
-    try {
-        btn.disabled = true;
-        btn.innerHTML = '🪄 Analizando...';
-        window.toast('IA analizando imagen...', 'info');
-
-        const reader = new FileReader();
-        const base64Promise = new Promise((resolve) => {
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.readAsDataURL(file);
-        });
-
-        const base64Image = await base64Promise;
-        const ALL_TAGS = Object.values(TAG_CATEGORIES).flat();
-        const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                "model": "google/gemini-2.0-flash-lite-001",
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": `De la siguiente lista de etiquetas, elige las 3-5 más adecuadas para describir esta imagen. Devuelve ÚNICAMENTE un array JSON de strings: ${ALL_TAGS.join(', ')}`
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": { "url": `data:${file.type};base64,${base64Image}` }
-                            }
-                        ]
-                    }
-                ]
-            })
-        });
-
-        const data = await response.json();
-        const aiContent = data.choices?.[0]?.message?.content || "";
-        const match = aiContent.match(/\[.*\]/s);
-
-        if (match) {
-            const suggested = JSON.parse(match[0]);
-            suggested.forEach(tag => {
-                if (ALL_TAGS.includes(tag)) window.selectedTags.add(tag);
-            });
-            window.toast('✨ Sugerencias de IA añadidas', 'success');
-            window.renderTagSelector();
-        } else {
-            throw new Error('Respuesta inválida de IA');
-        }
-
-    } catch (err) {
-        console.error('Auto-Tag Error:', err);
-        window.toast('Error con la IA', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '✨ IA Auto-Tag';
-    }
-=======
-        <div class="tag-selector-container">
-            <div class="selected-tags-box">
-                <h4>Etiquetas Seleccionadas</h4>
-                <div class="selected-tags-list">${selectedHTML}</div>
-            </div>
-
-            <div class="tag-control-btns">
-                <button class="btn-tag-action ${window.showSearchUI ? 'active' : ''}" onclick="window.toggleSearchUI()">
-                    🔍 Buscar Tags
-                </button>
-                <button class="btn-tag-action btn-auto-tag" id="autoTagBtn" onclick="window.doAutoTag()">
-                    ✨ IA Auto-Tag
-                </button>
-            </div>
-
-            <div class="tag-search-field" style="${window.showSearchUI ? 'display:block' : 'display:none'}">
-                <input type="text" class="tag-search-input" placeholder="Escribe aquí para buscar..." onkeyup="window.filterTags(this.value)">
-                <div class="compact-category-list" style="display:block">
-                    ${categoriesHTML}
-                </div>
-            </div>
-        </div>
-    `;
->>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
 };
 
 window.toggleSearchUI = () => {
@@ -2210,13 +1990,18 @@ window.doSendDirectTip = async (recipientId, amount) => {
 };
 
 const init = async () => {
+    console.log("[PROFILE] init starting...");
     // Normal initialization
     await store.init();
+    console.log("[PROFILE] store.init done.");
     if (profileUser) {
+        console.log(`[PROFILE] fetching profile for: ${profileUser}`);
         await store.fetchUserProfileByUsername(profileUser);
+        console.log("[PROFILE] fetch done.");
     }
     window.initDone = true;
     render();
+    console.log("[PROFILE] init fully done.");
 };
 
 // --- USER ACTIVITY LOGS ---
@@ -2306,7 +2091,6 @@ const createLogItemHtml = (log) => {
     });
 
     return `
-<<<<<<< HEAD
                         <div style="display:flex; gap:15px; padding:15px; background:rgba(255,255,255,0.03); border-radius:8px; margin-bottom:10px; align-items:center; border-left:3px solid ${color}; animation: fadeIn 0.5s ease">
                             <div style="font-size:1.5rem">${icon}</div>
                             <div style="flex:1">
@@ -2315,16 +2099,6 @@ const createLogItemHtml = (log) => {
                             </div>
                             <div style="font-size:0.75rem; color:#666; white-space:nowrap">${time}</div>
                         </div>`;
-=======
-    <div style="display:flex; gap:15px; padding:15px; background:rgba(255,255,255,0.03); border-radius:8px; margin-bottom:10px; align-items:center; border-left:3px solid ${color}; animation: fadeIn 0.5s ease">
-        <div style="font-size:1.5rem">${icon}</div>
-        <div style="flex:1">
-            <div style="font-weight:600; font-size:0.9rem; color:#eee">${title}</div>
-            ${detail ? `<div style="font-size:0.8rem; color:#aaa">${detail}</div>` : ''}
-        </div>
-        <div style="font-size:0.75rem; color:#666; white-space:nowrap">${time}</div>
-    </div>`;
->>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
 };
 
 // --- ADMIN ACTIONS ---

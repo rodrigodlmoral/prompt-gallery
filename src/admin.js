@@ -2,7 +2,7 @@ import './style.css'
 import './admin_fix.css'
 import { store } from './store-final.js'
 
-const app = document.getElementById('admin-app');
+const app = document.getElementById('app');
 
 // --- HELPERS ---
 window.escapeHTML = (str) => {
