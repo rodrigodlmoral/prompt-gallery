@@ -11,36 +11,122 @@ import { DetailModalTemplate } from './components/DetailModal.js';
 import { SearchSuggestions } from './components/SearchSuggestions.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
-const MAINTENANCE_MODE = false;
-const MAINTENANCE_END_TIME = new Date('2026-02-09T08:00:00-06:00').getTime(); // 8:00 AM Local (Mañana)
+const MAINTENANCE_MODE = true;
 
 const renderMaintenance = () => {
-    document.body.innerHTML = `
-    <div style = "height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0a0a0a; color:white; font-family: 'Inter', sans-serif; text-align:center; padding:20px">
-            <div style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); padding: 50px; border-radius: 32px; border: 1px solid rgba(255, 255, 255, 0.12); max-width: 500px; box-shadow: 0 20px 50px rgba(0,0,0,0.5)">
-                <div style="font-size: 5rem; margin-bottom: 25px; animation: float 3s ease-in-out infinite">🏗️</div>
-                <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 15px; background: linear-gradient(135deg, #fff 0%, #888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -1px">Estamos Mejorando</h1>
-                <p style="color: #aaa; line-height: 1.6; font-size: 1.1rem; font-weight: 300">
-                    Prompt Gallery se encuentra en proceso de migración para ofrecerte una experiencia más rápida y estable.
-                </p>
-                <div style="margin-top: 35px; padding: 25px; background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.15)">
-                    <p style="font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 3px; font-weight: 700">Estado del Sistema</p>
-                    <div style="font-size: 1.8rem; font-weight: 700; margin: 15px 0; color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.1)">Migración en Progreso</div>
-                    <p style="font-size: 0.85rem; color: #555">Regresaremos lo antes posible</p>
-                </div>
-                <p style="margin-top: 35px; font-size: 0.8rem; color: #444; font-style: italic">Gracias por tu infinita paciencia.</p>
-            </div>
-            <style>
-                @keyframes float {
-                    0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-10px); }
-                }
-                body { margin: 0; overflow: hidden; background: #050505; }
-            </style>
-        </div>
+    // Create a background wrapper that contains the "blurred dashboard"
+    const bg = document.createElement('div');
+    bg.style.cssText = `
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #050505;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Inter', sans-serif;
+        overflow: hidden;
     `;
 
-    // Temporizador removido por solicitud del usuario
+    // Simulated Dashboard background (blurred)
+    const dashboardSim = document.createElement('div');
+    dashboardSim.style.cssText = `
+        position: absolute;
+        inset: 0;
+        background: 
+            radial-gradient(circle at 20% 30%, rgba(37, 99, 235, 0.15) 0%, transparent 40%),
+            radial-gradient(circle at 80% 70%, rgba(29, 78, 216, 0.15) 0%, transparent 40%);
+        filter: blur(60px);
+        opacity: 0.6;
+    `;
+
+    bg.innerHTML = `
+        <div style="position: absolute; inset: 0; background: url('https://www.transparenttextures.com/patterns/dark-matter.png'); opacity: 0.2;"></div>
+        <div class="maint-scene" style="perspective: 1200px; width: 100%; display: flex; justify-content: center; align-items: center;">
+            <div class="maint-card" style="
+                width: 90%;
+                max-width: 500px;
+                background: rgba(255, 255, 255, 0.03);
+                backdrop-filter: blur(25px) saturate(180%);
+                -webkit-backdrop-filter: blur(25px) saturate(180%);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 40px;
+                padding: 60px 40px;
+                box-shadow: 
+                    0 40px 100px rgba(0, 0, 0, 0.6),
+                    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+                transform: rotateX(10deg) rotateY(-5deg);
+                animation: float3d 6s ease-in-out infinite;
+                position: relative;
+                overflow: hidden;
+            ">
+                <!-- Gloss Effect -->
+                <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(45deg, transparent, rgba(255,255,255,0.03), transparent); transform: rotate(45deg); pointer-events: none;"></div>
+                
+                <div style="position: relative; z-index: 1;">
+                    <div style="font-size: 5rem; margin-bottom: 30px; filter: drop-shadow(0 15px 30px rgba(59, 130, 246, 0.5));">💎</div>
+                    <h1 style="
+                        font-size: 2.5rem; 
+                        font-weight: 950; 
+                        margin-bottom: 20px; 
+                        text-transform: uppercase;
+                        letter-spacing: -1px;
+                        background: linear-gradient(135deg, #fff 0%, #1d4ed8 100%);
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                        line-height: 1;
+                    ">PROMPT-GALLERY</h1>
+                    
+                    <div style="
+                        display: inline-block;
+                        padding: 6px 16px;
+                        background: rgba(37, 99, 235, 0.1);
+                        border: 1px solid rgba(37, 99, 235, 0.3);
+                        border-radius: 100px;
+                        color: #60a5fa;
+                        font-size: 0.75rem;
+                        font-weight: 800;
+                        letter-spacing: 2px;
+                        text-transform: uppercase;
+                        margin-bottom: 30px;
+                    ">Mantenimiento de Alto Nivel</div>
+
+                    <p style="color: rgba(255,255,255,0.6); line-height: 1.8; font-size: 1.1rem; font-weight: 400; margin-bottom: 40px;">
+                        Estamos optimizando los núcleos de nuestra IA para el relanzamiento oficial de <strong>PROMPT-GALLERY</strong>.
+                    </p>
+
+                    <div style="
+                        padding: 30px;
+                        background: rgba(0,0,0,0.3);
+                        border-radius: 24px;
+                        border: 1px solid rgba(255,255,255,0.05);
+                        position: relative;
+                    ">
+                        <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 15px; overflow: hidden;">
+                            <div style="width: 75%; height: 100%; background: linear-gradient(90deg, #3b82f6, #93c5fd); animation: progress 3s ease-in-out infinite;"></div>
+                        </div>
+                        <p style="font-size: 0.85rem; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Sincronizando Archivos Finales...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            @keyframes float3d {
+                0%, 100% { transform: rotateX(8deg) rotateY(-8deg) translateY(0px); }
+                50% { transform: rotateX(12deg) rotateY(2deg) translateY(-20px); }
+            }
+            @keyframes progress {
+                0% { transform: translateX(-100%); }
+                50% { transform: translateX(0%); }
+                100% { transform: translateX(100%); }
+            }
+            body { margin: 0; background: #000; height: 100vh; width: 100vw; }
+        </style>
+    `;
+
+    document.body.innerHTML = '';
+    document.body.appendChild(bg);
 };
 
 
