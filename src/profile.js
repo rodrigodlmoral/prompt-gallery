@@ -684,7 +684,7 @@ const render = () => {
             ${ActivityModal()}
         `;
         const modalsMount = document.getElementById('modals-mount');
-        if (modalsMount) modalsMount.innerHTML = DetailModalTemplateLocal();
+        if (modalsMount) modalsMount.innerHTML = DetailModalTemplate();
     }
 
     const headerMount = document.getElementById('header-mount');
