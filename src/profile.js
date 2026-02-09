@@ -11,6 +11,7 @@ let currentView = 'profile'; // Fixed view for this file
 let profileUser = new URLSearchParams(window.location.search).get('u') || '';
 let profileTab = 'creations';
 let searchQuery = '';
+let filters = { source: 'community', sort: 'newest', time: 'all', tool: 'all', refFilter: 'all', rating: 'all' };
 // Obsoleta, ahora en store (store.activePostId, store.currentSeqStep)
 let currentTipPostId = null;
 window.sliderUnlocked = false;
@@ -55,6 +56,11 @@ setInterval(() => {
 // --- HELPERS ---
 window.openUserProfile = (username) => {
     window.location.href = `/profile.html?u=${encodeURIComponent(username)}`;
+};
+
+window.setFilter = (key, value) => {
+    filters[key] = value;
+    if (window.render) window.render();
 };
 
 window.escapeHTML = (str) => {
@@ -141,6 +147,33 @@ const Header = () => `
                 <button class="btn-outline" onclick="window.doLogout()">Salir</button>
             ` : `<button class="btn" onclick="window.location.href='/'">Iniciar Sesión</button>`}
             </nav>
+        </div>
+        <div class="container" style="padding:10px 20px; display:flex; gap:10px; overflow-x:auto; background:rgba(0,0,0,0.3)">
+            <select onchange="window.setFilter('time', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
+                <option value="all" ${filters.time === 'all' ? 'selected' : ''}>📅 Todo el tiempo</option>
+                <option value="today" ${filters.time === 'today' ? 'selected' : ''}>Hoy</option>
+                <option value="week" ${filters.time === 'week' ? 'selected' : ''}>Esta Semana</option>
+                <option value="month" ${filters.time === 'month' ? 'selected' : ''}>Este Mes</option>
+            </select>
+            <select onchange="window.setFilter('sort', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
+                <option value="newest" ${filters.sort === 'newest' ? 'selected' : ''}>🔥 Más Recientes</option>
+                <option value="popular" ${filters.sort === 'popular' ? 'selected' : ''}>❤️ Más Populares</option>
+                <option value="commented" ${filters.sort === 'commented' ? 'selected' : ''}>💬 Más Comentados</option>
+                <option value="oldest" ${filters.sort === 'oldest' ? 'selected' : ''}>👴 Más Antiguos</option>
+            </select>
+            <select onchange="window.setFilter('tool', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
+                <option value="all" ${filters.tool === 'all' ? 'selected' : ''}>🛠️ Todas las Herramientas</option>
+                ${TOOLS.map(t => `<option value="${t}" ${filters.tool === t ? 'selected' : ''}>${t}</option>`).join('')}
+            </select>
+            <select onchange="window.setFilter('refFilter', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
+                <option value="all" ${filters.refFilter === 'all' ? 'selected' : ''}>📸 Referencia (Todos)</option>
+                <option value="withRef" ${filters.refFilter === 'withRef' ? 'selected' : ''}>Con Referencia</option>
+                <option value="noRef" ${filters.refFilter === 'noRef' ? 'selected' : ''}>Sin Referencia</option>
+            </select>
+            <select onchange="window.setFilter('rating', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
+                <option value="all" ${filters.rating === 'all' ? 'selected' : ''}>👀 Clasificación (Todos)</option>
+                ${RATINGS.map(r => `<option value="${r}" ${filters.rating === r ? 'selected' : ''}>${r}</option>`).join('')}
+            </select>
         </div>
 </header> `;
 
@@ -270,11 +303,41 @@ const Gallery = () => {
 
     let list = [...store.prompts].filter(p => {
         if (p.is_private && (!store.currentUser || store.currentUser.id !== p.author_id)) return false;
-        // FIX v4.6: Compare ID with ID (p.author was username)
-        return profileTab === 'creations' ? p.author_id === user.id : p.savedBy?.includes(user.id);
+        // Scope Check (Creations vs Saved)
+        const inScope = profileTab === 'creations' ? p.author_id === user.id : p.savedBy?.includes(user.id);
+        if (!inScope) return false;
+
+        // Apply Filters (Sync with main.js logic)
+        if (filters.tool !== 'all' && p.tool !== filters.tool) return false;
+        if (filters.rating !== 'all' && p.rating !== filters.rating) return false;
+        if (filters.refFilter === 'withRef' && !p.needs_reference) return false;
+        if (filters.refFilter === 'noRef' && p.needs_reference) return false;
+
+        if (filters.time !== 'all') {
+            const now = Date.now();
+            const ms = { today: 86400000, week: 604800000, month: 2592000000 };
+            const pTime = new Date(p.created).getTime();
+            if (now - pTime > ms[filters.time]) return false;
+        }
+
+        return true;
     });
 
-    if (list.length === 0) return `<div class="container" style = "padding:100px; text-align:center; color:#666" > No hay prompts aquí todavía.</div> `;
+    // Sort Logic (Default: newest first)
+    list.sort((a, b) => {
+        if (filters.sort === 'popular') {
+            const getScore = (p) => Object.values(p.reactions || {}).reduce((sum, val) => typeof val === 'number' ? sum + val : sum, 0);
+            return getScore(b) - getScore(a);
+        } else if (filters.sort === 'oldest') {
+            return new Date(a.created) - new Date(b.created);
+        } else if (filters.sort === 'commented') {
+            return (b.comments?.length || 0) - (a.comments?.length || 0);
+        }
+        // Default: newest
+        return new Date(b.created) - new Date(a.created);
+    });
+
+    if (list.length === 0) return `<div class="container" style = "padding:100px; text-align:center; color:#666" > No hay prompts que coincidan con los filtros.</div> `;
 
     return `
     <div class="container gallery-grid" style = "margin-top:20px" >
