@@ -103,7 +103,7 @@ const renderCollage = (p) => {
     else if (count >= 6) gridStyle = 'grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr;';
 
     return `
-    < div class="card-collage" style = "${gridStyle}" >
+    <div class="card-collage" style = "${gridStyle}" >
         ${items.map((step, idx) => {
         const { applyBlur } = getModeration(p, step.rating);
         let spanStyle = '';
@@ -118,12 +118,12 @@ const renderCollage = (p) => {
             </div>`;
     }).join('')
         }
-    </div > `;
+    </div> `;
 };
 
 // --- COMPONENTS ---
 const Header = () => `
-    < header style = "height:auto; display:flex; flex-direction:column" >
+    <header style = "height:auto; display:flex; flex-direction:column" >
         <div class="container" style="height:72px; border-bottom:1px solid #222">
             <div class="logo" onclick="window.location.href='/'" style="cursor:pointer">✨ Prompt Gallery</div>
             <div class="search-bar search-desktop">
@@ -141,7 +141,7 @@ const Header = () => `
             ` : `<button class="btn" onclick="window.location.href='/'">Iniciar Sesión</button>`}
             </nav>
         </div>
-</header > `;
+</header> `;
 
 const ProfileHeader = () => {
     console.log(`[PROFILE] ProfileHeader: profileUser = "${profileUser}"`);
@@ -158,17 +158,17 @@ const ProfileHeader = () => {
         // Si ya pasó un tiempo razonable y sigue sin cargar, asumimos error
         if (window.initDone) {
             return `
-    < div style = "height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif" >
+    <div style = "height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif" >
                  <div style="font-size:3rem">🤷‍♂️</div>
                  <p style="margin-top:20px; letter-spacing:1px; font-size:0.9rem">USUARIO NO ENCONTRADO</p>
                  <button class="btn-outline" onclick="window.location.href='/'" style="margin-top:20px">Volver al Inicio</button>
-             </div > `;
+             </div> `;
         }
         return `
-    < div style = "height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif" >
+    <div style = "height:40vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif" >
             <div style="font-size:3rem; animation: pulse 1s infinite">✨</div>
             <p style="margin-top:20px; letter-spacing:1px; font-size:0.9rem">CARGANDO PERFIL...</p>
-        </div > `;
+        </div> `;
     }
 
     const isAdmin = user.role === 'admin' || user.username === 'rodrigodlmoral' || user.username === 'rodridomrock' || user.name === 'rodrigodlmoral';
@@ -181,7 +181,7 @@ const ProfileHeader = () => {
     const lvlInfo = getLevelInfo(user.level || 0);
 
     return `
-    < div class="profile-header" >
+    <div class="profile-header" >
         <div class="container" style="padding: 40px 0 0 0;">
             <div style="display:flex; gap:30px; align-items:center; margin-bottom:30px">
                 <div class="user-avatar-lg" style="background-image:url('${user.avatar || 'https://robohash.org/' + user.username}')"></div>
@@ -255,7 +255,7 @@ const ProfileHeader = () => {
                 ${isMe ? `<button class="profile-tab ${profileTab === 'saved' ? 'active' : ''}" onclick="window.setProfileTab('saved')">Guardados</button>` : ''}
             </div>
         </div>
-    </div > `;
+    </div> `;
 };
 
 const Gallery = () => {
@@ -273,10 +273,10 @@ const Gallery = () => {
         return profileTab === 'creations' ? p.author_id === user.id : p.savedBy?.includes(user.id);
     });
 
-    if (list.length === 0) return `< div class="container" style = "padding:100px; text-align:center; color:#666" > No hay prompts aquí todavía.</div > `;
+    if (list.length === 0) return `<div class="container" style = "padding:100px; text-align:center; color:#666" > No hay prompts aquí todavía.</div> `;
 
     return `
-    < div class="container gallery-grid" style = "margin-top:20px" >
+    <div class="container gallery-grid" style = "margin-top:20px" >
         ${list.map(p => {
         const { applyBlur, warningLabel } = getModeration(p);
         const reactions = p.reactions || { like: 0 };
@@ -309,7 +309,7 @@ const Gallery = () => {
             </div>`;
     }).join('')
         }
-    </div > `;
+    </div> `;
 };
 
 // --- ACTION FUNCTIONS ---
@@ -350,7 +350,7 @@ window.doEditPrompt = (id) => {
                 lastStep.querySelector('.seqRating').value = step.rating;
                 const fileInput = lastStep.querySelector('.seqFile');
                 const prev = document.createElement('div');
-                prev.innerHTML = `< small > Imagen actual guardada.</small > <br><img src="${step.image}" style="height:50px; border:1px solid #444; margin-top:5px">`;
+                prev.innerHTML = `<small > Imagen actual guardada.</small> <br><img src="${step.image}" style="height:50px; border:1px solid #444; margin-top:5px">`;
                 fileInput.parentElement.insertBefore(prev, fileInput);
             });
         }
