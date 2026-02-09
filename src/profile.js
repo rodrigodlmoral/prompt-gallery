@@ -316,8 +316,8 @@ const Gallery = () => {
         if (filters.time !== 'all') {
             const now = Date.now();
             const ms = { today: 86400000, week: 604800000, month: 2592000000 };
-            const pTime = new Date(p.created).getTime();
-            if (now - pTime > ms[filters.time]) return false;
+            const pTime = p.createdAt; // Unified field in store-final.js
+            if (!pTime || (now - pTime > ms[filters.time])) return false;
         }
 
         return true;
@@ -329,12 +329,12 @@ const Gallery = () => {
             const getScore = (p) => Object.values(p.reactions || {}).reduce((sum, val) => typeof val === 'number' ? sum + val : sum, 0);
             return getScore(b) - getScore(a);
         } else if (filters.sort === 'oldest') {
-            return new Date(a.created) - new Date(b.created);
+            return (a.createdAt || 0) - (b.createdAt || 0);
         } else if (filters.sort === 'commented') {
             return (b.comments?.length || 0) - (a.comments?.length || 0);
         }
         // Default: newest
-        return new Date(b.created) - new Date(a.created);
+        return (b.createdAt || 0) - (a.createdAt || 0);
     });
 
     if (list.length === 0) return `<div class="container" style = "padding:100px; text-align:center; color:#666" > No hay prompts que coincidan con los filtros.</div> `;
