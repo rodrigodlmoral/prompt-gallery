@@ -553,7 +553,7 @@ const getFilteredPrompts = () => {
 const Header = () => `
     <header style = "height:auto; display:flex; flex-direction:column">
     <div class="container" style="height:72px; border-bottom:1px solid #222">
-        <div class="logo" onclick="window.goHome()" style="cursor:pointer">✨ Prompt Gallery</div>
+        <div class="logo" onclick="window.goHome()" style="cursor:pointer">PROMPT-GALLERY</div>
         
         <!-- Desktop Search -->
         <div class="search-bar search-desktop" style="position:relative">
