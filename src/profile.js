@@ -1,8 +1,12 @@
 import './style.css'
-// Deploy Timestamp: 2026-02-09T00:16:00-06:00 (Logic Fix + Render Exposure)
+// Deploy Timestamp: 2026-02-09T00:55:00-06:00 (Unified Advanced Filters)
 import { store, LEVEL_REQS, TOOLS, RATINGS, RATING_INFO, INFO_ICON } from './store-final.js'
+import { pb } from './pocketbase.js';
+import { AdvancedFilters } from './components/AdvancedFilters.js';
 import { TAG_CATEGORIES } from './data/tags.js';
+import { TAG_ALIASES } from './data/tagAliases.js';
 import { DetailModalTemplate } from './components/DetailModal.js';
+import { SearchSuggestions } from './components/SearchSuggestions.js';
 
 const app = document.getElementById('app');
 
@@ -11,7 +15,93 @@ let currentView = 'profile'; // Fixed view for this file
 let profileUser = new URLSearchParams(window.location.search).get('u') || '';
 let profileTab = 'creations';
 let searchQuery = '';
-let filters = { source: 'community', sort: 'newest', time: 'all', tool: 'all', refFilter: 'all', rating: 'all' };
+let filters = {
+    source: 'community',
+    sort: 'newest',
+    time: 'all',
+    tools: [],
+    refFilter: 'all',
+    ratings: [],
+    categories: [],
+    tags: []
+};
+
+window.getSearchableUsers = () => {
+    const promptAuthors = store.prompts.map(p => ({
+        username: p.author,
+        avatar: p.profiles?.avatar_url || (p.expand?.author?.avatar ? pb.files.getUrl(p.expand.author, p.expand.author.avatar) : null)
+    }));
+    const allKnownUsers = [
+        ...Object.values(store.usersCache),
+        ...store.nuclearCache.items,
+        ...promptAuthors
+    ].map(u => window.normalizeProfile ? window.normalizeProfile(u) : u);
+    const seenUsernames = new Set();
+    return allKnownUsers.filter(u => {
+        if (!u || !u.username || seenUsernames.has(u.username)) return false;
+        seenUsernames.add(u.username);
+        return true;
+    });
+};
+
+window.handleSearchTyping = (val) => {
+    const query = val.trim().toLowerCase();
+    const mount = document.getElementById('search-suggestions-mount');
+    if (!mount) return;
+    if (query.length === 0) {
+        mount.innerHTML = '';
+        return;
+    }
+    const uniqueUsers = window.getSearchableUsers();
+    const users = uniqueUsers.filter(u => u.username?.toLowerCase().startsWith(query)).sort((a, b) => a.username.localeCompare(b.username)).slice(0, 5);
+    const prompts = store.prompts.filter(p => p.title?.toLowerCase().startsWith(query)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5);
+
+    const allTags = [...new Set(Object.values(TAG_CATEGORIES).flat())];
+    const aliasMatches = Object.entries(TAG_ALIASES)
+        .filter(([eng, esp]) => eng.toLowerCase().includes(query))
+        .flatMap(([eng, esp]) => esp);
+
+    const tags = allTags.filter(t => t.toLowerCase().includes(query) || aliasMatches.includes(t))
+        .sort((a, b) => a.localeCompare(b))
+        .slice(0, 8);
+
+    const contentMatches = store.prompts
+        .filter(p => (p.prompt || '').toLowerCase().includes(query))
+        .map(p => {
+            const body = p.prompt || '';
+            const idx = body.toLowerCase().indexOf(query);
+            const start = Math.max(0, idx - 25);
+            const end = Math.min(body.length, idx + query.length + 35);
+            let snippet = body.substring(start, end).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return { ...p, matchSnippet: snippet };
+        })
+        .slice(0, 5);
+    mount.innerHTML = SearchSuggestions({ users, prompts, tags, contentMatches });
+};
+
+window.handleSearch = (val) => {
+    searchQuery = val;
+    const di = document.getElementById('searchInput'); if (di) di.value = val;
+    const mount = document.getElementById('search-suggestions-mount'); if (mount) mount.innerHTML = '';
+
+    // In profile, search filters the current user posts usually, but we keep it global or per requirements
+    render();
+};
+
+window.handleTagSearch = (tag) => {
+    searchQuery = tag;
+    const di = document.getElementById('searchInput'); if (di) di.value = tag;
+    const mount = document.getElementById('search-suggestions-mount'); if (mount) mount.innerHTML = '';
+    render();
+};
+
+// Global click to close suggestions
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-bar')) {
+        const mount = document.getElementById('search-suggestions-mount');
+        if (mount) mount.innerHTML = '';
+    }
+});
 // Obsoleta, ahora en store (store.activePostId, store.currentSeqStep)
 let currentTipPostId = null;
 window.sliderUnlocked = false;
@@ -60,6 +150,27 @@ window.openUserProfile = (username) => {
 
 window.setFilter = (key, value) => {
     filters[key] = value;
+    if (window.render) window.render();
+};
+
+window.toggleFilter = (key, value) => {
+    const idx = filters[key].indexOf(value);
+    if (idx > -1) filters[key].splice(idx, 1);
+    else filters[key].push(value);
+    if (window.render) window.render();
+};
+
+window.toggleAdvancedFilters = () => {
+    const el = document.getElementById('advFilterPanel');
+    if (el) el.classList.toggle('active');
+};
+
+window.clearAllFilters = () => {
+    filters.tools = [];
+    filters.ratings = [];
+    filters.refFilter = 'all';
+    filters.categories = [];
+    filters.tags = [];
     if (window.render) window.render();
 };
 
@@ -133,8 +244,11 @@ const Header = () => `
     <header style = "height:auto; display:flex; flex-direction:column" >
         <div class="container" style="height:72px; border-bottom:1px solid #222">
             <div class="logo" onclick="window.location.href='/'" style="cursor:pointer">✨ Prompt Gallery</div>
-            <div class="search-bar search-desktop">
-                <input type="search" class="search-input" id="searchInput" placeholder="Buscar..." value="${searchQuery}" readonly>
+            <div class="search-bar search-desktop" style="position:relative">
+                <!-- Trap for Chrome Autofill -->
+                <input type="password" style="display:none" autocomplete="new-password">
+                <input type="text" class="search-input" id="searchInput" placeholder="Buscar..." value="${searchQuery}" autocomplete="chrome-off-v3" spellcheck="false" name="prof_find_v${Date.now()}">
+                <div id="search-suggestions-mount"></div>
             </div>
             <nav>
                 ${store.currentUser ? `
@@ -148,7 +262,7 @@ const Header = () => `
             ` : `<button class="btn" onclick="window.location.href='/'">Iniciar Sesión</button>`}
             </nav>
         </div>
-        <div class="container" style="padding:10px 20px; display:flex; gap:10px; overflow-x:auto; background:rgba(0,0,0,0.3)">
+        <div class="container filters-bar" style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; background:rgba(0,0,0,0.3); align-items:center; justify-content: flex-end">
             <select onchange="window.setFilter('time', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
                 <option value="all" ${filters.time === 'all' ? 'selected' : ''}>📅 Todo el tiempo</option>
                 <option value="today" ${filters.time === 'today' ? 'selected' : ''}>Hoy</option>
@@ -161,19 +275,10 @@ const Header = () => `
                 <option value="commented" ${filters.sort === 'commented' ? 'selected' : ''}>💬 Más Comentados</option>
                 <option value="oldest" ${filters.sort === 'oldest' ? 'selected' : ''}>👴 Más Antiguos</option>
             </select>
-            <select onchange="window.setFilter('tool', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
-                <option value="all" ${filters.tool === 'all' ? 'selected' : ''}>🛠️ Todas las Herramientas</option>
-                ${TOOLS.map(t => `<option value="${t}" ${filters.tool === t ? 'selected' : ''}>${t}</option>`).join('')}
-            </select>
-            <select onchange="window.setFilter('refFilter', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
-                <option value="all" ${filters.refFilter === 'all' ? 'selected' : ''}>📸 Referencia (Todos)</option>
-                <option value="withRef" ${filters.refFilter === 'withRef' ? 'selected' : ''}>Con Referencia</option>
-                <option value="noRef" ${filters.refFilter === 'noRef' ? 'selected' : ''}>Sin Referencia</option>
-            </select>
-            <select onchange="window.setFilter('rating', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
-                <option value="all" ${filters.rating === 'all' ? 'selected' : ''}>👀 Clasificación (Todos)</option>
-                ${RATINGS.map(r => `<option value="${r}" ${filters.rating === r ? 'selected' : ''}>${r}</option>`).join('')}
-            </select>
+            
+            <button class="btn-outline" onclick="window.toggleAdvancedFilters()" style="padding: 6px 12px; font-size: 0.85rem; display: flex; align-items:center; gap:8px; white-space:nowrap; border-radius:8px">
+                🔍 Filtros Avanzados ${(filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)) > 0 ? `<span style="background:#0070ba; color:white; border-radius:10px; padding:0 6px; font-size:0.7rem">${filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)}</span>` : ''}
+            </button>
         </div>
 </header> `;
 
@@ -308,10 +413,11 @@ const Gallery = () => {
         if (!inScope) return false;
 
         // Apply Filters (Sync with main.js logic)
-        if (filters.tool !== 'all' && p.tool !== filters.tool) return false;
-        if (filters.rating !== 'all' && p.rating !== filters.rating) return false;
+        if (filters.tools.length > 0 && !filters.tools.includes(p.tool)) return false;
+        if (filters.ratings.length > 0 && !filters.ratings.includes(p.rating)) return false;
         if (filters.refFilter === 'withRef' && !p.needs_reference) return false;
         if (filters.refFilter === 'noRef' && p.needs_reference) return false;
+        if (filters.tags.length > 0 && !(p.tags || []).some(t => filters.tags.includes(t))) return false;
 
         if (filters.time !== 'all') {
             const now = Date.now();
@@ -742,6 +848,7 @@ const render = () => {
             <div id="profile-header-mount"></div>
             <div id="profile-gallery-container"></div>
             <div id="modals-mount"></div>
+            <div id="adv-filter-mount"></div>
             ${SettingsModal()}
             ${CreateModal()}
             ${ConfirmModal()}
@@ -759,6 +866,11 @@ const render = () => {
 
     const galleryMount = document.getElementById('profile-gallery-container');
     if (galleryMount) galleryMount.innerHTML = Gallery();
+
+    // Advanced Filter Panel
+    const advFilterMount = document.getElementById('adv-filter-mount');
+    if (advFilterMount) advFilterMount.innerHTML = AdvancedFilters(filters);
+
     attachEvents();
 
     // Solo scrollear arriba si no es un render incremental
@@ -767,6 +879,10 @@ const render = () => {
 window.render = render;
 
 const attachEvents = () => {
+    document.getElementById('searchInput')?.addEventListener('input', (e) => {
+        if (window.handleSearchTyping) window.handleSearchTyping(e.target.value);
+    });
+
     document.querySelectorAll('[data-post-id]').forEach(el => {
         el.addEventListener('click', () => {
             const id = el.getAttribute('data-post-id');

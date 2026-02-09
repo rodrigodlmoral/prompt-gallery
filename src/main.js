@@ -3,9 +3,12 @@ import './style.css'
 import './admin_fix.css' // Emergency CSS Fix for Admin Panel
 import { pb } from './pocketbase.js';
 import { store, TOOLS, RATINGS, RATING_INFO, INFO_ICON, LEVEL_REQS } from './store-final.js';
+import { AdvancedFilters } from './components/AdvancedFilters.js';
 import { uploadToCloudinary } from './uploadService.js';
 import { TAG_CATEGORIES } from './data/tags.js';
+import { TAG_ALIASES } from './data/tagAliases.js';
 import { DetailModalTemplate } from './components/DetailModal.js';
+import { SearchSuggestions } from './components/SearchSuggestions.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;
@@ -57,7 +60,16 @@ let currentView = 'home';
 let profileUser = null;
 let profileTab = 'creations';
 let searchQuery = '';
-let filters = { source: 'community', sort: 'newest', time: 'all', tool: 'all', refFilter: 'all', rating: 'all' };
+let filters = {
+    source: 'community',
+    sort: 'newest',
+    time: 'all',
+    tools: [], // Multi-select array
+    refFilter: 'all',
+    ratings: [], // Multi-select array
+    categories: [],
+    tags: []
+};
 
 // --- ADMIN SORT STATE ---
 window.adminSort = { col: 'username', dir: 'asc' };
@@ -113,13 +125,188 @@ window.render = null; // Se asignará cuando se defina render
 // NEW: Gate filter changes
 window.setFilter = (key, value) => {
     if (!store.currentUser) {
-        // Reset select to previous value if possible (hard to do cleanly without state tracking on UI, 
-        // but alerting is the main requirement).
-        const el = event.target;
-        if (el) el.value = filters[key]; // Revert visual change
-        if (window.toast) window.toast("Debes iniciar sesión para usar los filtros.", "warning"); return;
+        if (window.toast) window.toast("Debes iniciar sesión para usar los filtros.", "warning");
+        return;
     }
     filters[key] = value;
+    render();
+};
+
+window.toggleFilter = (key, value) => {
+    if (!store.currentUser) {
+        if (window.toast) window.toast("Debes iniciar sesión para usar los filtros.", "warning");
+        return;
+    }
+    const idx = filters[key].indexOf(value);
+    if (idx > -1) filters[key].splice(idx, 1);
+    else filters[key].push(value);
+    render();
+};
+
+window.getSearchableUsers = () => {
+    const promptAuthors = store.prompts.map(p => ({
+        username: p.author,
+        avatar: p.profiles?.avatar_url || (p.expand?.author?.avatar ? pb.files.getUrl(p.expand.author, p.expand.author.avatar) : null)
+    }));
+
+    const allKnownUsers = [
+        ...Object.values(store.usersCache),
+        ...store.nuclearCache.items,
+        ...promptAuthors
+    ].map(u => window.normalizeProfile ? window.normalizeProfile(u) : u);
+
+    const seenUsernames = new Set();
+    return allKnownUsers.filter(u => {
+        if (!u || !u.username || seenUsernames.has(u.username)) return false;
+        seenUsernames.add(u.username);
+        return true;
+    });
+};
+
+window.handleSearchTyping = (val) => {
+    const query = val.trim().toLowerCase();
+    const mount = document.getElementById('search-suggestions-mount');
+    if (!mount) return;
+
+    if (query.length === 0) {
+        mount.innerHTML = '';
+        return;
+    }
+
+    // 1. FILTER USERS (Strict StartsWith)
+    const uniqueUsers = window.getSearchableUsers();
+
+    const users = uniqueUsers.filter(u => u.username?.toLowerCase().startsWith(query))
+        .sort((a, b) => a.username.localeCompare(b.username))
+        .slice(0, 5);
+
+    // 2. FILTER PROMPTS (Strict StartsWith)
+    const prompts = store.prompts.filter(p => p.title?.toLowerCase().startsWith(query))
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+        .slice(0, 5);
+
+    // 3. FILTER TAGS (Strict StartsWith + Aliases)
+    const allTags = [];
+    Object.values(TAG_CATEGORIES).forEach(tList => allTags.push(...tList));
+    const uniqueTags = [...new Set(allTags)];
+
+    // Check if query matches any English alias
+    const aliasMatches = Object.entries(TAG_ALIASES)
+        .filter(([eng, esp]) => eng.toLowerCase().includes(query))
+        .flatMap(([eng, esp]) => esp);
+
+    const tags = uniqueTags.filter(t => t.toLowerCase().includes(query) || aliasMatches.includes(t))
+        .sort((a, b) => a.localeCompare(b))
+        .slice(0, 8);
+
+    // 4. FILTER CONTENT (Matches within the prompt body) - [REFINED]
+    const contentMatches = store.prompts
+        .filter(p => {
+            const body = (p.prompt || '').toLowerCase();
+            return body.includes(query);
+        })
+        .map(p => {
+            const body = p.prompt || '';
+            const lowerBody = body.toLowerCase();
+            const idx = lowerBody.indexOf(query);
+
+            // Extract snippet
+            const start = Math.max(0, idx - 25);
+            const end = Math.min(body.length, idx + query.length + 35);
+            let snippet = body.substring(start, end);
+
+            // Basic Escape to prevent breaking UI
+            snippet = snippet.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+            return { ...p, matchSnippet: snippet };
+        })
+        .slice(0, 5);
+
+    mount.innerHTML = SearchSuggestions({ users, prompts, tags, contentMatches });
+};
+
+window.handleSearchTypingMobile = (val) => {
+    const query = val.trim().toLowerCase();
+    const mount = document.getElementById('search-mobile-suggestions-mount');
+    if (!mount) return;
+
+    if (query.length === 0) {
+        mount.innerHTML = '';
+        return;
+    }
+
+    const mi = document.getElementById('searchMobileInput'); if (mi) mi.value = val;
+
+    const uniqueUsers = window.getSearchableUsers();
+    const users = uniqueUsers.filter(u => u.username?.toLowerCase().startsWith(query)).slice(0, 5);
+    const prompts = store.prompts.filter(p => p.title?.toLowerCase().startsWith(query)).slice(0, 5);
+    const allTags = [...new Set(Object.values(TAG_CATEGORIES).flat())];
+    const aliasMatches = Object.entries(TAG_ALIASES)
+        .filter(([eng, esp]) => eng.toLowerCase().includes(query))
+        .flatMap(([eng, esp]) => esp);
+    const tags = allTags.filter(t => t.toLowerCase().includes(query) || aliasMatches.includes(t)).slice(0, 8);
+
+    // [REFINED] Mobile Content Match
+    const contentMatches = store.prompts
+        .filter(p => (p.prompt || '').toLowerCase().includes(query))
+        .map(p => {
+            const body = p.prompt || '';
+            const lowerBody = body.toLowerCase();
+            const idx = lowerBody.indexOf(query);
+            const start = Math.max(0, idx - 15);
+            const end = Math.min(body.length, idx + query.length + 25);
+            let snippet = body.substring(start, end).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return { ...p, matchSnippet: snippet };
+        })
+        .slice(0, 5);
+
+    mount.innerHTML = SearchSuggestions({ users, prompts, tags, contentMatches });
+};
+
+window.handleSearch = (val) => {
+    searchQuery = val;
+    // Update both inputs
+    const di = document.getElementById('searchInput'); if (di) di.value = val;
+    const mi = document.getElementById('searchMobileInput'); if (mi) mi.value = val;
+
+    // Clear suggestions
+    const dm = document.getElementById('search-suggestions-mount'); if (dm) dm.innerHTML = '';
+    const mm = document.getElementById('search-mobile-suggestions-mount'); if (mm) mm.innerHTML = '';
+
+    render();
+};
+
+window.handleTagSearch = (tag) => {
+    searchQuery = tag;
+    const desktopInput = document.getElementById('searchInput');
+    if (desktopInput) desktopInput.value = tag;
+
+    // Hide suggestions
+    const mount = document.getElementById('search-suggestions-mount');
+    if (mount) mount.innerHTML = '';
+
+    render();
+};
+
+// Global click to close suggestions
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-bar')) {
+        const mount = document.getElementById('search-suggestions-mount');
+        if (mount) mount.innerHTML = '';
+    }
+});
+
+window.toggleAdvancedFilters = () => {
+    const el = document.getElementById('advFilterPanel');
+    if (el) el.classList.toggle('active');
+};
+
+window.clearAllFilters = () => {
+    filters.tools = [];
+    filters.ratings = [];
+    filters.refFilter = 'all';
+    filters.categories = [];
+    filters.tags = [];
     render();
 };
 // INFO_ICON and RATING_INFO imported from store-final.js
@@ -321,8 +508,8 @@ const getFilteredPrompts = () => {
         });
     }
 
-    if (filters.tool !== 'all') {
-        list = list.filter(p => p.tool === filters.tool);
+    if (filters.tools.length > 0) {
+        list = list.filter(p => filters.tools.includes(p.tool));
     }
 
     if (filters.refFilter !== 'all') {
@@ -330,11 +517,15 @@ const getFilteredPrompts = () => {
         if (filters.refFilter === 'noRef') list = list.filter(p => !p.needsReference);
     }
 
-    if (filters.rating !== 'all') {
+    if (filters.ratings.length > 0) {
         list = list.filter(p => {
             const r = p.type === 'sequence' && p.content && p.content.length > 0 ? p.content[0].rating : p.rating;
-            return r === filters.rating;
+            return filters.ratings.includes(r);
         });
+    }
+
+    if (filters.tags.length > 0) {
+        list = list.filter(p => (p.tags || []).some(t => filters.tags.includes(t)));
     }
 
     // 4. Sorting
@@ -365,8 +556,11 @@ const Header = () => `
         <div class="logo" onclick="window.goHome()" style="cursor:pointer">✨ Prompt Gallery</div>
         
         <!-- Desktop Search -->
-        <div class="search-bar search-desktop">
-            <input type="search" class="search-input" id="searchInput" autocomplete="off" placeholder="Buscar..." value="${searchQuery}" onfocus="this.removeAttribute('readonly');" readonly>
+        <div class="search-bar search-desktop" style="position:relative">
+            <!-- Trap for Chrome Autofill -->
+            <input type="password" style="display:none" autocomplete="new-password">
+            <input type="text" class="search-input" id="searchInput" autocomplete="chrome-off-v2" spellcheck="false" placeholder="Buscar..." value="${searchQuery}" name="gall_find_v${Date.now()}">
+            <div id="search-suggestions-mount"></div>
         </div>
 
         <!-- Mobile Search Toggle -->
@@ -384,18 +578,21 @@ const Header = () => `
         </nav>
     </div>
 
-    <!-- Mobile Search Overlay -->
     <div class="search-mobile-overlay">
-        <div class="container" style="display:flex; align-items:center; gap:10px; height:100%">
-            <button class="btn-icon" onclick="document.querySelector('.search-mobile-overlay').classList.remove('active')" style="font-size:1.2rem; color:#fff">✕</button>
-            <div class="search-bar" style="flex:1; max-width:none">
-                <input type="search" class="search-input" id="searchMobileInput" placeholder="Buscar prompts..." value="${searchQuery}" autocomplete="off" onkeydown="if(event.key === 'Enter'){ window.handleSearch(this.value); document.querySelector('.search-mobile-overlay').classList.remove('active'); }">
+        <div class="container" style="display:flex; flex-direction:column; gap:10px; height:100%; padding-top:20px">
+            <div style="display:flex; align-items:center; gap:10px; width:100%">
+                <button class="btn-icon" onclick="document.querySelector('.search-mobile-overlay').classList.remove('active')" style="font-size:1.2rem; color:#fff">✕</button>
+                <div class="search-bar" style="flex:1; max-width:none; position:relative">
+                    <input type="password" style="display:none" autocomplete="new-password">
+                    <input type="text" class="search-input" id="searchMobileInput" placeholder="Buscar..." value="${searchQuery}" autocomplete="chrome-off-v2" spellcheck="false" name="mgall_find_v${Date.now()}" oninput="window.handleSearchTypingMobile(this.value)" onkeydown="if(event.key === 'Enter'){ window.handleSearch(this.value); document.querySelector('.search-mobile-overlay').classList.remove('active'); }">
+                </div>
             </div>
+            <div id="search-mobile-suggestions-mount" style="flex:1; overflow-y:auto; margin-top:10px"></div>
         </div>
     </div>
     ${store.currentUser ? `
-    <div class="container" style="padding:10px 20px; display:flex; gap:10px; overflow-x:auto; background:rgba(0,0,0,0.3)">
-        <select id="sourceFilter" onchange="window.setFilter('source', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem" ${currentView === 'profile' ? 'disabled' : ''}>
+    <div class="container filters-bar" style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; background:rgba(0,0,0,0.3); align-items:center; justify-content: flex-end">
+        <select id="sourceFilter" onchange="window.setFilter('source', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
             <option value="community" ${filters.source === 'community' ? 'selected' : ''}>👥 Comunidad</option>
             <option value="following" ${filters.source === 'following' ? 'selected' : ''}>⭐ Siguiendo</option>
             <option value="user" ${filters.source === 'user' ? 'selected' : ''}>👤 Tus Prompts / Usuario</option>
@@ -412,22 +609,12 @@ const Header = () => `
             <option value="commented" ${filters.sort === 'commented' ? 'selected' : ''}>💬 Más Comentados</option>
             <option value="oldest" ${filters.sort === 'oldest' ? 'selected' : ''}>👴 Más Antiguos</option>
         </select>
-        <select onchange="window.setFilter('tool', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
-            <option value="all" ${filters.tool === 'all' ? 'selected' : ''}>🛠️ Todas las Herramientas</option>
-            ${TOOLS.map(t => `<option value="${t}" ${filters.tool === t ? 'selected' : ''}>${t}</option>`).join('')}
-        </select>
-        <select onchange="window.setFilter('refFilter', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
-            <option value="all" ${filters.refFilter === 'all' ? 'selected' : ''}>📸 Referencia (Todos)</option>
-            <option value="withRef" ${filters.refFilter === 'withRef' ? 'selected' : ''}>Con Referencia</option>
-            <option value="noRef" ${filters.refFilter === 'noRef' ? 'selected' : ''}>Sin Referencia</option>
-        </select>
-        <select onchange="window.setFilter('rating', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
-            <option value="all" ${filters.rating === 'all' ? 'selected' : ''}>👀 Clasificación (Todos)</option>
-            ${RATINGS.map(r => `<option value="${r}" ${filters.rating === r ? 'selected' : ''}>${r}</option>`).join('')}
-        </select>
+
+        <button class="btn-outline" onclick="window.toggleAdvancedFilters()" style="padding: 6px 12px; font-size: 0.85rem; display: flex; align-items:center; gap:8px; white-space:nowrap; border-radius:8px">
+            🔍 Filtros Avanzados ${(filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)) > 0 ? `<span style="background:#0070ba; color:white; border-radius:10px; padding:0 6px; font-size:0.7rem">${filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)}</span>` : ''}
+        </button>
     </div>
-    ` : ''
-    }
+    ` : ''}
 </header> `;
 
 const HeroCarousel = () => {
@@ -1096,12 +1283,17 @@ const render = () => {
             <div id="profile-mount" style="display:none"></div>
             <div id="main-gallery-container"></div>
             <div id="modals-mount"></div>
+            <div id="adv-filter-mount"></div>
             ${SettingsModal()}
             ${TipModal()}
         `;
         const modalsMount = document.getElementById('modals-mount');
         if (modalsMount) modalsMount.innerHTML = Modals();
     }
+
+    // Advanced Filter Panel
+    const advFilterMount = document.getElementById('adv-filter-mount');
+    if (advFilterMount) advFilterMount.innerHTML = AdvancedFilters(filters);
 
     // Actualizar solo las partes dinámicas
     const topBarMount = document.getElementById('topbar-mount');
@@ -1127,13 +1319,6 @@ const render = () => {
 
     attachEvents();
 
-    // Restaurar los valores visuales de los filtros
-    const selects = document.querySelectorAll('.filters-bar select');
-    const fKeys = ['source', 'time', 'sort', 'tool', 'refFilter', 'rating'];
-    selects.forEach((sel, idx) => {
-        if (fKeys[idx] && filters[fKeys[idx]]) sel.value = filters[fKeys[idx]];
-    });
-
     // Solo scrollear arriba si no es un render incremental por reaccion
     if (!window._isIncrementalRender) {
         window.scrollTo(0, 0);
@@ -1143,7 +1328,9 @@ const render = () => {
 window.render = render;
 
 const attachEvents = () => {
-    document.getElementById('searchInput')?.addEventListener('input', (e) => { searchQuery = e.target.value; render(); });
+    document.getElementById('searchInput')?.addEventListener('input', (e) => {
+        if (window.handleSearchTyping) window.handleSearchTyping(e.target.value);
+    });
     document.getElementById('addBtn')?.addEventListener('click', () => {
         window.selectedTags.clear();
         window.renderTagSelector();
