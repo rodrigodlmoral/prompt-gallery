@@ -671,6 +671,7 @@ const ConfirmModal = () => `
 // --- LOGIC ---
 // --- LOGIC ---
 const render = () => {
+<<<<<<< HEAD
     // Estrategia No-Destructiva: No sobrescribir todo el app.innerHTML si ya existe la estructura
     if (!document.getElementById('profile-gallery-container')) {
         app.innerHTML = `
@@ -690,6 +691,9 @@ const render = () => {
     const galleryMount = document.getElementById('profile-gallery-container');
     if (galleryMount) galleryMount.innerHTML = Gallery();
 
+=======
+    app.innerHTML = Header() + ProfileHeader() + Gallery() + DetailModalTemplateLocal() + SettingsModal() + CreateModal() + ConfirmModal() + ActivityModal();
+>>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
     attachEvents();
 
     // Solo scrollear arriba si no es un render incremental
@@ -716,10 +720,215 @@ window.nextSeqStep = () => store.nextSeqStep();
 window.revealImage = (btn) => store.revealImage(btn);
 window.getModeration = (p, f) => store.getModeration(p, f);
 
+<<<<<<< HEAD
 // Comment Logic wrappers
 window.showSlider = () => store.showSlider();
 window.initCrystalSlider = () => store.initCrystalSlider();
 window.postComm = () => store.postComm();
+=======
+    const modal = document.getElementById('viewModal');
+    if (!modal) return;
+
+    // UI Resets
+    const slider = document.getElementById('commSlider');
+    const handle = document.getElementById('commSliderHandle');
+    const botContainer = document.getElementById('commAntiBot');
+    if (slider) slider.classList.remove('unlocked');
+    if (handle) { handle.style.left = '4px'; handle.style.transition = 'none'; }
+    if (botContainer) botContainer.style.display = 'none';
+
+    document.getElementById('detTitle').innerText = p.title || 'Sin Título';
+
+    const detMetaTop = document.getElementById('detMetaTop');
+    if (detMetaTop) {
+        const d = new Date(p.createdAt || Date.now());
+        detMetaTop.innerText = `${p.tool} • ${p.type === 'sequence' ? 'Secuencia' : 'Imagen Única'} • ${d.toLocaleDateString()}`;
+    }
+
+    const userEl = document.getElementById('detUser');
+    if (userEl) {
+        userEl.innerHTML = `
+            <span style="display:flex; align-items:center; gap:10px">
+                Por: <span onclick="window.location.href='/profile.html?u=${p.author}'" style="cursor:pointer; text-decoration:underline">${p.author}</span>
+            </span>
+            <div id="detTipsButton" style="margin: 8px 0 10px 0">
+                <button style="background:rgba(162, 155, 254, 0.15); border:1px solid rgba(162, 155, 254, 0.4); color:#a29bfe; padding:4px 12px; border-radius:4px; font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="window.openTip('${p.id}')">
+                    💎 ${p.tokens_received || 0} PromptBits
+                </button>
+            </div>`;
+    }
+
+    const badgesEl = document.getElementById('detBadges');
+    if (badgesEl) {
+        let bhtml = `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">🛠️ ${p.tool || 'Desconocido'}</span>`;
+
+        // Add Rating Badge
+        const r = p.rating || 'SFW / Apto';
+        const icon = r.startsWith('SFW') ? '🟢' : '🔞';
+        bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
+
+        const refText = (p.needsReference || p.needs_reference) ? '📸 Requiere imagen de Referencia' : '🚫 No requiere imagen de Referencia';
+        bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${refText}</span>`;
+
+        badgesEl.innerHTML = bhtml;
+
+        // Render Tags
+        const tagsEl = document.getElementById('detTags');
+        if (tagsEl) {
+            if (p.tags && p.tags.length > 0) {
+                tagsEl.innerHTML = p.tags.map(t => `<span class="server-tag-pill">${t}</span>`).join('');
+            } else {
+                tagsEl.innerHTML = '';
+            }
+        }
+    }
+
+    // Sequence vs Single
+    const prevBtn = document.getElementById('detPrevBtn');
+    const nextBtn = document.getElementById('detNextBtn');
+    const seqCount = document.getElementById('detSeqCount');
+    const detImg = document.getElementById('detImg');
+    const detPrompt = document.getElementById('detPrompt');
+
+    if (p.type === 'sequence' && p.content && p.content.length > 0) {
+        if (prevBtn) prevBtn.style.display = 'flex';
+        if (nextBtn) nextBtn.style.display = 'flex';
+        if (seqCount) seqCount.style.display = 'block';
+        window.updateSeqDisplay(p);
+    } else {
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'none';
+        if (seqCount) seqCount.style.display = 'none';
+        if (detImg) detImg.src = p.image || '';
+        if (detPrompt) detPrompt.innerText = p.prompt || '';
+
+        // Negative Prompt Handling
+        const detNegPrompt = document.getElementById('detNegPrompt');
+        const btnCopyNeg = document.getElementById('btnCopyNeg');
+        const negText = p.negative_prompt;
+
+        if (negText && negText.trim()) {
+            if (detNegPrompt) {
+                detNegPrompt.innerText = negText;
+                detNegPrompt.style.display = 'block';
+            }
+            if (btnCopyNeg) btnCopyNeg.style.display = 'block';
+        } else {
+            if (detNegPrompt) detNegPrompt.style.display = 'none';
+            if (btnCopyNeg) btnCopyNeg.style.display = 'none';
+        }
+
+    }
+
+    // Blurring
+    const detImgWrap = document.getElementById('detImgWrap');
+    if (detImgWrap) {
+        detImgWrap.classList.remove('card-blurred');
+        const { applyBlur, warningLabel } = getModeration(p);
+        if (applyBlur) {
+            detImgWrap.classList.add('card-blurred');
+            detImgWrap.dataset.warning = warningLabel;
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        } else {
+            detImgWrap.dataset.warning = '';
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        }
+    }
+
+    const detCopyBadge = document.getElementById('detCopyBadge');
+    if (detCopyBadge) {
+        detCopyBadge.style.display = 'block';
+        detCopyBadge.innerText = `📋 Copiado ${p.copy_count || 0} veces`;
+    }
+
+    // Comments
+    const commentsEl = document.getElementById('detComments');
+    if (commentsEl) {
+        const currUser = store.currentUser?.username;
+        const isPostOwner = currUser === p.author;
+        commentsEl.innerHTML = (p.comments && p.comments.length > 0)
+            ? p.comments.map(c => `
+                <div style="background:#1a1a1a; padding:10px; border-radius:8px; margin-bottom:10px; border-left:3px solid var(--accent); position:relative">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px">
+                        <span style="font-weight:700; color:var(--accent); font-size:0.85rem">@${window.escapeHTML(c.username)}</span>
+                        ${(isPostOwner || currUser === c.username) ? `<button onclick="window.doDeleteComment(${c.id})" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; padding:0">🗑️</button>` : ''}
+                    </div>
+                    <div style="font-size:0.9rem; color:#eee">${window.escapeHTML(c.text)}</div>
+                </div>`).join('')
+            : '<div style="opacity:0.5; font-size:0.9rem">No hay comentarios aún.</div>';
+    }
+
+    // Reactions
+    const reactions = p.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 };
+    const myReaction = (p.userReactions && store.currentUser) ? p.userReactions[store.currentUser.username] : null;
+    ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(type => {
+        const countEl = document.getElementById(`det-${type}-count`);
+        const btnEl = document.getElementById(`btn-react-${type}`);
+        if (countEl) countEl.innerText = reactions[type] || 0;
+        if (btnEl) {
+            if (myReaction === type) btnEl.classList.add('active');
+            else btnEl.classList.remove('active');
+        }
+    });
+
+    modal.style.display = 'flex';
+};
+
+window.updateSeqDisplay = (p) => {
+    const step = p.content[currentSeqStep];
+    if (!step) return;
+
+    // Blurring for current step
+    const { applyBlur, warningLabel } = getModeration(p, step.rating);
+    const detImgWrap = document.getElementById('detImgWrap');
+    if (detImgWrap) {
+        detImgWrap.classList.remove('card-blurred');
+        if (applyBlur) {
+            detImgWrap.classList.add('card-blurred');
+            detImgWrap.dataset.warning = warningLabel;
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        } else {
+            detImgWrap.dataset.warning = '';
+            const oldOverlay = detImgWrap.querySelector('.blur-overlay');
+            if (oldOverlay) oldOverlay.remove();
+        }
+    }
+
+    // Reset negative button visibility for sequence updates
+    const btnCopyNegSeq = document.getElementById('btnCopyNeg');
+    if (btnCopyNegSeq) {
+        if (step.negative_prompt && step.negative_prompt.trim()) {
+            btnCopyNegSeq.style.display = 'block';
+        } else {
+            btnCopyNegSeq.style.display = 'none';
+        }
+    }
+
+    const detImg = document.getElementById('detImg');
+    const detPrompt = document.getElementById('detPrompt');
+    const seqCount = document.getElementById('detSeqCount');
+    if (detImg) detImg.src = step.image;
+    if (detPrompt) detPrompt.innerText = step.prompt || '';
+    if (seqCount) seqCount.innerText = `Imagen ${currentSeqStep + 1} de ${p.content.length}`;
+};
+
+window.prevSeqStep = () => {
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
+    if (!p || p.type !== 'sequence') return;
+    currentSeqStep = (currentSeqStep - 1 + p.content.length) % p.content.length;
+    window.updateSeqDisplay(p);
+};
+
+window.nextSeqStep = () => {
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
+    if (!p || p.type !== 'sequence') return;
+    currentSeqStep = (currentSeqStep + 1) % p.content.length;
+    window.updateSeqDisplay(p);
+};
+>>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
 
 window.toggleOptionsMenu = () => {
     const menu = document.getElementById('optionsMenu');
@@ -735,14 +944,24 @@ window.doSavePrompt = async () => {
 };
 
 window.doCopyPrompt = async (type = 'main') => {
+<<<<<<< HEAD
     const p = store.prompts.find(x => String(x.id) === String(store.activePostId));
+=======
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
+>>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
     if (!p) return;
 
     let text = '';
     if (type === 'main') {
+<<<<<<< HEAD
         text = p.type === 'sequence' ? p.content[store.currentSeqStep]?.prompt : p.prompt;
     } else {
         text = p.type === 'sequence' ? p.content[store.currentSeqStep]?.negative_prompt : p.negative_prompt;
+=======
+        text = p.type === 'sequence' ? p.content[currentSeqStep]?.prompt : p.prompt;
+    } else {
+        text = p.type === 'sequence' ? p.content[currentSeqStep]?.negative_prompt : p.negative_prompt;
+>>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
     }
 
     if (!text) {
@@ -753,7 +972,11 @@ window.doCopyPrompt = async (type = 'main') => {
     await navigator.clipboard.writeText(text || '');
 
     if (type === 'main') {
+<<<<<<< HEAD
         await store.incrementCopyCount(store.activePostId);
+=======
+        await store.incrementCopyCount(currentId);
+>>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
         window.toast("¡Prompt Copiado!", "success");
     } else {
         window.toast("¡Negative Prompt Copiado!", "info");
@@ -784,8 +1007,59 @@ window.doBlockUser = async () => {
     }
 };
 
+<<<<<<< HEAD
 // Eliminadas en favor de store.doReact
 // window.doReact = ...
+=======
+window.doReact = async (type) => {
+    if (!store.currentUser) { if (window.toast) window.toast("Inicia sesión para reaccionar.", "warning"); return; }
+
+    const p = store.prompts.find(x => String(x.id) === String(currentId));
+    if (!p) return;
+
+    // --- PURE OPTIMISTIC DOM UPDATE ---
+    const user = store.currentUser.username;
+    const currentReactions = { ...(p.reactions || {}) };
+    const myOldReaction = (p.userReactions) ? p.userReactions[user] : null;
+
+    let newCounts = { ...currentReactions };
+    let newMyReaction = null;
+
+    if (myOldReaction === type) {
+        newCounts[type] = Math.max(0, (newCounts[type] || 0) - 1);
+        newMyReaction = null;
+    } else {
+        if (myOldReaction) {
+            newCounts[myOldReaction] = Math.max(0, (newCounts[myOldReaction] || 0) - 1);
+        }
+        newCounts[type] = (newCounts[type] || 0) + 1;
+        newMyReaction = type;
+    }
+
+    // Update DOM Immediately
+    ['like', 'love', 'fire', 'funny', 'dislike', 'sad'].forEach(t => {
+        const el = document.getElementById(`det-${t}-count`);
+        const btn = document.getElementById(`btn-react-${t}`);
+        if (el) el.innerText = newCounts[t] || 0;
+        if (btn) {
+            if (newMyReaction === t) {
+                btn.classList.add('active');
+                btn.style.transform = "scale(1.2)";
+                setTimeout(() => btn.style.transform = "scale(1)", 200);
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+    });
+
+    // --- SYNC WITH SERVER ---
+    try {
+        await store.toggleReaction(currentId, type);
+    } catch (e) {
+        console.error("Reaction Sync Failed", e);
+    }
+};
+>>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
 
 // window.initCrystalSlider = ... 
 
@@ -861,6 +1135,7 @@ window.renderTagSelector = () => {
 
     const selectedHTML = Array.from(window.selectedTags).length > 0
         ? Array.from(window.selectedTags).map(tag => `
+<<<<<<< HEAD
                 <button class="tag-chip selected" onclick="window.toggleTag('${tag}')">
                     ${tag} <span style="font-size:0.6rem; opacity:0.6">✕</span>
                 </button>
@@ -875,6 +1150,22 @@ window.renderTagSelector = () => {
                     </div>
                     <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : 'display:none'}">
                         ${tags.map(tag => {
+=======
+            <button class="tag-chip selected" onclick="window.toggleTag('${tag}')">
+                ${tag} <span style="font-size:0.6rem; opacity:0.6">✕</span>
+            </button>
+        `).join('')
+        : '<div style="color:#555; font-size:0.75rem; font-style:italic">Ninguna etiqueta seleccionada</div>';
+
+    const categoriesHTML = Object.entries(TAG_CATEGORIES).map(([category, tags]) => `
+        <div class="tag-category">
+            <div class="tag-category-header" onclick="window.toggleTagCategory('${category}')">
+                <span>${category}</span>
+                <span>${window.openCategory === category ? '▲' : '▼'}</span>
+            </div>
+            <div class="tag-category-content" id="cat-content-${category.replace(/\s+/g, '-')}" style="${window.openCategory === category ? 'display:flex' : 'display:none'}">
+                ${tags.map(tag => {
+>>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
         const isSelected = window.selectedTags.has(tag);
         return `<button class="tag-chip ${isSelected ? 'selected' : ''}" onclick="window.toggleTag('${tag}')">${tag}</button>`;
     }).join('')}
@@ -883,6 +1174,7 @@ window.renderTagSelector = () => {
                 `).join('');
 
     root.innerHTML = `
+<<<<<<< HEAD
                 <div class="tag-selector-container">
                     <div class="selected-tags-box">
                         <h4>Etiquetas Seleccionadas</h4>
@@ -906,6 +1198,117 @@ window.renderTagSelector = () => {
                     </div>
                 </div>
                 `;
+};
+
+window.toggleSearchUI = () => {
+    window.showSearchUI = !window.showSearchUI;
+    window.renderTagSelector();
+};
+
+window.doAutoTag = async () => {
+    const btn = document.getElementById('autoTagBtn');
+    const isSequence = document.querySelector('input[name="postType"]:checked')?.value === 'sequence';
+    let file;
+
+    if (isSequence) {
+        file = document.querySelector('.seq-card input[type="file"]')?.files[0];
+    } else {
+        file = document.getElementById('upFile')?.files[0];
+    }
+
+    if (!file) {
+        window.toast('Por favor, selecciona una imagen primero', 'warning');
+        return;
+    }
+
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '🪄 Analizando...';
+        window.toast('IA analizando imagen...', 'info');
+
+        const reader = new FileReader();
+        const base64Promise = new Promise((resolve) => {
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.readAsDataURL(file);
+        });
+
+        const base64Image = await base64Promise;
+        const ALL_TAGS = Object.values(TAG_CATEGORIES).flat();
+        const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                "model": "google/gemini-2.0-flash-lite-001",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": `De la siguiente lista de etiquetas, elige las 3-5 más adecuadas para describir esta imagen. Devuelve ÚNICAMENTE un array JSON de strings: ${ALL_TAGS.join(', ')}`
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": { "url": `data:${file.type};base64,${base64Image}` }
+                            }
+                        ]
+                    }
+                ]
+            })
+        });
+
+        const data = await response.json();
+        const aiContent = data.choices?.[0]?.message?.content || "";
+        const match = aiContent.match(/\[.*\]/s);
+
+        if (match) {
+            const suggested = JSON.parse(match[0]);
+            suggested.forEach(tag => {
+                if (ALL_TAGS.includes(tag)) window.selectedTags.add(tag);
+            });
+            window.toast('✨ Sugerencias de IA añadidas', 'success');
+            window.renderTagSelector();
+        } else {
+            throw new Error('Respuesta inválida de IA');
+        }
+
+    } catch (err) {
+        console.error('Auto-Tag Error:', err);
+        window.toast('Error con la IA', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '✨ IA Auto-Tag';
+    }
+=======
+        <div class="tag-selector-container">
+            <div class="selected-tags-box">
+                <h4>Etiquetas Seleccionadas</h4>
+                <div class="selected-tags-list">${selectedHTML}</div>
+            </div>
+
+            <div class="tag-control-btns">
+                <button class="btn-tag-action ${window.showSearchUI ? 'active' : ''}" onclick="window.toggleSearchUI()">
+                    🔍 Buscar Tags
+                </button>
+                <button class="btn-tag-action btn-auto-tag" id="autoTagBtn" onclick="window.doAutoTag()">
+                    ✨ IA Auto-Tag
+                </button>
+            </div>
+
+            <div class="tag-search-field" style="${window.showSearchUI ? 'display:block' : 'display:none'}">
+                <input type="text" class="tag-search-input" placeholder="Escribe aquí para buscar..." onkeyup="window.filterTags(this.value)">
+                <div class="compact-category-list" style="display:block">
+                    ${categoriesHTML}
+                </div>
+            </div>
+        </div>
+    `;
+>>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
 };
 
 window.toggleSearchUI = () => {
@@ -1903,6 +2306,7 @@ const createLogItemHtml = (log) => {
     });
 
     return `
+<<<<<<< HEAD
                         <div style="display:flex; gap:15px; padding:15px; background:rgba(255,255,255,0.03); border-radius:8px; margin-bottom:10px; align-items:center; border-left:3px solid ${color}; animation: fadeIn 0.5s ease">
                             <div style="font-size:1.5rem">${icon}</div>
                             <div style="flex:1">
@@ -1911,6 +2315,16 @@ const createLogItemHtml = (log) => {
                             </div>
                             <div style="font-size:0.75rem; color:#666; white-space:nowrap">${time}</div>
                         </div>`;
+=======
+    <div style="display:flex; gap:15px; padding:15px; background:rgba(255,255,255,0.03); border-radius:8px; margin-bottom:10px; align-items:center; border-left:3px solid ${color}; animation: fadeIn 0.5s ease">
+        <div style="font-size:1.5rem">${icon}</div>
+        <div style="flex:1">
+            <div style="font-weight:600; font-size:0.9rem; color:#eee">${title}</div>
+            ${detail ? `<div style="font-size:0.8rem; color:#aaa">${detail}</div>` : ''}
+        </div>
+        <div style="font-size:0.75rem; color:#666; white-space:nowrap">${time}</div>
+    </div>`;
+>>>>>>> 18b77a23c8d475bb57607e4e34282327087e70d6
 };
 
 // --- ADMIN ACTIONS ---
