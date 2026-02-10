@@ -443,11 +443,14 @@ const Gallery = () => {
         return (b.createdAt || 0) - (a.createdAt || 0);
     });
 
-    if (list.length === 0) return `<div class="container" style = "padding:100px; text-align:center; color:#666" > No hay prompts que coincidan con los filtros.</div> `;
+    const isVisitor = !store.currentUser;
+    const itemsToShow = isVisitor ? list.slice(0, 12) : list;
+
+    if (list.length === 0) return `<div class="container" style="padding:100px; text-align:center; color:#666">No hay prompts que coincidan con los filtros.</div>`;
 
     return `
-    <div class="container gallery-grid" style = "margin-top:20px" >
-        ${list.map(p => {
+    <div class="container gallery-grid" style="margin-top:20px">
+        ${itemsToShow.map(p => {
         const { applyBlur, warningLabel } = getModeration(p);
         const reactions = p.reactions || { like: 0 };
         return `
@@ -477,9 +480,48 @@ const Gallery = () => {
                     <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doDeletePrompt('${p.id}')" title="Eliminar Post">🗑️</button>
                 </div>` : ''}
             </div>`;
-    }).join('')
-        }
-    </div> `;
+    }).join('')}
+    </div> 
+    
+    ${isVisitor ? `
+    <div class="container" style="margin-top: 40px; padding: 40px 20px;">
+        <div style="background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%); padding: 60px 20px; border-radius: 20px; border: 2px solid var(--accent); box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">🔓</div>
+            <h2 style="font-size: 2rem; color: #fff; margin-bottom: 10px;">¡Desbloquea toda la galería!</h2>
+            <p style="color: #888; font-size: 1.1rem; margin-bottom: 25px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                Has visto los 12 prompts más recientes de @${profileUser}. Regístrate gratis para acceder a toda la colección, guardar tus favoritos y compartir tus propias creaciones.
+            </p>
+
+            <!-- Stats Bar -->
+            <div style="display: flex; gap: 30px; justify-content: center; margin-bottom: 35px; background: rgba(255,255,255,0.03); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.users.toLocaleString()}</div>
+                    <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">👤 Usuarios</div>
+                </div>
+                <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+                <div style="text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.prompts.toLocaleString()}</div>
+                    <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">🖼️ Prompts</div>
+                </div>
+                <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+                <div style="text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.visits.toLocaleString()}</div>
+                    <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">🔥 Visitas</div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn" onclick="window.openRegister()" style="padding: 15px 40px; font-size: 1.2rem; border-radius: 50px; background: var(--accent); color: white; border: none; cursor: pointer; font-weight: bold; box-shadow: 0 5px 15px var(--accent-alpha);">
+                    🚀 Crear Cuenta Gratis
+                </button>
+                <button class="btn-outline" onclick="window.openLogin()" style="padding: 15px 40px; font-size: 1.2rem; border-radius: 50px;">
+                    🔑 Iniciar Sesión
+                </button>
+            </div>
+        </div>
+    </div>
+    ` : ''}
+    `;
 };
 
 // --- ACTION FUNCTIONS ---
@@ -837,6 +879,56 @@ const ConfirmModal = () => `
                     </div>
                 </div></div>`;
 
+const AuthModal = () => `
+        <div id="authModal" class="modal-overlay" style="display:none;"> <div class="modal-container">
+            <div id="loginForm">
+                <h2>Entrar</h2>
+                <input type="text" id="logUser" class="form-input" placeholder="Usuario o Email">
+                    <div style="position:relative">
+                        <input type="password" id="logPass" class="form-input" placeholder="Pass" style="padding-right:40px">
+                            <span onclick="window.togglePass('logPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                    </div>
+                    <button class="btn" style="width:100%" onclick="window.doLoginSubmit()">Login</button>
+                    <p style="margin-top:10px; font-size:0.9em">
+                        <a href="#" onclick="window.toggleAuth('rec')" style="color:#666">¿Olvidaste tu contraseña?</a>
+                    </p>
+                    <p>¿No tienes cuenta? <a href="#" onclick="window.toggleAuth('reg')">Regístrate</a></p>
+            </div>
+            <div id="regForm" style="display:none;">
+                <h2>Registro</h2>
+                <input type="text" id="regEmail" class="form-input" placeholder="Email">
+                    <input type="text" id="regUser" class="form-input" placeholder="Usuario">
+                        <div style="position:relative">
+                            <input type="password" id="regPass" class="form-input" placeholder="Contraseña" style="padding-right:40px">
+                                <span onclick="window.togglePass('regPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                        </div>
+                        <button class="btn" style="width:100%" onclick="window.doRegisterSubmit()">Registrar</button>
+                        <p>¿Ya tienes cuenta? <a href="#" onclick="window.toggleAuth('log')">Login</a></p>
+                    </div>
+                    <div id="recoverForm" style="display:none;">
+                        <h2>Recuperar Pass</h2>
+                        <p style="margin-bottom:15px; color:#888; font-size:0.85rem">Introduce tu email de registro:</p>
+                        <input type="email" id="recEmail" class="form-input" placeholder="ejemplo@correo.com" style="margin-bottom:15px">
+                            <button class="btn" style="width:100%" onclick="window.doRecoverSubmit()">Enviar Instrucciones</button>
+                            <p style="margin-top:15px; font-size:0.9rem">
+                                <a href="#" onclick="window.toggleAuth('log')" style="color:#666">Volver al Login</a>
+                            </p>
+                    </div>
+                    <div id="activateForm" style="display:none;">
+                        <h2>Activar Cuenta</h2>
+                        <p style="margin-bottom:15px; color:#a29bfe; font-size:0.85rem; font-weight:700">¡Bienvenido! Elige tu nueva contraseña para activar tu perfil.</p>
+                        <input type="text" id="actUser" class="form-input" placeholder="Usuario o Email">
+                            <div style="position:relative">
+                                <input type="password" id="actPass" class="form-input" placeholder="Nueva Contraseña" style="padding-right:40px">
+                                    <span onclick="window.togglePass('actPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                            </div>
+                            <button class="btn" style="width:100%" onclick="window.doActivateSubmit()">Activar y Entrar</button>
+                    </div>
+                    <button class="btn-outline" style="width:100%; border:none; margin-top:10px" onclick="window.closeModals()">Cancelar</button>
+            </div></div>`;
+
+const Modals = () => AuthModal() + CreateModal() + DetailModalTemplateLocal + ConfirmModal();
+
 
 // --- LOGIC ---
 // --- LOGIC ---
@@ -852,10 +944,11 @@ const render = () => {
             ${SettingsModal()}
             ${CreateModal()}
             ${ConfirmModal()}
+            ${AuthModal()}
             ${ActivityModal()}
         `;
         const modalsMount = document.getElementById('modals-mount');
-        if (modalsMount) modalsMount.innerHTML = DetailModalTemplate();
+        if (modalsMount) modalsMount.innerHTML = DetailModalTemplateLocal();
     }
 
     const headerMount = document.getElementById('header-mount');
@@ -1647,9 +1740,95 @@ window.doLogout = () => {
 };
 
 window.doFollow = async (username) => {
-    if (!store.currentUser) return window.location.href = '/';
+    if (!store.currentUser) return window.openLogin();
     await store.followUser(username);
     render();
+};
+
+window.toggleAuth = (m) => {
+    document.getElementById('loginForm').style.display = m === 'log' ? 'block' : 'none';
+    document.getElementById('regForm').style.display = m === 'reg' ? 'block' : 'none';
+    const recForm = document.getElementById('recoverForm');
+    if (recForm) recForm.style.display = m === 'rec' ? 'block' : 'none';
+    const actForm = document.getElementById('activateForm');
+    if (actForm) actForm.style.display = m === 'act' ? 'block' : 'none';
+};
+
+window.doLoginSubmit = async () => {
+    const res = await store.login(document.getElementById('logUser').value, document.getElementById('logPass').value);
+    if (!res.success) alert(res.msg);
+    else render();
+};
+
+window.doRegisterSubmit = async () => {
+    const res = await store.register(document.getElementById('regEmail').value, document.getElementById('regUser').value, document.getElementById('regPass').value);
+    if (!res.success) alert(res.msg);
+    else render();
+};
+
+window.doRecoverSubmit = async () => {
+    const email = document.getElementById('recEmail').value;
+    if (!email) { if (window.toast) window.toast("Por favor introduce tu email.", "warning"); return; }
+    const res = await store.recoverPassword(email);
+    alert(res.msg);
+    if (res.success) window.toggleAuth('log');
+};
+
+window.doActivateSubmit = async () => {
+    const userOrEmail = document.getElementById('actUser').value;
+    const pass = document.getElementById('actPass').value;
+    const token = new URLSearchParams(window.location.search).get('token');
+
+    if (!userOrEmail || !pass) { if (window.toast) window.toast("Rellena todos los campos.", "warning"); return; }
+    if (!token) return alert("Token de activación no encontrado.");
+
+    const res = await store.confirmResetPassword(token, pass, userOrEmail);
+    if (res.success) {
+        alert("¡Cuenta activada con éxito! Bienvenido.");
+        window.location.href = '/';
+    } else {
+        alert(res.msg);
+    }
+};
+
+window.openLogin = () => {
+    document.getElementById('authModal').style.display = 'flex';
+    window.toggleAuth('log');
+};
+
+window.openRegister = () => {
+    document.getElementById('authModal').style.display = 'flex';
+    window.toggleAuth('reg');
+};
+
+// --- TOAST SYSTEM ---
+window.toast = (message, type = 'info') => {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `pg - toast ${type} `;
+
+    let icon = '🔔';
+    if (type === 'success') icon = '✅';
+    if (type === 'error') icon = '❌';
+
+    toast.innerHTML = `
+    <div class="toast-icon"> ${icon}</div>
+        <div class="toast-content">${message}</div>
+`;
+
+    container.appendChild(toast);
+
+    // Auto-remove
+    setTimeout(() => {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
 };
 
 window.setProfileTab = (tab) => {
