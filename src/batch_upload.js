@@ -53,11 +53,11 @@ class BatchUploadApp {
         this.render();
     }
 
-    updateRow(id, field, value) {
+    updateRow(id, field, value, shouldRender = false) {
         const row = this.rows.find(r => String(r.id) === String(id));
         if (row) {
             row[field] = value;
-            this.render();
+            if (shouldRender) this.render();
         }
     }
 
@@ -253,13 +253,13 @@ class BatchUploadApp {
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                         <div style="display:flex; flex-direction:column; gap:4px">
                             <label style="font-size:0.75rem; color:#888; text-transform:uppercase; font-weight:bold">Herramienta</label>
-                            <select class="input-field" style="font-size:0.85em; height:35px" onchange="window.app.updateRow('${row.id}', 'tool', this.value)">
+                            <select class="input-field" style="font-size:0.85em; height:35px" onchange="window.app.updateRow('${row.id}', 'tool', this.value, true)">
                                 ${TOOLS.map(t => `<option value="${t}" ${row.tool === t ? 'selected' : ''}>${t}</option>`).join('')}
                             </select>
                         </div>
                         <div style="display:flex; flex-direction:column; gap:4px">
                             <label style="font-size:0.75rem; color:#888; text-transform:uppercase; font-weight:bold">Rating</label>
-                            <select class="input-field" style="font-size:0.85em; height:35px" onchange="window.app.updateRow('${row.id}', 'rating', this.value)">
+                            <select class="input-field" style="font-size:0.85em; height:35px" onchange="window.app.updateRow('${row.id}', 'rating', this.value, true)">
                                 ${RATINGS.map(r => `<option value="${r}" ${row.rating === r ? 'selected' : ''}>${r}</option>`).join('')}
                             </select>
                         </div>
@@ -291,10 +291,10 @@ class BatchUploadApp {
                     <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05)">
                         <div style="display:flex; gap:15px; margin-bottom: 10px;">
                             <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.8em">
-                                <input type="checkbox" style="width:16px; height:16px" ${row.needs_reference ? 'checked' : ''} onchange="window.app.updateRow('${row.id}', 'needs_reference', this.checked)"> Ref. Img
+                                <input type="checkbox" style="width:16px; height:16px" ${row.needs_reference ? 'checked' : ''} onchange="window.app.updateRow('${row.id}', 'needs_reference', this.checked, true)"> Ref. Img
                             </label>
                             <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.8em">
-                                <input type="checkbox" style="width:16px; height:16px" ${row.is_private ? 'checked' : ''} onchange="window.app.updateRow('${row.id}', 'is_private', this.checked)"> Privado
+                                <input type="checkbox" style="width:16px; height:16px" ${row.is_private ? 'checked' : ''} onchange="window.app.updateRow('${row.id}', 'is_private', this.checked, true)"> Privado
                             </label>
                         </div>
                         <button class="btn btn-secondary" style="width:100%; padding:8px; font-size:0.85em; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: #60a5fa" onclick="alert('Funcionalidad de AutoTag en desarrollo...')">
