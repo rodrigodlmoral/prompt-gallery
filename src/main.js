@@ -788,15 +788,17 @@ const Header = () => `
         <div class="logo" onclick="window.goHome()" style="cursor:pointer">PROMPT-GALLERY</div>
         
         <!-- Desktop Search -->
+        ${store.currentUser ? `
         <div class="search-bar search-desktop" style="position:relative">
             <!-- Trap for Chrome Autofill -->
             <input type="password" style="display:none" autocomplete="new-password">
             <input type="text" class="search-input" id="searchInput" autocomplete="chrome-off-v2" spellcheck="false" placeholder="Buscar..." value="${searchQuery}" name="gall_find_v${Date.now()}">
             <div id="search-suggestions-mount"></div>
         </div>
+        ` : ''}
 
         <!-- Mobile Search Toggle -->
-        <div class="search-mobile-btn" onclick="document.querySelector('.search-mobile-overlay').classList.add('active'); document.getElementById('searchMobileInput').focus()">🔍</div>
+        ${store.currentUser ? `<div class="search-mobile-btn" onclick="document.querySelector('.search-mobile-overlay').classList.add('active'); document.getElementById('searchMobileInput').focus()">🔍</div>` : ''}
         <nav>
             ${store.currentUser ? `
                 ${store.currentUser.role === 'admin' ? `<a href="/admin.html" class="btn-outline" style="border-color:gold; color:gold; text-decoration:none; padding: 10px 15px; border-radius: 8px; font-weight: 600;">👑 Admin</a>` : ''}

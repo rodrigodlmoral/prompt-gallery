@@ -244,12 +244,14 @@ const Header = () => `
     <header style = "height:auto; display:flex; flex-direction:column" >
         <div class="container" style="height:72px; border-bottom:1px solid #222">
             <div class="logo" onclick="window.location.href='/'" style="cursor:pointer">PROMPT-GALLERY</div>
+            ${store.currentUser ? `
             <div class="search-bar search-desktop" style="position:relative">
                 <!-- Trap for Chrome Autofill -->
                 <input type="password" style="display:none" autocomplete="new-password">
                 <input type="text" class="search-input" id="searchInput" placeholder="Buscar..." value="${searchQuery}" autocomplete="chrome-off-v3" spellcheck="false" name="prof_find_v${Date.now()}">
                 <div id="search-suggestions-mount"></div>
             </div>
+            ` : ''}
             <nav>
                 ${store.currentUser ? `
                 ${store.currentUser.role === 'admin' ? `<a href="/admin.html" class="btn-outline" style="border-color:gold; color:gold; text-decoration:none; padding: 10px 15px; border-radius: 8px; font-weight: 600;">👑 Admin</a>` : ''}
