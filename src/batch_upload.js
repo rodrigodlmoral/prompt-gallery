@@ -118,7 +118,7 @@ class BatchUploadApp {
         // Solo procesar si es un archivo de texto o tiene extensión .txt
         if (file.type === "text/plain" || file.name.endsWith(".txt")) {
             const text = await file.text();
-            this.updateRow(id, field, text);
+            this.updateRow(id, field, text, true);
             if (window.toast) window.toast("✅ Texto cargado desde archivo", "success");
         } else {
             alert("Por favor, suelta un archivo .txt válido");
