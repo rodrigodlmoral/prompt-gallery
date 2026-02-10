@@ -58,12 +58,15 @@ const store = {
     usersCache: {}, // { username: { ...profileData } }
     users: [],      // Admin list
     nuclearCache: { items: [], lastFetch: 0 }, // Cache for mass user search
+    stats: { users: 0, prompts: 0, visits: 0 },
 
     async init() {
         if (pb.authStore.isValid && pb.authStore.model) {
             await this._loadUserProfile(pb.authStore.model.id);
         }
         await this.loadPrompts();
+        await this.getPublicStats();
+        this.trackVisit();
     },
 
     async _loadUserProfile(userId) {
@@ -186,6 +189,51 @@ const store = {
             this.prompts = [];
         }
         return this.prompts;
+    },
+
+    async getPublicStats() {
+        try {
+            // 1. Contar usuarios registrados
+            const usersRes = await pb.collection('users').getList(1, 1, { fields: 'id' });
+            this.stats.users = usersRes.totalItems;
+
+            // 2. Contar prompts totales
+            const promptsRes = await pb.collection('prompts').getList(1, 1, { fields: 'id' });
+            this.stats.prompts = promptsRes.totalItems;
+
+            // 3. Obtener visitas totales desde app_stats
+            try {
+                const statsRec = await pb.collection('app_stats').getFirstListItem('');
+                if (statsRec) this.stats.visits = statsRec.total_visits || 0;
+            } catch (e) {
+                console.warn("app_stats record not found. Creating one...");
+                // Si no existe, lo creamos (necesita permisos de creación para público o admin)
+                // Usualmente el admin lo crea manualmente, pero intentamos por robustez
+            }
+
+            return this.stats;
+        } catch (err) {
+            console.error("Error fetching stats:", err);
+            return this.stats;
+        }
+    },
+
+    async trackVisit() {
+        // Solo contar una vez por sesión de navegador
+        if (sessionStorage.getItem('pg_visited')) return;
+
+        try {
+            const statsRec = await pb.collection('app_stats').getFirstListItem('');
+            if (statsRec) {
+                await pb.collection('app_stats').update(statsRec.id, {
+                    'total_visits+': 1
+                });
+                sessionStorage.setItem('pg_visited', 'true');
+                this.stats.visits = (statsRec.total_visits || 0) + 1;
+            }
+        } catch (err) {
+            console.warn("Failed to track visit. Ensure 'app_stats' collection exists and has public update permission for total_visits field.");
+        }
     },
 
     async fetchUserProfileByUsername(rawUsername) {
