@@ -44,14 +44,14 @@ const renderMaintenance = () => {
         <div style="position: absolute; inset: 0; background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%); pointer-events: none;"></div>
         <div class="maint-scene" style="perspective: 1500px; width: 100%; display: flex; justify-content: center; align-items: center;">
             <div class="maint-card" style="
-                width: 90%;
-                max-width: 500px;
+                width: 95%;
+                max-width: 550px;
                 background: rgba(20, 20, 20, 0.6);
                 backdrop-filter: blur(30px) saturate(200%);
                 -webkit-backdrop-filter: blur(30px) saturate(200%);
                 border: 1px solid rgba(255, 255, 255, 0.15);
                 border-radius: 48px;
-                padding: 70px 50px;
+                padding: 70px 40px;
                 box-shadow: 
                     0 50px 100px rgba(0, 0, 0, 0.8),
                     0 0 0 1px rgba(255, 255, 255, 0.05) inset,
@@ -65,17 +65,18 @@ const renderMaintenance = () => {
                 <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(135deg, transparent, rgba(255,255,255,0.05), transparent); transform: rotate(45deg); pointer-events: none;"></div>
                 
                 <div style="position: relative; z-index: 1; text-align: center;">
-                    <div style="font-size: 5.5rem; margin-bottom: 30px; filter: drop-shadow(0 20px 40px rgba(59, 130, 246, 0.6));">💎</div>
+                    <div style="font-size: 5rem; margin-bottom: 25px; filter: drop-shadow(0 20px 40px rgba(59, 130, 246, 0.6));">💎</div>
                     <h1 style="
-                        font-size: 2.8rem; 
+                        font-size: clamp(1.8rem, 8vw, 2.5rem); 
                         font-weight: 1000; 
-                        margin-bottom: 20px; 
+                        margin-bottom: 25px; 
                         text-transform: uppercase;
                         letter-spacing: -1px;
                         background: linear-gradient(135deg, #fff 0%, #3b82f6 50%, #1d4ed8 100%);
                         -webkit-background-clip: text;
                         -webkit-text-fill-color: transparent;
-                        line-height: 0.9;
+                        line-height: 1;
+                        white-space: nowrap;
                     ">PROMPT-GALLERY</h1>
                     
                     <div style="
