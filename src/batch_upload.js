@@ -105,6 +105,8 @@ class BatchUploadApp {
                     type: "text",
                     text: `Analiza este prompt y/o imagen y devuelve exactamente un array JSON de hasta 5 etiquetas de la lista oficial que mejor encajen.
                     
+                    REGLA ESPECIAL: El tag "Fotografía Conceptual" SOLO se puede incluir si el PROMPT contiene explícitamente la palabra "conceptual". Si no la tiene, ignora ese tag por completo.
+
                     PROMPT: "${row.prompt}"
                     
                     LISTA OFICIAL: ${ALL_TAGS.join(', ')}
@@ -143,7 +145,13 @@ class BatchUploadApp {
             // Extraer JSON del texto
             const jsonMatch = aiText.match(/\[.*\]/s);
             if (jsonMatch) {
-                const suggestedTags = JSON.parse(jsonMatch[0]);
+                let suggestedTags = JSON.parse(jsonMatch[0]);
+
+                // Hard guard: No conceptual si no está la palabra en el prompt
+                if (!row.prompt.toLowerCase().includes('conceptual')) {
+                    suggestedTags = suggestedTags.filter(t => t !== "Fotografía Conceptual");
+                }
+
                 // Filtrar solo las válidas y evitar duplicados
                 const validTags = suggestedTags.filter(t => ALL_TAGS.includes(t));
                 row.tags = [...new Set([...row.tags, ...validTags])].slice(0, 8);
@@ -185,6 +193,8 @@ class BatchUploadApp {
                         type: "text",
                         text: `Analiza este prompt y/o imagen y devuelve exactamente un objeto JSON con un título creativo (en español) y hasta 5 etiquetas de la lista oficial que mejor encajen.
                         
+                        REGLA ESPECIAL: El tag "Fotografía Conceptual" SOLO se puede incluir si el PROMPT contiene explícitamente la palabra "conceptual". Si no la tiene, ignora ese tag por completo.
+
                         PROMPT: "${row.prompt}"
                         
                         LISTA OFICIAL: ${ALL_TAGS.join(', ')}
@@ -222,7 +232,12 @@ class BatchUploadApp {
                     const result = JSON.parse(jsonMatch[0]);
                     if (result.title) row.title = result.title;
                     if (result.tags) {
-                        const validTags = result.tags.filter(t => ALL_TAGS.includes(t));
+                        let finalTags = result.tags;
+                        // Hard guard: No conceptual si no está la palabra en el prompt
+                        if (!row.prompt.toLowerCase().includes('conceptual')) {
+                            finalTags = finalTags.filter(t => t !== "Fotografía Conceptual");
+                        }
+                        const validTags = finalTags.filter(t => ALL_TAGS.includes(t));
                         row.tags = [...new Set([...row.tags, ...validTags])].slice(0, 8);
                     }
                 }
