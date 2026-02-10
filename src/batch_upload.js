@@ -21,6 +21,7 @@ class BatchUploadApp {
     constructor() {
         this.rows = [];
         this.isUploading = false;
+        this.isProcessingAI = false;
         this.container = null;
         this.addRow(); // Iniciar con una fila
     }
@@ -157,6 +158,132 @@ class BatchUploadApp {
         }
     }
 
+    async processAllWithAI() {
+        if (this.rows.length === 0) return;
+        if (this.isProcessingAI) return;
+
+        const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
+        if (!API_KEY) {
+            alert("Error: No se encontró la API Key de OpenRouter.");
+            return;
+        }
+
+        this.isProcessingAI = true;
+        this.showProgressModal("ENRIQUECIENDO CON IA", "🤖");
+
+        const ALL_TAGS = Object.values(TAG_CATEGORIES).flat();
+        let processed = 0;
+        const total = this.rows.length;
+
+        for (let row of this.rows) {
+            const pct = Math.round((processed / total) * 100);
+            this.updateProgressModal(pct, `Procesando (${processed + 1}/${total}): ${row.title || 'elemento sin título'}`);
+
+            try {
+                const contents = [
+                    {
+                        type: "text",
+                        text: `Analiza este prompt y/o imagen y devuelve exactamente un objeto JSON con un título creativo (en español) y hasta 5 etiquetas de la lista oficial que mejor encajen.
+                        
+                        PROMPT: "${row.prompt}"
+                        
+                        LISTA OFICIAL: ${ALL_TAGS.join(', ')}
+                        
+                        RESPUESTA ESPERADA: Un objeto JSON con este formato: { "title": "Título aquí", "tags": ["Tag1", "Tag2"] }. No agregues texto adicional.`
+                    }
+                ];
+
+                if (row.image && row.image.startsWith('data:')) {
+                    contents.push({
+                        type: "image_url",
+                        image_url: { url: row.image }
+                    });
+                }
+
+                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${API_KEY}`,
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": window.location.origin,
+                        "X-Title": "Prompt Gallery Batch"
+                    },
+                    body: JSON.stringify({
+                        "model": "google/gemini-2.0-flash-lite-001",
+                        "messages": [{ "role": "user", "content": contents }]
+                    })
+                });
+
+                const data = await response.json();
+                const aiText = data.choices?.[0]?.message?.content || "";
+                const jsonMatch = aiText.match(/\{.*\}/s);
+
+                if (jsonMatch) {
+                    const result = JSON.parse(jsonMatch[0]);
+                    if (result.title) row.title = result.title;
+                    if (result.tags) {
+                        const validTags = result.tags.filter(t => ALL_TAGS.includes(t));
+                        row.tags = [...new Set([...row.tags, ...validTags])].slice(0, 8);
+                    }
+                }
+            } catch (err) {
+                console.error("Batch AI Error:", err);
+            }
+
+            processed++;
+            this.render(); // Renderizar para mostrar cambios en la tabla
+        }
+
+        this.updateProgressModal(100, "¡Proceso completado!");
+        setTimeout(() => {
+            this.isProcessingAI = false;
+            this.hideProgressModal();
+            if (window.toast) window.toast("✨ Enriquecimiento con IA finalizado", "success");
+        }, 1500);
+    }
+
+    showProgressModal(title, icon) {
+        let modal = document.getElementById('progress-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'progress-modal';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background: rgba(0,0,0,0.85); backdrop-filter: blur(10px);
+                display: flex; align-items: center; justify-content: center; z-index: 10000;
+                font-family: 'Inter', sans-serif;
+            `;
+            document.body.appendChild(modal);
+        }
+        modal.innerHTML = `
+            <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 24px; padding: 40px; width: 90%; max-width: 450px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5)">
+                <div style="font-size: 3rem; margin-bottom: 20px">${icon}</div>
+                <h3 style="color: #fff; margin-bottom: 5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px">${title}</h3>
+                <p id="modal-status" style="color: #888; font-size: 0.9rem; margin-bottom: 25px">Iniciando...</p>
+                
+                <div style="width: 100%; height: 10px; background: #333; border-radius: 10px; overflow: hidden; margin-bottom: 10px">
+                    <div id="modal-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); transition: width 0.3s ease"></div>
+                </div>
+                <div id="modal-pct" style="color: #60a5fa; font-weight: 800; font-size: 0.8rem">0%</div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+    }
+
+    updateProgressModal(pct, status) {
+        const bar = document.getElementById('modal-bar');
+        const statusEl = document.getElementById('modal-status');
+        const pctEl = document.getElementById('modal-pct');
+        if (bar) bar.style.width = `${pct}%`;
+        if (statusEl) statusEl.innerText = status;
+        if (pctEl) pctEl.innerText = `${pct}%`;
+    }
+
+    hideProgressModal() {
+        const modal = document.getElementById('progress-modal');
+        if (modal) modal.style.display = 'none';
+    }
+
     addExtraConfig(id) {
         const row = this.rows.find(r => String(r.id) === String(id));
         if (row) {
@@ -219,6 +346,104 @@ class BatchUploadApp {
         } else {
             alert("Por favor, suelta un archivo .txt válido");
         }
+    }
+
+    async handleFolderUpload(e) {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        this.showProgressModal("CARGANDO CARPETA", "📁");
+        this.updateProgressModal(0, "Analizando archivos...");
+
+        const fileMap = new Map(); // name -> { img?: File, txt?: File }
+        const imgExts = ['.png', '.jpg', '.jpeg', '.webp'];
+
+        files.forEach(file => {
+            const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+            const baseName = file.name.slice(0, file.name.lastIndexOf('.'));
+
+            if (!fileMap.has(baseName)) {
+                fileMap.set(baseName, {});
+            }
+
+            const entry = fileMap.get(baseName);
+            if (imgExts.includes(ext)) {
+                entry.img = file;
+            } else if (ext === '.txt') {
+                entry.txt = file;
+            }
+        });
+
+        // Si la primera fila está vacía (sin imagen ni prompt), la eliminamos
+        if (this.rows.length === 1 && !this.rows[0].image && !this.rows[0].prompt) {
+            this.rows = [];
+        }
+
+        let addedCount = 0;
+        let limitReached = false;
+        const entries = Array.from(fileMap.entries());
+        const totalEntries = entries.length;
+
+        for (let i = 0; i < totalEntries; i++) {
+            const [name, data] = entries[i];
+
+            if (this.rows.length >= 50) {
+                limitReached = true;
+                break;
+            }
+
+            if (data.img || data.txt) {
+                const pct = Math.round(((i + 1) / totalEntries) * 100);
+                this.updateProgressModal(pct, `Cargando: ${name}`);
+
+                const id = String(Date.now() + Math.random());
+                const newRow = {
+                    id,
+                    title: name,
+                    tool: TOOLS[0],
+                    rating: RATINGS[0],
+                    prompt: '',
+                    negative_prompt: '',
+                    image: null,
+                    needs_reference: false,
+                    is_private: false,
+                    status: 'idle',
+                    error: '',
+                    tags: [],
+                    isTagging: false,
+                    extraConfig: []
+                };
+
+                if (data.txt) {
+                    newRow.prompt = await data.txt.text();
+                }
+
+                if (data.img) {
+                    const reader = new FileReader();
+                    const imageData = await new Promise(resolve => {
+                        reader.onload = (ev) => resolve(ev.target.result);
+                        reader.readAsDataURL(data.img);
+                    });
+                    newRow.image = imageData;
+                }
+
+                this.rows.push(newRow);
+                addedCount++;
+            }
+        }
+
+        this.updateProgressModal(100, "¡Carga finalizada!");
+        setTimeout(() => {
+            this.hideProgressModal();
+            this.render();
+            if (limitReached) {
+                alert("⚠️ Se alcanzó el límite de 50 prompts. Algunos archivos no fueron cargados.");
+            }
+            if (window.toast) window.toast(`✅ ${addedCount} elementos cargados`, "success");
+        }, 800);
+
+        // Reset input
+        e.target.value = '';
     }
 
     async processBatch() {
@@ -286,6 +511,13 @@ class BatchUploadApp {
                             <p style="color:#aaa; margin:5px 0 0 0">Sube múltiples posts de forma segura y secuencial.</p>
                         </div>
                         <div class="batch-actions" style="display:flex; gap:10px">
+                            <input type="file" id="folder-input" webkitdirectory directory multiple style="display:none" onchange="window.app.handleFolderUpload(event)">
+                            <button class="btn btn-secondary" id="load-folder-btn" style="background: rgba(34, 197, 94, 0.1); color: #22c55e; border-color: rgba(34, 197, 94, 0.3);">
+                                📁 CARGAR CARPETA
+                            </button>
+                            <button class="btn btn-secondary" id="ai-master-btn" style="background: rgba(162, 155, 254, 0.1); color: #a29bfe; border-color: rgba(162, 155, 254, 0.3);">
+                                🤖 IA MAESTRA (TITULOS/TAGS)
+                            </button>
                             <button class="btn btn-secondary" id="clear-all" style="background: rgba(244, 67, 54, 0.1); color: #f44336; border-color: rgba(244, 67, 54, 0.3);">
                                 LIMPIAR TODO
                             </button>
@@ -320,6 +552,8 @@ class BatchUploadApp {
             document.getElementById('add-row-btn').onclick = () => this.addRow();
             document.getElementById('start-batch').onclick = () => this.processBatch();
             document.getElementById('clear-all').onclick = () => this.clearAll();
+            document.getElementById('load-folder-btn').onclick = () => document.getElementById('folder-input').click();
+            document.getElementById('ai-master-btn').onclick = () => this.processAllWithAI();
         }
 
         const sdTools = ['SD 1.5', 'SD 2.0', 'SDXL', 'Fooocus', 'ComfyUI'];
