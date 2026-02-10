@@ -80,5 +80,9 @@ export const TAG_ALIASES = {
     "advertising": ["Publicidad"],
     "marketing": ["Branding Visual"],
     "social media": ["Social Media Visual"],
-    "brand": ["Branding Visual", "Luxury Branding Visual"]
+    "brand": ["Branding Visual", "Luxury Branding Visual"],
+    "selfie": ["Selfie", "Mirror Selfie"],
+    "real life": ["Real Life"],
+    "realistic": ["Realistic", "Ultra-realistic"],
+    "viral": ["Viral Trend"]
 };

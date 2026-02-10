@@ -23,19 +23,22 @@ export const TAG_CATEGORIES = {
     "💼 COMERCIAL / MEDIA / BRANDING": [
         "Arte Editorial", "Billboard Advertising Style", "Branding Visual", "Campaign Photography",
         "Cover Art", "Data Visualization Art", "Key Visual Advertising", "Luxury Branding Visual",
-        "NFT Art", "Poster Art", "Publicidad", "Social Media Visual", "Stock Photography", "Visual Web / UI"
+        "NFT Art", "Poster Art", "Publicidad", "Social Media Visual", "Stock Photography", "Visual Web / UI",
+        "Viral Trend"
     ].sort(),
     "🧠 CONCEPTUAL / EXPERIMENTAL": [
         "Arte Psicodélico", "Ciencia Ficción Artística", "Fotografía Conceptual", "Horror / Dark Art", "Narrativa Visual"
     ].sort(),
     "🎬 ESTÉTICA CINEMATOGRÁFICA": [
         "16mm Film Look", "35mm Film Look", "Analog Film Look", "Cinematográfico", "Experimental Cinema",
-        "Film Noir", "Golden Age Hollywood", "IMAX Cinematic", "Indie Film Look", "Neo-Noir", "Still Cinematográfico", "VHS Aesthetic"
+        "Film Noir", "Golden Age Hollywood", "IMAX Cinematic", "Indie Film Look", "Neo-Noir", "Still Cinematográfico", "VHS Aesthetic",
+        "Realistic", "Ultra-realistic"
     ].sort(),
     "🌍 FOTOGRAFÍA DOCUMENTAL Y SOCIAL": [
         "Cultura", "Documental", "Etnográfica", "Fotografía Antropológica", "Fotografía Cultural",
         "Fotografía Humanista", "Fotoperiodismo", "Identidad Cultural", "Lifestyle Urbano", "Oficios y Artesanos",
-        "Ritual / Ceremonial", "Street Photography", "Tradiciones Populares", "Tribus Urbanas", "Vida Rural"
+        "Ritual / Ceremonial", "Street Photography", "Tradiciones Populares", "Tribus Urbanas", "Vida Rural",
+        "Real Life"
     ].sort(),
     "📷 FOTOGRAFÍA ESPECIALIZADA": [
         "Acción", "Arquitectura", "Automotriz", "Cámara Estenopeica", "Deportes", "Double Exposure",
@@ -47,7 +50,8 @@ export const TAG_CATEGORIES = {
     "📸 FOTOGRAFÍA RETRATO Y MODA": [
         "Avant-Garde Fashion", "Beauty", "Corporate Portrait", "Editorial", "Emo Aesthetic", "Fashion",
         "Futuristic Fashion Editorial", "Gothic Fashion", "Grunge Style", "Harajuku Style", "High Fashion Concept",
-        "Lifestyle", "Lolita Fashion", "Punk Fashion", "Retrato", "Retrato Ambiental", "Underground Fashion"
+        "Lifestyle", "Lolita Fashion", "Punk Fashion", "Retrato", "Retrato Ambiental", "Underground Fashion",
+        "Selfie", "Mirror Selfie"
     ].sort(),
     "🔥 FOTOGRAFÍA SENSUAL / ARTÍSTICA": [
         "Alternative Erotic Portrait", "Artistic Body Landscape", "Artistic Nude", "BDSM Aesthetic Photography",
