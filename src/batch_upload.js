@@ -56,6 +56,13 @@ class BatchUploadApp {
         this.render();
     }
 
+    clearAll() {
+        if (confirm("¿Estás seguro de limpiar todas las filas? Se perderá el progreso no guardado.")) {
+            this.rows = [];
+            this.addRow(); // Iniciar con una fila nueva
+        }
+    }
+
     updateRow(id, field, value, shouldRender = false) {
         const row = this.rows.find(r => String(r.id) === String(id));
         if (row) {
@@ -278,7 +285,10 @@ class BatchUploadApp {
                             <h2 style="color:white; margin:0">Batch Upload Center 🚀</h2>
                             <p style="color:#aaa; margin:5px 0 0 0">Sube múltiples posts de forma segura y secuencial.</p>
                         </div>
-                        <div class="batch-actions">
+                        <div class="batch-actions" style="display:flex; gap:10px">
+                            <button class="btn btn-secondary" id="clear-all" style="background: rgba(244, 67, 54, 0.1); color: #f44336; border-color: rgba(244, 67, 54, 0.3);">
+                                LIMPIAR TODO
+                            </button>
                             <button class="btn btn-primary" id="start-batch" ${this.isUploading ? 'disabled' : ''}>
                                 ${this.isUploading ? 'PROCESANDO...' : 'INICIAR CARGA MASIVA'}
                             </button>
@@ -309,6 +319,7 @@ class BatchUploadApp {
             this.container = document.getElementById('batch-rows');
             document.getElementById('add-row-btn').onclick = () => this.addRow();
             document.getElementById('start-batch').onclick = () => this.processBatch();
+            document.getElementById('clear-all').onclick = () => this.clearAll();
         }
 
         const sdTools = ['SD 1.5', 'SD 2.0', 'SDXL', 'Fooocus', 'ComfyUI'];
