@@ -1,5 +1,5 @@
 import './style.css'
-// Deploy Timestamp: 2026-02-08T15:17:00-06:00 (Force Update)
+// Deploy Timestamp: 2026-02-09T18:52:00-06:00 (UI Fix + Maintenance 3D)
 import './admin_fix.css' // Emergency CSS Fix for Admin Panel
 import { pb } from './pocketbase.js';
 import { store, TOOLS, RATINGS, RATING_INFO, INFO_ICON, LEVEL_REQS } from './store-final.js';
@@ -14,98 +14,100 @@ import { SearchSuggestions } from './components/SearchSuggestions.js';
 const MAINTENANCE_MODE = true;
 
 const renderMaintenance = () => {
-    // Create a background wrapper that contains the "blurred dashboard"
-    const bg = document.createElement('div');
-    bg.style.cssText = `
+    // 1. Apply blur and safety to the main app container
+    const appContainer = document.getElementById('app');
+    if (appContainer) {
+        appContainer.style.filter = 'blur(20px) saturate(150%)';
+        appContainer.style.pointerEvents = 'none';
+        appContainer.style.userSelect = 'none';
+        appContainer.style.transition = 'filter 1s ease';
+    }
+
+    // 2. Create the Fixed Overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'maintenance-overlay';
+    overlay.style.cssText = `
         position: fixed;
         inset: 0;
-        z-index: 9999;
-        background: #050505;
+        z-index: 999999;
+        background: rgba(0, 0, 0, 0.45);
         display: flex;
         align-items: center;
         justify-content: center;
         font-family: 'Inter', sans-serif;
         overflow: hidden;
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
     `;
 
-    // Simulated Dashboard background (blurred)
-    const dashboardSim = document.createElement('div');
-    dashboardSim.style.cssText = `
-        position: absolute;
-        inset: 0;
-        background: 
-            radial-gradient(circle at 20% 30%, rgba(37, 99, 235, 0.15) 0%, transparent 40%),
-            radial-gradient(circle at 80% 70%, rgba(29, 78, 216, 0.15) 0%, transparent 40%);
-        filter: blur(60px);
-        opacity: 0.6;
-    `;
-
-    bg.innerHTML = `
-        <div style="position: absolute; inset: 0; background: url('https://www.transparenttextures.com/patterns/dark-matter.png'); opacity: 0.2;"></div>
-        <div class="maint-scene" style="perspective: 1200px; width: 100%; display: flex; justify-content: center; align-items: center;">
+    overlay.innerHTML = `
+        <div style="position: absolute; inset: 0; background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%); pointer-events: none;"></div>
+        <div class="maint-scene" style="perspective: 1500px; width: 100%; display: flex; justify-content: center; align-items: center;">
             <div class="maint-card" style="
                 width: 90%;
                 max-width: 500px;
-                background: rgba(255, 255, 255, 0.03);
-                backdrop-filter: blur(25px) saturate(180%);
-                -webkit-backdrop-filter: blur(25px) saturate(180%);
+                background: rgba(20, 20, 20, 0.6);
+                backdrop-filter: blur(30px) saturate(200%);
+                -webkit-backdrop-filter: blur(30px) saturate(200%);
                 border: 1px solid rgba(255, 255, 255, 0.15);
-                border-radius: 40px;
-                padding: 60px 40px;
+                border-radius: 48px;
+                padding: 70px 50px;
                 box-shadow: 
-                    0 40px 100px rgba(0, 0, 0, 0.6),
-                    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-                transform: rotateX(10deg) rotateY(-5deg);
-                animation: float3d 6s ease-in-out infinite;
+                    0 50px 100px rgba(0, 0, 0, 0.8),
+                    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+                    0 0 40px rgba(59, 130, 246, 0.1);
+                transform: rotateX(12deg) rotateY(-8deg);
+                animation: float3d 8s ease-in-out infinite;
                 position: relative;
                 overflow: hidden;
             ">
-                <!-- Gloss Effect -->
-                <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(45deg, transparent, rgba(255,255,255,0.03), transparent); transform: rotate(45deg); pointer-events: none;"></div>
+                <!-- Depth Gloss -->
+                <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(135deg, transparent, rgba(255,255,255,0.05), transparent); transform: rotate(45deg); pointer-events: none;"></div>
                 
-                <div style="position: relative; z-index: 1;">
-                    <div style="font-size: 5rem; margin-bottom: 30px; filter: drop-shadow(0 15px 30px rgba(59, 130, 246, 0.5));">💎</div>
+                <div style="position: relative; z-index: 1; text-align: center;">
+                    <div style="font-size: 5.5rem; margin-bottom: 30px; filter: drop-shadow(0 20px 40px rgba(59, 130, 246, 0.6));">💎</div>
                     <h1 style="
-                        font-size: 2.5rem; 
-                        font-weight: 950; 
+                        font-size: 2.8rem; 
+                        font-weight: 1000; 
                         margin-bottom: 20px; 
                         text-transform: uppercase;
                         letter-spacing: -1px;
-                        background: linear-gradient(135deg, #fff 0%, #1d4ed8 100%);
+                        background: linear-gradient(135deg, #fff 0%, #3b82f6 50%, #1d4ed8 100%);
                         -webkit-background-clip: text;
                         -webkit-text-fill-color: transparent;
-                        line-height: 1;
+                        line-height: 0.9;
                     ">PROMPT-GALLERY</h1>
                     
                     <div style="
                         display: inline-block;
-                        padding: 6px 16px;
-                        background: rgba(37, 99, 235, 0.1);
-                        border: 1px solid rgba(37, 99, 235, 0.3);
+                        padding: 8px 20px;
+                        background: rgba(59, 130, 246, 0.15);
+                        border: 1px solid rgba(59, 130, 246, 0.3);
                         border-radius: 100px;
-                        color: #60a5fa;
-                        font-size: 0.75rem;
-                        font-weight: 800;
-                        letter-spacing: 2px;
+                        color: #93c5fd;
+                        font-size: 0.7rem;
+                        font-weight: 900;
+                        letter-spacing: 3px;
                         text-transform: uppercase;
-                        margin-bottom: 30px;
-                    ">Mantenimiento de Alto Nivel</div>
+                        margin-bottom: 40px;
+                    ">Mantenimiento de Elite</div>
 
-                    <p style="color: rgba(255,255,255,0.6); line-height: 1.8; font-size: 1.1rem; font-weight: 400; margin-bottom: 40px;">
-                        Estamos optimizando los núcleos de nuestra IA para el relanzamiento oficial de <strong>PROMPT-GALLERY</strong>.
+                    <p style="color: rgba(255,255,255,0.7); line-height: 1.8; font-size: 1.15rem; font-weight: 400; margin-bottom: 45px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                        Estamos recalibrando los servidores para el lanzamiento oficial de la nueva identidad.
                     </p>
 
                     <div style="
                         padding: 30px;
-                        background: rgba(0,0,0,0.3);
-                        border-radius: 24px;
-                        border: 1px solid rgba(255,255,255,0.05);
+                        background: rgba(0,0,0,0.6);
+                        border-radius: 28px;
+                        border: 1px solid rgba(255,255,255,0.1);
                         position: relative;
+                        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
                     ">
-                        <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 15px; overflow: hidden;">
-                            <div style="width: 75%; height: 100%; background: linear-gradient(90deg, #3b82f6, #93c5fd); animation: progress 3s ease-in-out infinite;"></div>
+                        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 20px; overflow: hidden;">
+                            <div style="width: 85%; height: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa, #93c5fd); animation: progress 3.5s ease-in-out infinite;"></div>
                         </div>
-                        <p style="font-size: 0.85rem; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Sincronizando Archivos Finales...</p>
+                        <p style="font-size: 0.8rem; color: #666; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">Sincronizando Archivos Finales...</p>
                     </div>
                 </div>
             </div>
@@ -113,20 +115,25 @@ const renderMaintenance = () => {
 
         <style>
             @keyframes float3d {
-                0%, 100% { transform: rotateX(8deg) rotateY(-8deg) translateY(0px); }
-                50% { transform: rotateX(12deg) rotateY(2deg) translateY(-20px); }
+                0%, 100% { transform: rotateX(10deg) rotateY(-10deg) translateY(0px); }
+                50% { transform: rotateX(15deg) rotateY(5deg) translateY(-25px); }
             }
             @keyframes progress {
                 0% { transform: translateX(-100%); }
                 50% { transform: translateX(0%); }
                 100% { transform: translateX(100%); }
             }
-            body { margin: 0; background: #000; height: 100vh; width: 100vw; }
+            body { 
+                margin: 0; 
+                background: #000; 
+                height: 100vh; 
+                width: 100vw; 
+                overflow: hidden !important; 
+            }
         </style>
     `;
 
-    document.body.innerHTML = '';
-    document.body.appendChild(bg);
+    document.body.appendChild(overlay);
 };
 
 
@@ -2944,17 +2951,18 @@ window.doSendTip = async (amount) => {
 let currentTipPostId = null;
 
 // Initial Render
-if (MAINTENANCE_MODE) {
-    renderMaintenance();
-} else {
-    try {
-        store.init().then(() => {
-            render();
-            console.log("MAIN JS INIT SUCCESS");
-        });
-    } catch (e) {
-        // ... err handling
-    }
+try {
+    store.init().then(() => {
+        render();
+        console.log("MAIN JS INIT SUCCESS");
+
+        // --- TRIGGER MAINTENANCE OVERLAY ---
+        if (MAINTENANCE_MODE) {
+            renderMaintenance();
+        }
+    });
+} catch (e) {
+    // ... err handling
 }
 
 // Handle browser back button basic simulation
