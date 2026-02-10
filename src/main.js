@@ -1542,7 +1542,7 @@ window.toast = (message, type = 'info') => {
     }
 
     const toast = document.createElement('div');
-    toast.className = `pg - toast ${type} `;
+    toast.className = `pg-toast ${type}`;
 
     let icon = '🔔';
     if (type === 'success') icon = '✅';

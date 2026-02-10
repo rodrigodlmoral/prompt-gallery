@@ -1813,35 +1813,7 @@ window.openRegister = () => {
     window.toggleAuth('reg');
 };
 
-// --- TOAST SYSTEM ---
-window.toast = (message, type = 'info') => {
-    let container = document.querySelector('.toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.className = 'toast-container';
-        document.body.appendChild(container);
-    }
 
-    const toast = document.createElement('div');
-    toast.className = `pg - toast ${type} `;
-
-    let icon = '🔔';
-    if (type === 'success') icon = '✅';
-    if (type === 'error') icon = '❌';
-
-    toast.innerHTML = `
-    <div class="toast-icon"> ${icon}</div>
-        <div class="toast-content">${message}</div>
-`;
-
-    container.appendChild(toast);
-
-    // Auto-remove
-    setTimeout(() => {
-        toast.classList.add('hide');
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
-};
 
 window.setProfileTab = (tab) => {
     profileTab = tab;
