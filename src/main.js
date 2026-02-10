@@ -11,7 +11,7 @@ import { DetailModalTemplate } from './components/DetailModal.js';
 import { SearchSuggestions } from './components/SearchSuggestions.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
-const MAINTENANCE_MODE = false;
+const MAINTENANCE_MODE = true;
 
 
 const renderMaintenance = () => {
