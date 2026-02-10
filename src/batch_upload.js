@@ -99,6 +99,32 @@ class BatchUploadApp {
         reader.readAsDataURL(file);
     }
 
+    handleDragOver(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add('drag-over');
+    }
+
+    handleDragLeave(e) {
+        e.currentTarget.classList.remove('drag-over');
+    }
+
+    async handleDrop(e, id, field) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+
+        // Solo procesar si es un archivo de texto o tiene extensión .txt
+        if (file.type === "text/plain" || file.name.endsWith(".txt")) {
+            const text = await file.text();
+            this.updateRow(id, field, text);
+            if (window.toast) window.toast("✅ Texto cargado desde archivo", "success");
+        } else {
+            alert("Por favor, suelta un archivo .txt válido");
+        }
+    }
+
     async processBatch() {
         if (this.isUploading) return;
         if (!store.currentUser) {
@@ -210,8 +236,16 @@ class BatchUploadApp {
                 <!-- COL 2: CORE DATA (TITLE & PROMPTS) -->
                 <td style="padding:12px; vertical-align: top;">
                     <input type="text" class="input-field" placeholder="Título del Post (Ej: Cyberpunk Samurai)" value="${row.title}" oninput="window.app.updateRow('${row.id}', 'title', this.value)" style="margin-bottom:10px; font-weight:600; font-size:1em; border-color: rgba(255,255,255,0.15)">
-                    <textarea class="input-field" placeholder="Prompt principal..." style="height:65px; font-size:0.9em; margin-bottom:10px; resize: none;" oninput="window.app.updateRow('${row.id}', 'prompt', this.value)">${row.prompt}</textarea>
-                    <textarea class="input-field" placeholder="Negative Prompt (Opcional)" style="height:45px; font-size:0.85em; opacity: 0.8; resize: none;" oninput="window.app.updateRow('${row.id}', 'negative_prompt', this.value)">${row.negative_prompt}</textarea>
+                    <textarea class="input-field" placeholder="Prompt principal... (Arrastra un .txt para cargar)" style="height:65px; font-size:0.9em; margin-bottom:10px; resize: none;" 
+                        oninput="window.app.updateRow('${row.id}', 'prompt', this.value)"
+                        ondragover="window.app.handleDragOver(event)"
+                        ondragleave="window.app.handleDragLeave(event)"
+                        ondrop="window.app.handleDrop(event, '${row.id}', 'prompt')">${row.prompt}</textarea>
+                    <textarea class="input-field" placeholder="Negative Prompt... (Arrastra un .txt para cargar)" style="height:45px; font-size:0.85em; opacity: 0.8; resize: none;" 
+                        oninput="window.app.updateRow('${row.id}', 'negative_prompt', this.value)"
+                        ondragover="window.app.handleDragOver(event)"
+                        ondragleave="window.app.handleDragLeave(event)"
+                        ondrop="window.app.handleDrop(event, '${row.id}', 'negative_prompt')">${row.negative_prompt}</textarea>
                 </td>
 
                 <!-- COL 3: CONFIG & TOOLS -->
@@ -367,6 +401,12 @@ styleNode.innerHTML = `
     }
     #batch-table-container ::placeholder {
         color: #555 !important;
+    }
+    .input-field.drag-over {
+        border-color: #60a5fa !important;
+        background: rgba(96, 165, 250, 0.1) !important;
+        box-shadow: 0 0 15px rgba(96, 165, 250, 0.3) !important;
+        transform: scale(1.02);
     }
 `;
 document.head.appendChild(styleNode);
