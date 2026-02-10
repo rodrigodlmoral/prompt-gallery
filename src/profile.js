@@ -262,6 +262,7 @@ const Header = () => `
             ` : `<button class="btn" onclick="window.location.href='/'">Iniciar Sesión</button>`}
             </nav>
         </div>
+        ${store.currentUser ? `
         <div class="container filters-bar" style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; background:rgba(0,0,0,0.3); align-items:center; justify-content: flex-end">
             <select onchange="window.setFilter('time', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
                 <option value="all" ${filters.time === 'all' ? 'selected' : ''}>📅 Todo el tiempo</option>
@@ -280,6 +281,7 @@ const Header = () => `
                 🔍 Filtros Avanzados ${(filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)) > 0 ? `<span style="background:#0070ba; color:white; border-radius:10px; padding:0 6px; font-size:0.7rem">${filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)}</span>` : ''}
             </button>
         </div>
+        ` : ''}
 </header> `;
 
 const ProfileHeader = () => {
@@ -985,7 +987,17 @@ const attachEvents = () => {
 };
 
 // --- MASTER UNIFICATION WRAPPERS ---
-window.openDetail = (id) => store.openDetail(id);
+window.openDetail = (id) => {
+    const p = store.prompts.find(x => x.id === id);
+    if (!p) return;
+    const { applyBlur } = window.getModeration(p);
+    if (!store.currentUser && applyBlur) {
+        if (window.toast) window.toast("⚠️ Regístrate para visualizar contenido +18", "error");
+        else alert("Regístrate para visualizar contenido +18");
+        return;
+    }
+    store.openDetail(id);
+};
 window.doReact = (type) => store.doReact(type);
 window.prevSeqStep = () => store.prevSeqStep();
 window.nextSeqStep = () => store.nextSeqStep();

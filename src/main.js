@@ -2396,7 +2396,17 @@ window.doDeletePrompt = async (passedId) => {
 
 // --- SETTINGS FUNCTIONS ---
 // --- MASTER UNIFICATION WRAPPERS ---
-window.openDetail = (id) => store.openDetail(id);
+window.openDetail = (id) => {
+    const p = store.prompts.find(x => x.id === id);
+    if (!p) return;
+    const { applyBlur } = window.getModeration(p);
+    if (!store.currentUser && applyBlur) {
+        if (window.toast) window.toast("⚠️ Regístrate para visualizar contenido +18", "error");
+        else alert("Regístrate para visualizar contenido +18");
+        return;
+    }
+    store.openDetail(id);
+};
 window.doReact = (type) => store.doReact(type);
 window.prevSeqStep = () => store.prevSeqStep();
 window.nextSeqStep = () => store.nextSeqStep();
