@@ -1,5 +1,6 @@
 import { pb } from './pocketbase.js';
 import { store, TOOLS, RATINGS } from './store-final.js';
+import { TAG_CATEGORIES } from './data/tags.js';
 import './style.css';
 
 // Componente Header (simplificado o reusado si fuera posible, pero lo recreamos para consistencia inmediata)
@@ -42,6 +43,8 @@ class BatchUploadApp {
             is_private: false,
             status: 'idle',
             error: '',
+            tags: [], // Nueva propiedad para etiquetas
+            isTagging: false, // Estado de carga para IA
             extraConfig: [] // [{type, val}]
         });
         this.render();
@@ -58,6 +61,92 @@ class BatchUploadApp {
         if (row) {
             row[field] = value;
             if (shouldRender) this.render();
+        }
+    }
+
+    removeTag(id, tag) {
+        const row = this.rows.find(r => String(r.id) === String(id));
+        if (row) {
+            row.tags = row.tags.filter(t => t !== tag);
+            this.render();
+        }
+    }
+
+    async autoTagRow(id) {
+        const row = this.rows.find(r => String(r.id) === String(id));
+        if (!row || (!row.prompt && !row.image)) {
+            alert("Escribe un prompt o sube una imagen primero.");
+            return;
+        }
+
+        const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
+        if (!API_KEY) {
+            alert("Error: No se encontró la API Key de OpenRouter.");
+            return;
+        }
+
+        row.isTagging = true;
+        this.render();
+
+        try {
+            const ALL_TAGS = Object.values(TAG_CATEGORIES).flat();
+
+            // Construir el mensaje para la IA
+            const contents = [
+                {
+                    type: "text",
+                    text: `Analiza este prompt y/o imagen y devuelve exactamente un array JSON de hasta 5 etiquetas de la lista oficial que mejor encajen.
+                    
+                    PROMPT: "${row.prompt}"
+                    
+                    LISTA OFICIAL: ${ALL_TAGS.join(', ')}
+                    
+                    RESPUESTA ESPERADA: Un array JSON de strings, ejemplo ["Anime", "Cyberpunk"]. No agregues texto adicional.`
+                }
+            ];
+
+            // Si hay imagen, la enviamos (OpenRouter soporta imágenes en modelos como Gemini)
+            if (row.image && row.image.startsWith('data:')) {
+                contents.push({
+                    type: "image_url",
+                    image_url: {
+                        url: row.image
+                    }
+                });
+            }
+
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${API_KEY}`,
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": window.location.origin,
+                    "X-Title": "Prompt Gallery Batch"
+                },
+                body: JSON.stringify({
+                    "model": "google/gemini-2.0-flash-lite-001",
+                    "messages": [{ "role": "user", "content": contents }]
+                })
+            });
+
+            const data = await response.json();
+            const aiText = data.choices?.[0]?.message?.content || "";
+
+            // Extraer JSON del texto
+            const jsonMatch = aiText.match(/\[.*\]/s);
+            if (jsonMatch) {
+                const suggestedTags = JSON.parse(jsonMatch[0]);
+                // Filtrar solo las válidas y evitar duplicados
+                const validTags = suggestedTags.filter(t => ALL_TAGS.includes(t));
+                row.tags = [...new Set([...row.tags, ...validTags])].slice(0, 8);
+                if (window.toast) window.toast("✅ Etiquetas generadas", "success");
+            }
+        } catch (err) {
+            console.error("AI Tagging Error:", err);
+            alert("Error al conectar con la IA.");
+        } finally {
+            row.isTagging = false;
+            this.render();
         }
     }
 
@@ -157,6 +246,7 @@ class BatchUploadApp {
                     rating: row.rating,
                     needsReference: row.needs_reference,
                     isPrivate: row.is_private,
+                    tags: row.tags, // Agregado aquí
                     extraConfig: row.extraConfig // Pasamos la configuración adicional
                 });
 
@@ -297,8 +387,21 @@ class BatchUploadApp {
                                 <input type="checkbox" style="width:16px; height:16px" ${row.is_private ? 'checked' : ''} onchange="window.app.updateRow('${row.id}', 'is_private', this.checked, true)"> Privado
                             </label>
                         </div>
-                        <button class="btn btn-secondary" style="width:100%; padding:8px; font-size:0.85em; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: #60a5fa" onclick="alert('Funcionalidad de AutoTag en desarrollo...')">
-                            ✨ Generar Auto-Tags con IA
+                        
+                        <!-- SECCIÓN DE ETIQUETAS -->
+                        <div id="tags-container-${row.id}" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; min-height:20px">
+                            ${row.tags.map(t => `
+                                <span class="tag-chip" style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:10px; font-size:0.7em; display:flex; align-items:center; gap:5px; border: 1px solid rgba(255,255,255,0.2)">
+                                    ${t} <span onclick="window.app.removeTag('${row.id}', '${t}')" style="cursor:pointer; opacity:0.6 hover:opacity:1">×</span>
+                                </span>
+                            `).join('')}
+                        </div>
+
+                        <button class="btn btn-secondary ai-tag-btn" 
+                            style="width:100%; padding:8px; font-size:0.85em; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: #60a5fa" 
+                            onclick="window.app.autoTagRow('${row.id}')"
+                            ${row.isTagging ? 'disabled' : ''}>
+                            ${row.isTagging ? '✨ GENERANDO...' : '✨ Generar Auto-Tags con IA'}
                         </button>
                     </div>
                 </td>
