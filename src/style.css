@@ -1425,7 +1425,7 @@ header nav {
   pointer-events: auto;
   min-width: 300px;
   max-width: 450px;
-  background: rgba(20, 20, 20, 0.95);
+  background: #141414;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 16px 20px;

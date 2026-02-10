@@ -1004,6 +1004,18 @@ window.nextSeqStep = () => store.nextSeqStep();
 window.revealImage = (btn) => store.revealImage(btn);
 window.getModeration = (p, f) => store.getModeration(p, f);
 
+window.openDetail = (id) => {
+    const p = store.prompts.find(x => x.id === id);
+    if (!p) return;
+    const { applyBlur } = window.getModeration(p);
+    if (!store.currentUser && applyBlur) {
+        if (window.toast) window.toast("⚠️ Regístrate para visualizar contenido +18", "error");
+        else alert("Regístrate para visualizar contenido +18");
+        return;
+    }
+    store.openDetail(id);
+};
+
 // Comment Logic wrappers
 window.showSlider = () => store.showSlider();
 window.initCrystalSlider = () => store.initCrystalSlider();
@@ -1122,9 +1134,6 @@ window.doSendTip = async (amount) => {
     }
 };
 
-window.toast = (msg, type) => {
-    alert(msg); // Placeholder for toast system if needed
-};
 
 let confirmResolver = null;
 window.askConfirm = (msg, icon) => {
