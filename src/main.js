@@ -3206,6 +3206,9 @@ try {
             if (MAINTENANCE_MODE) {
                 renderMaintenance();
             }
+
+            // --- TOKEN DETECTION (Password Reset & Email Verification) ---
+            processTokens();
         })
         .catch(err => {
             console.error("❌ FATAL STORE INIT ERROR:", err);
@@ -3379,5 +3382,4 @@ const processTokens = async () => {
     }
 };
 
-window.addEventListener('DOMContentLoaded', processTokens);
-// No lo llamamos inmediatamente para evitar colisiones con el evento del DOM
+window.addEventListener('load', processTokens);
