@@ -100,32 +100,28 @@ const store = {
             });
             const realPosts = stats.totalItems || 0;
 
-            // 2. Calcular copias totales y tokens (PromptBits) recibidos reales
+            // 2. Calcular copias totales reales
             const allPrompts = await pb.collection('prompts').getFullList({
                 filter: `author = "${userId}"`,
-                fields: 'copy_count,tokens_received'
+                fields: 'copy_count'
             });
             const realCopies = allPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
-            const realTokens = allPrompts.reduce((sum, p) => sum + (p.tokens_received || 0), 0);
 
             const needsUpdate = (profile.prompts_count !== realPosts) ||
-                (profile.total_copies !== realCopies) ||
-                (profile.tokens !== realTokens);
+                (profile.total_copies !== realCopies);
 
             if (needsUpdate) {
-                console.log(`[STORE] 🔄 Sincronizando memoria para ${profile.username}: Posts ${realPosts}, Tokens ${realTokens}`);
+                console.log(`[STORE] 🔄 Sincronizando memoria para ${profile.username}: Posts ${realPosts}, Copies ${realCopies}`);
 
                 // Actualización optimista: primero en memoria para la UI
                 profile.prompts_count = realPosts;
                 profile.total_copies = realCopies;
-                profile.tokens = realTokens;
 
                 // Intento de persistencia silencioso
                 try {
                     await pb.collection('users').update(userId, {
                         prompts_count: realPosts,
-                        total_copies: realCopies,
-                        tokens: realTokens
+                        total_copies: realCopies
                     });
                     console.log("[STORE] ✅ Persistencia exitosa.");
                 } catch (pe) {
