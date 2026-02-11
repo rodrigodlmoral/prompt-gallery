@@ -74,38 +74,7 @@ const store = {
             const record = await pb.collection('users').getOne(userId);
             if (record) {
                 const profile = window.normalizeProfile ? window.normalizeProfile(record) : record;
-
-                // --- DYNAMIC AUTO-SYNC & ROBUSTNESS ---
-                try {
-                    // Contar posts reales
-                    const stats = await pb.collection('prompts').getList(1, 1, {
-                        filter: `author = "${userId}"`,
-                        fields: 'id'
-                    });
-                    const realPosts = stats.totalItems || 0;
-
-                    // Calcular copias totales reales
-                    const allPrompts = await pb.collection('prompts').getFullList({
-                        filter: `author = "${userId}"`,
-                        fields: 'copy_count'
-                    });
-                    const realCopies = allPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
-
-                    const needsUpdate = (profile.prompts_count !== realPosts) || (profile.total_copies !== realCopies);
-
-                    if (needsUpdate) {
-                        console.log(`[ST_DEBUG] Auto-syncing profile for ${userId}: Posts ${realPosts}, Copies ${realCopies}`);
-                        await pb.collection('users').update(userId, {
-                            prompts_count: realPosts,
-                            total_copies: realCopies
-                        });
-                        profile.prompts_count = realPosts;
-                        profile.total_copies = realCopies;
-                    }
-                } catch (e) {
-                    console.warn("Auto-sync error:", e);
-                }
-
+                await this.syncUserStats(userId, profile);
                 this.currentUser = profile;
             }
         } catch (error) {
@@ -119,6 +88,44 @@ const store = {
             }
         }
         return this.currentUser;
+    },
+
+    async syncUserStats(userId, profile) {
+        if (!userId || !profile) return;
+        try {
+            // 1. Contar posts reales
+            const stats = await pb.collection('prompts').getList(1, 1, {
+                filter: `author = "${userId}"`,
+                fields: 'id'
+            });
+            const realPosts = stats.totalItems || 0;
+
+            // 2. Calcular copias totales y tokens (PromptBits) recibidos reales
+            const allPrompts = await pb.collection('prompts').getFullList({
+                filter: `author = "${userId}"`,
+                fields: 'copy_count,tokens_received'
+            });
+            const realCopies = allPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
+            const realTokens = allPrompts.reduce((sum, p) => sum + (p.tokens_received || 0), 0);
+
+            const needsUpdate = (profile.prompts_count !== realPosts) ||
+                (profile.total_copies !== realCopies) ||
+                (profile.tokens !== realTokens);
+
+            if (needsUpdate) {
+                console.log(`[STORE] 🔄 Syncing stats for ${profile.username}: Posts ${realPosts}, Copies ${realCopies}, Tokens ${realTokens}`);
+                await pb.collection('users').update(userId, {
+                    prompts_count: realPosts,
+                    total_copies: realCopies,
+                    tokens: realTokens
+                });
+                profile.prompts_count = realPosts;
+                profile.total_copies = realCopies;
+                profile.tokens = realTokens;
+            }
+        } catch (e) {
+            console.warn("[STORE] Sync stats error:", e);
+        }
     },
 
     async loadPrompts() {
@@ -311,6 +318,10 @@ const store = {
                 } catch (e) {
                     console.warn("[REPAIR] Fallo en reconexión:", e);
                 }
+
+                // Sincronizar estadísticas REALES (posts, copias, tokens) para el visitante
+                await this.syncUserStats(userId, directFound);
+
                 return this._cacheUser(username, directFound);
             }
 
