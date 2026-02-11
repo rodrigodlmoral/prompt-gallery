@@ -113,15 +113,24 @@ const store = {
                 (profile.tokens !== realTokens);
 
             if (needsUpdate) {
-                console.log(`[STORE] 🔄 Syncing stats for ${profile.username}: Posts ${realPosts}, Copies ${realCopies}, Tokens ${realTokens}`);
-                await pb.collection('users').update(userId, {
-                    prompts_count: realPosts,
-                    total_copies: realCopies,
-                    tokens: realTokens
-                });
+                console.log(`[STORE] 🔄 Sincronizando memoria para ${profile.username}: Posts ${realPosts}, Tokens ${realTokens}`);
+
+                // Actualización optimista: primero en memoria para la UI
                 profile.prompts_count = realPosts;
                 profile.total_copies = realCopies;
                 profile.tokens = realTokens;
+
+                // Intento de persistencia silencioso
+                try {
+                    await pb.collection('users').update(userId, {
+                        prompts_count: realPosts,
+                        total_copies: realCopies,
+                        tokens: realTokens
+                    });
+                    console.log("[STORE] ✅ Persistencia exitosa.");
+                } catch (pe) {
+                    console.warn("[STORE] ⚠️ Error persistiendo (permisos?), pero la UI está OK localmente.");
+                }
             }
         } catch (e) {
             console.warn("[STORE] Sync stats error:", e);
