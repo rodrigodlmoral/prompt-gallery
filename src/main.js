@@ -3284,19 +3284,48 @@ setTimeout(() => {
     loadTopCreators();
 }, 1000);
 
-// --- PASSWORD RESET TOKEN DETECTION ---
-window.addEventListener('DOMContentLoaded', () => {
+// --- TOKEN DETECTION (Password Reset & Email Verification) ---
+window.addEventListener('DOMContentLoaded', async () => {
+    // 1. Intentar obtener token de la URL ( formato estándar ?token=... )
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
+    let token = urlParams.get('token');
+    let type = '';
 
-    // Si el usuario viene con un token de reset, abrimos el modal de actvación
+    // 2. Fallback para formato PocketBase ( /#/auth/confirm-verification/TOKEN )
+    const hash = window.location.hash;
+    if (!token && hash) {
+        if (hash.includes('confirm-verification')) {
+            token = hash.split('/').pop();
+            type = 'verify';
+        } else if (hash.includes('confirm-password-reset')) {
+            token = hash.split('/').pop();
+            type = 'password-reset';
+        }
+    }
+
     if (token) {
-        console.log("🔐 Token de activación detectado. Abriendo modal...");
-        setTimeout(() => {
-            if (document.getElementById('authModal')) {
-                document.getElementById('authModal').style.display = 'flex';
-                window.toggleAuth('act');
+        console.log(`🔐 Token detectado [${type || 'auto'}]. Procesando...`);
+
+        // Caso: Verificación de cuenta
+        if (type === 'verify') {
+            if (window.toast) window.toast("Verificando tu cuenta...", "info");
+            const res = await store.confirmVerification(token);
+            if (res.success) {
+                alert("✅ ¡Cuenta verificada con éxito! Ya puedes disfrutar de todas las funciones.");
+                window.location.hash = ''; // Limpiar URL
+                if (window.render) window.render();
+            } else {
+                alert("❌ " + res.msg);
             }
-        }, 800);
+        }
+        // Caso: Reset de password o activación inicial
+        else {
+            setTimeout(() => {
+                if (document.getElementById('authModal')) {
+                    document.getElementById('authModal').style.display = 'flex';
+                    window.toggleAuth('act');
+                }
+            }, 800);
+        }
     }
 });

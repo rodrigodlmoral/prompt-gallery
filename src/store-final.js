@@ -1103,6 +1103,20 @@ const store = {
         }
     },
 
+    async confirmVerification(token) {
+        try {
+            await pb.collection('users').confirmVerification(token);
+            // Si hay un usuario logueado pero no verificado, recargar perfil
+            if (this.currentUser) {
+                await this._loadUserProfile(this.currentUser.id);
+            }
+            return { success: true };
+        } catch (err) {
+            console.error("Verification error:", err);
+            return { success: false, msg: "Error al verificar la cuenta." };
+        }
+    },
+
     // --- HELPERS ---
 
     _compressImage(base64) {
