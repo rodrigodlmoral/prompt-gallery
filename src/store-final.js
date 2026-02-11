@@ -271,92 +271,90 @@ const store = {
 
     async fetchUserProfileByUsername(rawUsername) {
         if (!rawUsername) return null;
-        const username = rawUsername.trim().replace(/['"]/g, "");
+        const query = rawUsername.trim().replace(/['"]/g, "");
+        const lowerQuery = query.toLowerCase();
 
-        if (this.usersCache[username] && (Date.now() - this.usersCache[username]._fetchedAt < 60000)) {
-            return this.usersCache[username];
-        }
+        // 1. Check Cache (Normalized)
+        if (this.usersCache[lowerQuery]) return this.usersCache[lowerQuery];
 
         try {
-            let directFound = null;
+            let found = null;
 
-            // 1.1 Try Strict Filter First (Best case)
+            // STRATEGY 1: Direct Filter (Fastest) - Check 'username' (system) and 'name' (custom)
             try {
-                const resName = await pb.collection('users').getList(1, 1, {
-                    filter: `name = '${username}'`
+                const res = await pb.collection('users').getList(1, 1, {
+                    filter: `username = "${query}" || name = "${query}"`
                 });
-                if (resName.items.length > 0) directFound = resName.items[0];
-            } catch (e1) {
-                console.warn(`[ST_DEBUG] Strategy 1 Filter Failed. Engaging DRAGNET...`);
+                if (res.items.length > 0) found = res.items[0];
+            } catch (e) {
+                console.warn("[ST_DEBUG] Direct filter error, continuing...");
+            }
+
+            // STRATEGY 2: Dragnet (Latest 100 users) - Case Insensitive
+            if (!found) {
+                console.log("[ST_DEBUG] Engaging DRAGNET search...");
                 try {
-                    const dragnet = await pb.collection('users').getList(1, 50, { sort: '-created' });
-                    const targetLower = username.toLowerCase();
-                    directFound = dragnet.items.find(u =>
-                        (u.name && u.name.toLowerCase() === targetLower) ||
-                        (u.username && u.username.toLowerCase() === targetLower)
+                    const dragnet = await pb.collection('users').getList(1, 100, { sort: '-created' });
+                    found = dragnet.items.find(u =>
+                        (u.name && u.name.toLowerCase() === lowerQuery) ||
+                        (u.username && u.username.toLowerCase() === lowerQuery)
                     );
-                } catch (e2) {
-                    console.error(`[ST_DEBUG] Dragnet Failed:`, e2);
-                }
-            }
-
-            if (directFound) {
-                // --- AUTO-CURACIÓN: RECONEXIÓN DE POSTS (v14) ---
-                try {
-                    const userId = directFound.id;
-                    const ghosts = await pb.collection('prompts').getFullList({
-                        filter: `author != "${userId}" && author_name = "${username}"`
-                    });
-
-                    if (ghosts.length > 0) {
-                        console.log(`[REPAIR] 👻 Reconectando ${ghosts.length} posts para @${username}...`);
-                        for (const p of ghosts) {
-                            await pb.collection('prompts').update(p.id, { author: userId });
-                        }
-                        await pb.collection('users').update(userId, { "prompts_count+": 0 });
-                    }
                 } catch (e) {
-                    console.warn("[REPAIR] Fallo en reconexión:", e);
+                    console.warn("[ST_DEBUG] Dragnet failed, continuing...");
                 }
-
-                // Sincronizar estadísticas REALES (posts, copias, tokens) para el visitante
-                await this.syncUserStats(userId, directFound);
-
-                return this._cacheUser(username, directFound);
             }
 
-            // STRATEGY 2: ID Check
-            if (username.length === 15) {
+            // STRATEGY 3: ID Check (If looks like PB ID)
+            if (!found && query.length === 15) {
                 try {
-                    const u = await pb.collection('users').getOne(username);
-                    return this._cacheUser(username, u);
+                    found = await pb.collection('users').getOne(query);
                 } catch (e) { }
             }
 
-            // STRATEGY 3: NUCLEAR FALLBACK
-            let items = [];
-            const CACHE_TTL = 300000;
-            if (this.nuclearCache.items.length > 0 && (Date.now() - this.nuclearCache.lastFetch < CACHE_TTL)) {
-                items = this.nuclearCache.items;
-            } else {
-                const nuclearRes = await pb.collection('users').getList(1, 1000, { sort: '-updated' });
-                items = nuclearRes.items;
-                this.nuclearCache.items = items;
-                this.nuclearCache.lastFetch = Date.now();
+            // STRATEGY 4: NUCLEAR FALLBACK (Total Registry)
+            if (!found) {
+                console.log("[ST_DEBUG] Engaging NUCLEAR search...");
+                let items = [];
+                const CACHE_TTL = 300000;
+                if (this.nuclearCache.items.length > 0 && (Date.now() - this.nuclearCache.lastFetch < CACHE_TTL)) {
+                    items = this.nuclearCache.items;
+                } else {
+                    const res = await pb.collection('users').getList(1, 1000, { sort: '-updated' });
+                    items = res.items;
+                    this.nuclearCache.items = items;
+                    this.nuclearCache.lastFetch = Date.now();
+                }
+                found = items.find(u =>
+                    (u.name && u.name.toLowerCase() === lowerQuery) ||
+                    (u.username && u.username.toLowerCase() === lowerQuery)
+                );
             }
 
-            const lowerQuery = username.toLowerCase();
-            const found = items.find(u =>
-                (u.name && u.name.toLowerCase() === lowerQuery) ||
-                (u.username && u.username.toLowerCase() === lowerQuery)
-            );
-
             if (found) {
-                return this._cacheUser(username, found);
+                const userId = found.id;
+                const finalName = found.name || found.username;
+
+                // --- REPAIR & SYNC ---
+                try {
+                    // Reconectar huérfanos (v16)
+                    const ghosts = await pb.collection('prompts').getFullList({
+                        filter: `author != "${userId}" && author_name = "${finalName}"`
+                    });
+                    if (ghosts.length > 0) {
+                        console.log(`[REPAIR] 👻 Reconectando ${ghosts.length} posts para @${finalName}...`);
+                        for (const p of ghosts) await pb.collection('prompts').update(p.id, { author: userId });
+                    }
+                    // Sync Stats
+                    await this.syncUserStats(userId, found);
+                } catch (e) {
+                    console.warn("[REPAIR/SYNC] Error:", e);
+                }
+
+                return this._cacheUser(lowerQuery, found);
             }
 
         } catch (err) {
-            console.error(`[CRITICAL] Error fetching profile: ${err.message}`);
+            console.error(`[CRITICAL] Error fetching profile for ${query}: ${err.message}`);
         }
         return null;
     },
