@@ -508,14 +508,22 @@ const Gallery = () => {
         ? store.currentUser
         : (store.users.find(u => u.username === profileUser || u.name === profileUser) || store.usersCache[profileUser]);
 
-    console.log(`[PROFILE] Gallery: user encontrado ? `, user ? user.username : 'NO');
+    console.log(`[PROFILE_DEBUG] Gallery: profileUser="${profileUser}", userFoundID="${user?.id}"`);
+    console.log(`[PROFILE_DEBUG] Total prompts in store: ${store.prompts.length}`);
 
     if (!user) return '<div class="container" style="padding:40px 0; color:#666">Cargando galería...</div>';
 
     let list = [...store.prompts].filter(p => {
+        const isMine = p.author_id === user.id;
         if (p.is_private && (!store.currentUser || store.currentUser.id !== p.author_id)) return false;
+
         // Scope Check (Creations vs Saved)
-        const inScope = profileTab === 'creations' ? p.author_id === user.id : p.savedBy?.includes(user.id);
+        const inScope = profileTab === 'creations' ? isMine : p.savedBy?.includes(user.id);
+
+        if (profileUser === 'smangel97' && profileTab === 'creations') {
+            console.log(`[PROFILE_DEBUG] Post "${p.title}": author_id="${p.author_id}", targetID="${user.id}", match=${isMine}`);
+        }
+
         if (!inScope) return false;
 
         // Apply Filters (Sync with main.js logic)

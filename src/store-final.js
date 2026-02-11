@@ -163,6 +163,7 @@ const store = {
             const newOnes = mapped.filter(p => !existingIds.has(p.id));
             this.prompts = [...this.prompts, ...newOnes];
 
+            if (window.render) window.render();
             return mapped;
         } catch (error) {
             console.error("Error loading user prompts:", error);
