@@ -302,23 +302,24 @@ const store = {
 
             if (directFound) {
                 console.log(`[ST_DEBUG] Strategy 1 Found: ${username} (ID: ${directFound.id})`);
-                return this._cacheUser(username, directFound);
-            }
 
-            // 1.2 Try Username (fallback)
-            if (!directFound) {
+                // --- AUTO-CURACIÓN: RECONEXIÓN DE POSTS (v12) ---
                 try {
-                    const resUser = await pb.collection('users').getList(1, 1, {
-                        filter: `username = '${username}'`
+                    const userId = directFound.id;
+                    const ghosts = await pb.collection('prompts').getFullList({
+                        filter: `author != "${userId}" && (author_name = "${username}" || username = "${username}")`
                     });
-                    if (resUser.items.length > 0) directFound = resUser.items[0];
-                } catch (e2) {
-                    if (e2.status !== 404) console.warn(`[ST_DEBUG] Strategy 1 (User) Warn:`, e2);
-                }
-            }
 
-            if (directFound) {
-                console.log(`[ST_DEBUG] Strategy 1 Found: ${username} (ID: ${directFound.id})`);
+                    if (ghosts.length > 0) {
+                        console.log(`[REPAIR] 👻 Reconectando ${ghosts.length} posts para @${username}...`);
+                        for (const p of ghosts) {
+                            await pb.collection('prompts').update(p.id, { author: userId });
+                        }
+                    }
+                } catch (e) {
+                    console.warn("[REPAIR] Fallo en reconexión:", e);
+                }
+
                 return this._cacheUser(username, directFound);
             }
 
