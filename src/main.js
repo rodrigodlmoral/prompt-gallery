@@ -13,6 +13,12 @@ import { SearchSuggestions } from './components/SearchSuggestions.js';
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;
 
+// DEBUG: Confirmar carga de script
+console.log("🚀 MAIN.JS LOADED at " + new Date().toISOString());
+if (window.location.hash.includes('confirm-verification')) {
+    console.log("🔍 Hash de verificación detectado!");
+}
+
 
 const renderMaintenance = () => {
     // 1. Apply blur and safety to the main app container
@@ -3185,18 +3191,27 @@ window.doSendTip = async (amount) => {
 let currentTipPostId = null;
 
 // Initial Render
+console.log("⏳ Iniciando store...");
 try {
-    store.init().then(() => {
-        render();
-        console.log("MAIN JS INIT SUCCESS");
+    store.init()
+        .then(() => {
+            console.log("✅ STORE INIT SUCCESS. Renderizando...");
+            render();
 
-        // --- TRIGGER MAINTENANCE OVERLAY ---
-        if (MAINTENANCE_MODE) {
-            renderMaintenance();
-        }
-    });
+            // --- TRIGGER MAINTENANCE OVERLAY ---
+            if (MAINTENANCE_MODE) {
+                renderMaintenance();
+            }
+        })
+        .catch(err => {
+            console.error("❌ FATAL STORE INIT ERROR:", err);
+            // Fallback render para no dejar la pantalla blanca
+            alert("Error al cargar la galería: " + (err.message || "Error desconocido"));
+            render();
+        });
 } catch (e) {
-    // ... err handling
+    console.error("❌ CRITICAL ERROR IN MAIN.JS:", e);
+    render();
 }
 
 // Handle browser back button basic simulation
@@ -3285,40 +3300,47 @@ setTimeout(() => {
 }, 1000);
 
 // --- TOKEN DETECTION (Password Reset & Email Verification) ---
-window.addEventListener('DOMContentLoaded', async () => {
-    // 1. Intentar obtener token de la URL ( formato estándar ?token=... )
+const processTokens = async () => {
+    console.log("🔍 Checking for tokens in URL/Hash...");
     const urlParams = new URLSearchParams(window.location.search);
     let token = urlParams.get('token');
     let type = '';
 
-    // 2. Fallback para formato PocketBase ( /#/auth/confirm-verification/TOKEN )
     const hash = window.location.hash;
+    console.log("📍 Window Hash:", hash);
+
     if (!token && hash) {
         if (hash.includes('confirm-verification')) {
-            token = hash.split('/').pop();
+            // El hash suele ser #/auth/confirm-verification/TOKEN o similar
+            const parts = hash.split('/');
+            token = parts[parts.length - 1];
             type = 'verify';
+            console.log("✅ Verification token found in hash:", token);
         } else if (hash.includes('confirm-password-reset')) {
             token = hash.split('/').pop();
             type = 'password-reset';
+            console.log("✅ Reset token found in hash:", token);
         }
     }
 
     if (token) {
         console.log(`🔐 Token detectado [${type || 'auto'}]. Procesando...`);
 
-        // Caso: Verificación de cuenta
         if (type === 'verify') {
             if (window.toast) window.toast("Verificando tu cuenta...", "info");
+            else console.log("Verificando...");
+
             const res = await store.confirmVerification(token);
+            console.log("📡 Respuesta de verificación:", res);
             if (res.success) {
                 alert("✅ ¡Cuenta verificada con éxito! Ya puedes disfrutar de todas las funciones.");
-                window.location.hash = ''; // Limpiar URL
+                window.location.hash = '';
                 if (window.render) window.render();
             } else {
                 alert("❌ " + res.msg);
+                window.location.hash = '';
             }
         }
-        // Caso: Reset de password o activación inicial
         else {
             setTimeout(() => {
                 if (document.getElementById('authModal')) {
@@ -3328,4 +3350,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             }, 800);
         }
     }
-});
+};
+
+window.addEventListener('DOMContentLoaded', processTokens);
+processTokens(); // Autoejecutar por si acaso
