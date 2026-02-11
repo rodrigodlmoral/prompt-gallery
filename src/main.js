@@ -1291,8 +1291,8 @@ const AuthModal = () => `
                             </p>
                     </div>
                     <div id="activateForm" style="display:none;">
-                        <h2>Activar Cuenta</h2>
-                        <p style="margin-bottom:15px; color:#a29bfe; font-size:0.85rem; font-weight:700">¡Bienvenido! Elige tu nueva contraseña para activar tu perfil.</p>
+                        <h2 id="actTitle">Activar Cuenta</h2>
+                        <p id="actDesc" style="margin-bottom:15px; color:#a29bfe; font-size:0.85rem; font-weight:700">¡Bienvenido! Elige tu nueva contraseña para activar tu perfil.</p>
                         <input type="text" id="actUser" class="form-input" placeholder="Usuario o Email">
                             <div style="position:relative">
                                 <input type="password" id="actPass" class="form-input" placeholder="Nueva Contraseña" style="padding-right:40px">
@@ -1695,15 +1695,22 @@ window.doRecoverSubmit = async () => {
 window.doActivateSubmit = async () => {
     const userOrEmail = document.getElementById('actUser').value;
     const pass = document.getElementById('actPass').value;
-    const token = new URLSearchParams(window.location.search).get('token');
+
+    // Buscar token en el buscador o en el hash (o en la variable global del módulo)
+    const token = window._authToken || new URLSearchParams(window.location.search).get('token') || (window.location.hash.split('/').pop());
 
     if (!userOrEmail || !pass) { if (window.toast) window.toast("Rellena todos los campos.", "warning"); return; }
-    if (!token) return alert("Token de activación no encontrado.");
+    if (!token || token.length < 10) return alert("Token de activación no encontrado o inválido.");
+
+    if (window.toast) window.toast("Procesando solicitud...", "info");
 
     const res = await store.confirmResetPassword(token, pass, userOrEmail);
     if (res.success) {
-        alert("¡Cuenta activada con éxito! Bienvenido.");
-        window.location.href = '/';
+        const msg = window._authType === 'password-reset' ? "¡Contraseña actualizada con éxito! Ya puedes entrar." : "¡Cuenta activada con éxito! Bienvenido.";
+        alert(msg);
+        window.location.hash = '';
+        window.location.search = '';
+        window.location.reload(); // Recargar para limpiar estado
     } else {
         alert(res.msg);
     }
@@ -3297,8 +3304,10 @@ setTimeout(() => {
 }, 1000);
 
 // --- TOKEN DETECTION (Password Reset & Email Verification) ---
-// --- TOKEN DETECTION (Password Reset & Email Verification) ---
 let isProcessingTokens = false; // Guard para evitar doble ejecución
+window._authToken = ''; // Cache global para el token
+window._authType = '';  // 'verify' o 'password-reset'
+
 const processTokens = async () => {
     if (isProcessingTokens) return;
 
@@ -3324,6 +3333,9 @@ const processTokens = async () => {
     }
 
     if (token) {
+        window._authToken = token; // Guardar para el submit posterior
+        window._authType = type;
+
         isProcessingTokens = true; // Bloquear nuevas ejecuciones
         console.log(`🔐 Token detectado [${type || 'auto'}]. Procesando...`);
 
@@ -3346,10 +3358,21 @@ const processTokens = async () => {
             }
         }
         else {
+            // Password Reset o Activación manual
             setTimeout(() => {
                 if (document.getElementById('authModal')) {
                     document.getElementById('authModal').style.display = 'flex';
                     window.toggleAuth('act');
+
+                    // Personalizar textos si es un reset
+                    if (type === 'password-reset') {
+                        const titleEl = document.getElementById('actTitle');
+                        const descEl = document.getElementById('actDesc');
+                        if (titleEl) titleEl.innerText = "Nueva Contraseña";
+                        if (descEl) descEl.innerText = "Introduce tu usuario y la nueva contraseña que deseas usar.";
+                        const btnEl = document.querySelector('#activateForm .btn');
+                        if (btnEl) btnEl.innerText = "Cambiar y Entrar";
+                    }
                 }
             }, 800);
         }
