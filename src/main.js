@@ -14,9 +14,10 @@ import { SearchSuggestions } from './components/SearchSuggestions.js';
 const MAINTENANCE_MODE = false;
 
 // DEBUG: Confirmar carga de script
+alert("🚀 MAIN.JS CARGADO!");
 console.log("🚀 MAIN.JS LOADED at " + new Date().toISOString());
 if (window.location.hash.includes('confirm-verification')) {
-    console.log("🔍 Hash de verificación detectado!");
+    alert("🔍 Hash de verificación detectado en la URL!");
 }
 
 
