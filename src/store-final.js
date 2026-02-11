@@ -1044,6 +1044,24 @@ const store = {
 
     async register(email, username, password) {
         try {
+            // 1. VALIDACIÓN DE DUPLICADOS (Email o Nombre)
+            // Buscamos si ya existe alguien con ese email
+            const emailCheck = await pb.collection('users').getList(1, 1, {
+                filter: `email = "${email}"`
+            });
+            if (emailCheck.totalItems > 0) {
+                return { success: false, msg: "Este correo ya está registrado. Prueba con otro o inicia sesión." };
+            }
+
+            // Buscamos si ya existe alguien con ese nombre de usuario
+            const nameCheck = await pb.collection('users').getList(1, 1, {
+                filter: `username = "${username}" || name = "${username}"`
+            });
+            if (nameCheck.totalItems > 0) {
+                return { success: false, msg: "Ese nombre de usuario ya está en uso. ¡Elige uno más original! ✨" };
+            }
+
+            // 2. CREACIÓN DE CUENTA
             await pb.collection('users').create({
                 username, email, password, passwordConfirm: password,
                 name: username, tokens: 100, level: 0, xp: 0, role: 'user'
@@ -1054,7 +1072,8 @@ const store = {
 
             return { success: true };
         } catch (error) {
-            return { success: false, msg: "Error al crear cuenta o el usuario/email ya existe." };
+            console.error("Register Error:", error);
+            return { success: false, msg: "Error al crear cuenta. Inténtalo de nuevo." };
         }
     },
 
