@@ -391,9 +391,10 @@ const Header = () => `
 const ProfileHeader = () => {
     console.log(`[PROFILE] ProfileHeader: profileUser = "${profileUser}"`);
     if (!profileUser) return '';
-    let user = (store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser))
+    const target = profileUser.toLowerCase();
+    let user = (store.currentUser && (store.currentUser.username?.toLowerCase() === target || store.currentUser.name?.toLowerCase() === target))
         ? store.currentUser
-        : (store.users.find(u => u.username === profileUser || u.name === profileUser) || store.usersCache[profileUser]);
+        : (store.users.find(u => u.username?.toLowerCase() === target || u.name?.toLowerCase() === target) || store.usersCache[target]);
 
     console.log(`[PROFILE] ProfileHeader: user encontrado ? `, user ? user.username : 'NO');
     console.log(`[DEBUG_ADMIN] CurrentUserRole: `, store.currentUser?.role);
@@ -504,9 +505,10 @@ const ProfileHeader = () => {
 };
 
 const Gallery = () => {
-    const user = (store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser))
+    const target = profileUser.toLowerCase();
+    const user = (store.currentUser && (store.currentUser.username?.toLowerCase() === target || store.currentUser.name?.toLowerCase() === target))
         ? store.currentUser
-        : (store.users.find(u => u.username === profileUser || u.name === profileUser) || store.usersCache[profileUser]);
+        : (store.users.find(u => u.username?.toLowerCase() === target || u.name?.toLowerCase() === target) || store.usersCache[target]);
 
     if (!user) return '<div class="container" style="padding:40px 0; color:#666">Cargando galería...</div>';
 
