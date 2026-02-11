@@ -283,8 +283,10 @@ const store = {
         const query = rawUsername.trim().replace(/['"]/g, "");
         const lowerQuery = query.toLowerCase();
 
-        // 1. Check Cache (Normalized)
-        if (this.usersCache[lowerQuery]) return this.usersCache[lowerQuery];
+        // 1. Check Cache (Normalized) with 60s TTL
+        if (this.usersCache[lowerQuery] && (Date.now() - this.usersCache[lowerQuery]._fetchedAt < 60000)) {
+            return this.usersCache[lowerQuery];
+        }
 
         try {
             let found = null;
