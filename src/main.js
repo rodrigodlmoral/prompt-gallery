@@ -3349,22 +3349,31 @@ const processTokens = async () => {
                 alert("✅ ¡Cuenta verificada con éxito! Bienvenido a la comunidad.✨\n\nPor seguridad, por favor inicia sesión ahora para empezar.");
                 window.location.hash = '';
                 // Abrir el modal de login automáticamente
-                setTimeout(() => {
-                    window.toggleAuth('log');
-                    if (document.getElementById('authModal')) {
-                        document.getElementById('authModal').style.display = 'flex';
+                let loginAttempts = 0;
+                const tryOpenLogin = () => {
+                    const modal = document.getElementById('authModal');
+                    if (modal) {
+                        window.toggleAuth('log');
+                        modal.style.display = 'flex';
+                    } else if (loginAttempts < 10) {
+                        loginAttempts++;
+                        setTimeout(tryOpenLogin, 300);
                     }
-                }, 500);
+                };
+                tryOpenLogin();
             } else {
                 alert("❌ " + res.msg);
                 window.location.hash = '';
+                isProcessingTokens = false; // Permitir reintento si falla la lógica
             }
         }
         else {
             // Password Reset o Activación manual
-            setTimeout(() => {
-                if (document.getElementById('authModal')) {
-                    document.getElementById('authModal').style.display = 'flex';
+            let modalAttempts = 0;
+            const tryOpenAuth = () => {
+                const modal = document.getElementById('authModal');
+                if (modal) {
+                    modal.style.display = 'flex';
                     window.toggleAuth('act');
 
                     // Personalizar textos si es un reset
@@ -3376,8 +3385,15 @@ const processTokens = async () => {
                         const btnEl = document.querySelector('#activateForm .btn');
                         if (btnEl) btnEl.innerText = "Cambiar y Entrar";
                     }
+                } else if (modalAttempts < 15) { // Intentar durante ~4.5 segundos
+                    modalAttempts++;
+                    setTimeout(tryOpenAuth, 300);
+                } else {
+                    console.error("❌ No se pudo encontrar el authModal tras varios intentos.");
+                    isProcessingTokens = false;
                 }
-            }, 800);
+            };
+            tryOpenAuth();
         }
     }
 };
