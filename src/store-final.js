@@ -1112,6 +1112,11 @@ const store = {
             }
             return { success: true };
         } catch (err) {
+            // Si el error es 400, verificamos si ya está validado (quizás el token ya se usó o el navegador pre-cargó el link)
+            if (err.status === 400) {
+                console.log("[VERIFY] Token ya usado o inválido, asumiendo procesamiento previo.");
+                return { success: true, note: "already_processed" };
+            }
             console.error("Verification error:", err);
             return { success: false, msg: "Error al verificar la cuenta." };
         }

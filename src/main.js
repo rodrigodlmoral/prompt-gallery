@@ -3297,7 +3297,11 @@ setTimeout(() => {
 }, 1000);
 
 // --- TOKEN DETECTION (Password Reset & Email Verification) ---
+// --- TOKEN DETECTION (Password Reset & Email Verification) ---
+let isProcessingTokens = false; // Guard para evitar doble ejecución
 const processTokens = async () => {
+    if (isProcessingTokens) return;
+
     console.log("🔍 Checking for tokens in URL/Hash...");
     const urlParams = new URLSearchParams(window.location.search);
     let token = urlParams.get('token');
@@ -3308,7 +3312,6 @@ const processTokens = async () => {
 
     if (!token && hash) {
         if (hash.includes('confirm-verification')) {
-            // El hash suele ser #/auth/confirm-verification/TOKEN o similar
             const parts = hash.split('/');
             token = parts[parts.length - 1];
             type = 'verify';
@@ -3321,18 +3324,22 @@ const processTokens = async () => {
     }
 
     if (token) {
+        isProcessingTokens = true; // Bloquear nuevas ejecuciones
         console.log(`🔐 Token detectado [${type || 'auto'}]. Procesando...`);
 
         if (type === 'verify') {
-            if (window.toast) window.toast("Verificando tu cuenta...", "info");
-            else console.log("Verificando...");
-
             const res = await store.confirmVerification(token);
             console.log("📡 Respuesta de verificación:", res);
             if (res.success) {
-                alert("✅ ¡Cuenta verificada con éxito! Ya puedes disfrutar de todas las funciones.");
+                alert("✅ ¡Cuenta verificada con éxito! Bienvenido a la comunidad.✨\n\nPor seguridad, por favor inicia sesión ahora para empezar.");
                 window.location.hash = '';
-                if (window.render) window.render();
+                // Abrir el modal de login automáticamente
+                setTimeout(() => {
+                    window.toggleAuth('log');
+                    if (document.getElementById('authModal')) {
+                        document.getElementById('authModal').style.display = 'flex';
+                    }
+                }, 500);
             } else {
                 alert("❌ " + res.msg);
                 window.location.hash = '';
@@ -3350,4 +3357,4 @@ const processTokens = async () => {
 };
 
 window.addEventListener('DOMContentLoaded', processTokens);
-processTokens(); // Autoejecutar por si acaso
+// No lo llamamos inmediatamente para evitar colisiones con el evento del DOM
