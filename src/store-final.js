@@ -1045,36 +1045,35 @@ const store = {
 
     async register(email, username, password) {
         try {
-            // 1. VALIDACIÓN DE DUPLICADOS (Email o Nombre)
-            // Buscamos si ya existe alguien con ese email
-            const emailCheck = await pb.collection('users').getList(1, 1, {
-                filter: `email = "${email}"`
-            });
-            if (emailCheck.totalItems > 0) {
-                return { success: false, msg: "Este correo ya está registrado. Prueba con otro o inicia sesión." };
-            }
-
-            // Buscamos si ya existe alguien con ese nombre de usuario
-            const nameCheck = await pb.collection('users').getList(1, 1, {
-                filter: `username = "${username}" || name = "${username}"`
-            });
-            if (nameCheck.totalItems > 0) {
-                return { success: false, msg: "Ese nombre de usuario ya está en uso. ¡Elige uno más original! ✨" };
-            }
-
-            // 2. CREACIÓN DE CUENTA
+            // 1. CREACIÓN DE CUENTA DIRECTA (Confiamos en las restricciones de PB)
             await pb.collection('users').create({
                 username, email, password, passwordConfirm: password,
                 name: username, tokens: 100, level: 0, xp: 0, role: 'user'
             });
 
-            // SOLICITAR VERIFICACIÓN AUTOMÁTICAMENTE
-            await pb.collection('users').requestVerification(email);
+            // 2. SOLICITAR VERIFICACIÓN AUTOMÁTICAMENTE
+            try {
+                await pb.collection('users').requestVerification(email);
+            } catch (vErr) {
+                console.warn("[REGISTER] Fallo al solicitar verificación (no crítico):", vErr);
+            }
 
             return { success: true };
         } catch (error) {
             console.error("Register Error:", error);
-            return { success: false, msg: "Error al crear cuenta. Inténtalo de nuevo." };
+
+            // Mapeo detallado de errores de PocketBase (400 Bad Request)
+            if (error.status === 400 && error.data?.data) {
+                const fields = error.data.data;
+                if (fields.email) {
+                    return { success: false, msg: "Este correo ya está registrado. Prueba con otro o inicia sesión." };
+                }
+                if (fields.username) {
+                    return { success: false, msg: "Ese nombre de usuario ya está en uso. ¡Elige uno más original! ✨" };
+                }
+            }
+
+            return { success: false, msg: "Error al crear cuenta. " + (error.message || "Inténtalo de nuevo.") };
         }
     },
 
