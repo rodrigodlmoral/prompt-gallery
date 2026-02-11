@@ -1,65 +1,76 @@
-# ECONOMÍA PROMPTBITS - ENERO 2026 💎📊
+# 💎 ECONOMÍA PROMPTBITS: MANIFIESTO Y AUDITORÍA (Actualizado Feb 2026)
 
-Este documento detalla el estado técnico actual y la hoja de ruta para la seguridad y escalabilidad del sistema económico de Prompt Gallery.
-
----
-
-## 1. ESTADO ACTUAL (Auditoría de Código)
-
-Actualmente, el saldo de un usuario reside en el campo `tokens` de la colección `users`. El sistema funciona mediante actualizaciones directas desde el cliente, lo que representa un riesgo de seguridad y falta de trazabilidad.
-
-### 📥 Cómo se GANAN los tokens (Fuentes de Ingreso)
-Según el análisis del código en `store-final.js`, `main.js` y `profile.js`:
-
-1.  **Bono de Bienvenida (Capital Inicial)**: Al registrarse, el sistema otorga **100 PromptBits** automáticamente. Esto permite que nuevos usuarios interactúen de inmediato.
-2.  **Propinas/Regalos en Posts**: Un usuario puede enviar tokens a otro a través de un post. El destinatario recibe el monto íntegro.
-3.  **Apoyo Directo al Perfil (Tips)**: A través del botón "Apoyar" en el perfil, se pueden enviar 5, 10, 20 o 50 tokens sin que estén vinculados a una imagen específica.
-4.  **Sistema de Gamificación (XP/Niveles)**:
-    *   **Subida de Nivel**: Ganas **10 tokens** cada vez que subes de nivel.
-    *   **Bono de Actividad**: El sistema otorga **1 token** por ciertas acciones de interacción que generan XP.
-5.  **Administración**: El dueño de la web puede usar la función `giftTokens` para inyectar saldo a cualquier usuario (soporte, premios, eventos).
-
-### 📤 Cómo se GASTAN los tokens (Salidas de Capital)
-
-1.  **Envío de Propinas (Tips)**: Es el flujo principal de transferencia entre usuarios.
-2.  **Destacar Posts (Boost)**: Cuesta **50 tokens** destacar un prompt durante 7 días. Esta es la principal "quema" de tokens hacia el sistema.
-3.  **Copiar Prompts (Futuro/Premium)**: Aunque actualmente hay lógica de copia, el modelo admite expandirse para que obtener un prompt específico tenga un coste en bits.
+Este documento es el registro maestro de la arquitectura económica de **Prompt Gallery**. Detalla la evolución del sistema de tokens, desde sus fallos iniciales hasta el blindaje actual y el futuro sistema de auditoría inmutable.
 
 ---
 
-## 2. EL NUEVO SISTEMA: CONTABILIDAD PROFESIONAL (LEDGER) 🔐
+## 📅 1. LÍNEA DE TIEMPO Y EVOLUCIÓN
 
-Para evitar inconsistencias y proteger la economía, se propone la creación de la colección `promptbits_transactions`.
+### Fase 1: Génesis (Enero 2026)
+*   **Concepto**: Creación de los "Bits" como incentivo básico.
+*   **Estado**: El saldo era un simple número en la tabla `users`.
+*   **Vulnerabilidad**: El frontend tenía permisos completos de escritura sobre el saldo. Cualquier usuario con conocimientos básicos de consola podía "inyectarse" millones de bits.
 
-### Estructura de la Colección: `promptbits_transactions`
-| Campo | Tipo | Descripción |
+### Fase 2: El Refactor de Seguridad (Principios Feb 2026)
+*   **Problema Detectado**: El "Bug de Persistencia". Los usuarios perdían bits aleatoriamente al actualizar su perfil porque el frontend sobrescribía el valor real de la base de datos con una copia local antigua.
+*   **Solución Aplicada**: Se eliminó el campo `tokens` de todas las funciones de actualización de perfil (`_persistUser`).
+*   **Resultado**: El saldo solo puede cambiar mediante operaciones controladas en el servidor (Batch updates). ✅
+
+### Fase 3: Unificación y Auditoría V29 (Hoy)
+*   **Meta**: Implementar el `promptbits_ledger` para que cada centavo digital sea trazable.
+
+---
+
+## 💰 2. MECÁNICAS DE FLUJO DE CAPITAL
+
+### 📥 Entradas (¿Cómo entran bits al sistema?)
+1.  **Welcome Bonus**: **+100 💎** al verificar el correo. Es el capital semilla para que la comunidad se mueva.
+2.  **Incentivo de Creación**: **+1 💎** por cada prompt publicado. Fomenta que los usuarios compartan su trabajo.
+3.  **Level Up Bonus**: **+10 💎** por cada subida de nivel (de "Explorador" hasta "Maestro").
+4.  **Admin Gift**: Inyecciones manuales por parte del equipo de moderación para premios o soporte.
+
+### 🔄 Circulación (Transferencias Usuario a Usuario)
+1.  **Propinas (Tips)**: Los usuarios pueden enviar cualquier cantidad a sus autores favoritos. Es la base de la economía social.
+2.  **Regalos Directos**: Transferencias manuales desde el perfil de un usuario.
+
+### 📤 Salidas (¿Cómo desaparecen bits del sistema?)
+1.  **Boost Post**: Cuesta **50 💎** destacar un post durante 7 días. Esta "quema" de tokens ayuda a evitar la inflación galopante.
+
+---
+
+## 🕵️‍♂️ 3. LA AUDITORÍA PROFESIONAL (LEDGER V29)
+
+Para garantizar que nadie pierda tokens y que todo sea auditable, el sistema ahora utiliza la colección `promptbits_ledger`.
+
+### Esquema de Datos Requerido:
+| Campo | Propósito | Ejemplo |
 | :--- | :--- | :--- |
-| `user_id` | Relation (users) | Beneficiario o emisor del movimiento. |
-| `amount` | Number | Cantidad (positivo para ingresos, negativo para gastos). |
-| `type` | Select | `earn`, `spend`, `transfer`, `admin_adjustment`. |
-| `reason` | String | Descripción: "Bono registro", "Tip de @usuario", "Boost Post #123". |
-| `reference_id` | String/ID | ID del prompt o evento que originó la transacción. |
-| `balance_snapshot` | Number | Saldo del usuario **después** de esta transacción. |
+| `user` | Dueño del movimiento | `ID_USUARIO_123` |
+| `amount` | Cambio neto | `+10` (Ingreso) o `-50` (Gasto) |
+| `type` | Clasificación técnica | `signup`, `tip_send`, `post_reward`, `boost` |
+| `description`| Motivo legible | "Propina enviada a @rodrigo" |
+| `metadata` | Datos técnicos | `{ "postId": "ABC", "ip": "1.2.3.4" }` |
+
+### Reglas de Auditoría Inmutable:
+> [!IMPORTANT]
+> **NUNCA BORRAR**: Los registros del ledger no se deben borrar jamás. Si hay un error, se crea una transacción de "Ajuste" (negativa o positiva) para compensar, manteniendo el historial intacto.
 
 ---
 
-## 3. SEGURIDAD INFALIBLE (BACKEND FIRST) 🛡️
+## 🛡️ 4. SEGURIDAD Y BLINDAJE TÉCNICO
 
-El objetivo es eliminar el permiso de escritura del frontend sobre el campo `tokens`.
-
-### Reglas de Oro de Seguridad:
-1.  **Update Prohibido**: Ningún usuario (excepto `admin`) debe poder editar el campo `tokens` de la tabla `users` directamente desde el navegador.
-2.  **Hooks en PocketBase**: Toda la lógica económica debe ejecutarse en el servidor usando Hooks (Golang o JS):
-    *   `onRecordBeforeCreateRequest` (en la tabla de transacciones): El servidor valida si el usuario tiene saldo antes de permitir el registro.
-    *   `onRecordAfterCreateRequest`: El servidor actualiza el saldo del usuario automáticamente después de validar la transacción.
-3.  **Atomicidad**: Las transacciones deben ser atómicas. Si falla la creación del registro en el Ledger, no se debe alterar el saldo del usuario.
-
-### Mejora en la Experiencia de Usuario (UX)
-*   **Auditoría para el usuario**: Crear una pestaña "Mis Finanzas" donde el usuario vea su historial de transacciones (gracias al nuevo Ledger).
-*   **Sincronización Silenciosa**: Al cargar la web, el sistema verifica una sola vez el saldo real contra el historial, asegurando que el número que ve el usuario es 100% verídico.
-*   **Prevención de Huérfanos**: Al momento de eliminar un post, el Ledger asegura que los tokens recibidos por ese post no se pierdan, manteniéndolos en el saldo histórico del autor.
+*   **Frontend Read-Only**: El navegador solo puede **leer** el saldo total. Nunca puede decidir cuánto saldo tiene el usuario.
+*   **Validación de Saldo**: Antes de cualquier transacción (Tip o Boost), el sistema verifica en el servidor que `saldo_actual >= monto_a_gastar`.
+*   **Transacciones Atómicas**: Si el registro en el Ledger falla, el saldo del usuario no se toca. Esto previene "bits fantasma" que se gastan pero no se registran.
 
 ---
 
-**DOCUMENTO GENERADO POR ANTIGRAVITY - ENERO 2026**
-*Propiedad de Prompt Gallery*
+## 🚀 5. HOJA DE RUTA (PRÓXIMOS PASOS)
+
+1.  **Pestaña de Transacciones**: Una nueva vista para que cada usuario vea su extracto bancario digital.
+2.  **Notificaciones de Ingreso**: Avisar en tiempo real cuando recibes una propina.
+3.  **Marketplace de Beneficios**: Poder canjear PromptBits por emojis exclusivos, colores de nombre o marcos para el avatar.
+
+---
+**DOCUMENTO MAESTRO - ACTUALIZADO FEBRERO 2026**
+*Unidad de Seguridad Económica - Prompt Gallery* 🛡️💎📊

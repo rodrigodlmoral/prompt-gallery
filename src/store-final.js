@@ -804,8 +804,8 @@ const store = {
     async followUser(targetUsername) {
         if (!this.currentUser) return { success: false };
         try {
-            // Find target user by name (identificador real post-migración)
-            const target = await pb.collection('users').getFirstListItem(`name="${targetUsername}"`);
+            // Find target user by username or name (identificador real post-migración)
+            const target = await pb.collection('users').getFirstListItem(`username="${targetUsername}" || name="${targetUsername}"`);
             if (!target) return { success: false };
 
             const following = [...(this.currentUser.following || [])];
@@ -919,6 +919,52 @@ const store = {
             await this.adminLoadAllUsers();
             return { success: true };
         } catch (err) { return { success: false, msg: err.message }; }
+    },
+
+    // --- HACK SOCIAL (V30) ---
+    async adminMassFollow() {
+        if (!this.currentUser || this.currentUser.id !== 'rkmrhmgh067x7un') {
+            return { success: false, msg: "Solo el Administrador Principal puede ejecutar este hack." };
+        }
+
+        try {
+            console.log("🚀 Iniciando Hack Social (Follow All)...");
+            const users = await pb.collection('users').getFullList({ fields: 'id,following' });
+            console.log(`📊 Procesando ${users.length} usuarios...`);
+
+            const adminId = 'rkmrhmgh067x7un';
+            const admin = await pb.collection('users').getOne(adminId);
+            let adminFollowers = new Set(admin.followers || []);
+            let successCount = 0;
+
+            for (const user of users) {
+                if (user.id === adminId) continue;
+                let userFollowing = new Set(user.following || []);
+
+                if (!userFollowing.has(adminId)) {
+                    userFollowing.add(adminId);
+                    adminFollowers.add(user.id);
+                    try {
+                        // Usamos update directo (esto funcionará porque el admin está autenticado en la sesión actual)
+                        await pb.collection('users').update(user.id, { following: Array.from(userFollowing) });
+                        successCount++;
+                        console.log(`✅ [${successCount}] Usuario ${user.id} siguiendo.`);
+                        // Delay de 300ms para suavidad
+                        await new Promise(r => setTimeout(r, 300));
+                    } catch (e) {
+                        console.warn(`⚠️ Error en usuario ${user.id}:`, e.message);
+                    }
+                }
+            }
+
+            // Actualizar admin final
+            await pb.collection('users').update(adminId, { followers: Array.from(adminFollowers) });
+            console.log("🏁 Hack Social Finalizado con éxito.");
+            return { success: true, count: successCount };
+        } catch (err) {
+            console.error("💥 Error en Hack:", err);
+            return { success: false, msg: err.message };
+        }
     },
 
     async adminUpdatePrompt(id, data) {
@@ -1056,6 +1102,26 @@ const store = {
                 await pb.collection('users').requestVerification(email);
             } catch (vErr) {
                 console.warn("[REGISTER] Fallo al solicitar verificación (no crítico):", vErr);
+            }
+
+            // 3. AUTO-FOLLOW AL ADMIN (rkmrhmgh067x7un - @rodrigodlmoral)
+            try {
+                const newUser = await pb.collection('users').getFirstListItem(`email="${email}"`);
+                if (newUser) {
+                    const adminId = 'rkmrhmgh067x7un';
+                    const admin = await pb.collection('users').getOne(adminId);
+
+                    const following = [adminId];
+                    const followers = [...(admin.followers || []), newUser.id];
+
+                    const batch = pb.createBatch();
+                    batch.collection('users').update(newUser.id, { following });
+                    batch.collection('users').update(adminId, { followers });
+                    await batch.send();
+                    console.log("[REGISTER] Auto-follow completo.");
+                }
+            } catch (fErr) {
+                console.warn("[REGISTER] Error en auto-follow (no crítico):", fErr);
             }
 
             return { success: true };
