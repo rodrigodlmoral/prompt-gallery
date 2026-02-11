@@ -1646,7 +1646,7 @@ const ALLOWED_DOMAINS = [
     'protonmail.com', 'proton.me', 'tutanota.com', 'tuta.io',
     // Regionales / Otros
     'aol.com', 'zoho.com', 'yandex.com', 'mail.com', 'gmx.com',
-    'rocketmail.com', 'fastmail.com', 'hushmail.com'
+    'rocketmail.com', 'fastmail.com', 'hushmail.com', 'prompt-gallery.app'
 ];
 
 window.doRegisterSubmit = async () => {
