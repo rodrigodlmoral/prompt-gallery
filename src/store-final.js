@@ -123,8 +123,6 @@ const store = {
 
     async loadPrompts() {
         try {
-            // ESTRATEGIA: Jump to Tail (Salto al final)
-            // Ya que PocketHost falla con 'sort', saltamos a la última página para obtener lo más nuevo.
             const stats = await pb.collection('prompts').getList(1, 1);
             const total = stats.totalItems;
 
@@ -132,75 +130,87 @@ const store = {
             if (total > 0) {
                 const limit = 200;
                 const lastPage = Math.ceil(total / limit);
-
-                // Obtenemos la última página (los más recientes)
-                const batch1 = await pb.collection('prompts').getList(lastPage, limit);
+                // Obtenemos los más recientes con expand del autor para evitar 'Exploradores'
+                const batch1 = await pb.collection('prompts').getList(lastPage, limit, { expand: 'author' });
                 records.items = batch1.items;
 
-                // Si la última página es pequeña, unimos con la anterior para asegurar volumen
                 if (records.items.length < limit && lastPage > 1) {
-                    const batch2 = await pb.collection('prompts').getList(lastPage - 1, limit);
+                    const batch2 = await pb.collection('prompts').getList(lastPage - 1, limit, { expand: 'author' });
                     records.items = [...batch2.items, ...records.items].slice(-limit);
                 }
             }
-
-            // Ordenar en el cliente (Descendente: más nuevo primero)
-            const sortedItems = records.items.sort((a, b) => {
-                const getVal = (p) => (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : p.created;
-                const dateA = new Date(getVal(a));
-                const dateB = new Date(getVal(b));
-                return dateB - dateA;
-            });
-
-            this.prompts = sortedItems.map(p => ({
-                id: p.id,
-                title: p.title,
-                prompt: p.prompt,
-                negative_prompt: p.negative_prompt,
-                image: p.image_url || p.image, // Normalización de campo de imagen
-                author: p.author_name || p.expand?.author?.name || 'Explorador',
-                author_id: p.author,
-                createdAt: (() => {
-                    const val = (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : (p.created || p.created_at_original);
-                    const d = new Date(val);
-                    return isNaN(d.getTime()) ? 0 : d.getTime();
-                })(),
-                created_at: (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : p.created,
-                reactions: p.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 },
-                userReactions: (p.reactions && p.reactions._u) ? p.reactions._u : {},
-                comments: p.comments || [],
-                savedBy: p.saved_by || [],
-                saved_by: p.saved_by || [],
-                type: p.type || 'single',
-                content: p.content || [],
-
-                // NUEVOS CAMPOS POST-MIGRACIÓN
-                tokens_received: p.tokens_received || 0,
-                rating: p.rating || 'SFW / Apto',
-                is_private: p.is_private === true || p.isPrivate === true,
-                copy_count: p.copy_count || 0,
-                needs_reference: p.needs_reference || false,
-                needsReference: p.needs_reference || false,
-                admin_featured: p.admin_featured || false,
-                is_featured: p.is_featured || false,
-                featured_until: p.featured_until || null,
-                tool: p.tool || 'ChatGPT',
-                content: p.content || [],
-                extraConfig: p.extra_config || [],
-                tags: p.tags || [], // NUEVO: Include tags in frontend model
-                profiles: p.expand?.author ? {
-                    username: p.expand.author.username,
-                    avatar_url: p.expand.author.avatar_url,
-                    level: p.expand.author.level
-                } : null
-            }));
-
+            this.prompts = this._mapPrompts(records.items);
             if (window.render) window.render();
         } catch (error) {
             console.error("Error loading prompts:", error);
             this.prompts = [];
         }
         return this.prompts;
+    },
+
+    async loadUserPrompts(userId) {
+        try {
+            console.log(`[STORE] 🔍 Cargando galería completa del servidor para ID: ${userId}`);
+            const records = await pb.collection('prompts').getFullList({
+                filter: `author = "${userId}"`,
+                expand: 'author',
+                sort: '-created'
+            });
+
+            const mapped = this._mapPrompts(records);
+            // Fusionar con los prompts globales para evitar duplicados en memoria
+            const existingIds = new Set(this.prompts.map(p => p.id));
+            const newOnes = mapped.filter(p => !existingIds.has(p.id));
+            this.prompts = [...this.prompts, ...newOnes];
+
+            return mapped;
+        } catch (error) {
+            console.error("Error loading user prompts:", error);
+            return [];
+        }
+    },
+
+    // Helper para no repetir el mapeo
+    _mapPrompts(items) {
+        return items.map(p => ({
+            id: p.id,
+            title: p.title,
+            prompt: p.prompt,
+            negative_prompt: p.negative_prompt,
+            image: p.image_url || p.image,
+            author: p.author_name || p.expand?.author?.username || p.expand?.author?.name || 'Explorador',
+            author_id: p.author,
+            createdAt: (() => {
+                const val = (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : (p.created || p.created_at_original);
+                const d = new Date(val);
+                return isNaN(d.getTime()) ? 0 : d.getTime();
+            })(),
+            created_at: (p.created_at_custom && p.created_at_custom !== 'N/A') ? p.created_at_custom : p.created,
+            reactions: p.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 },
+            userReactions: (p.reactions && p.reactions._u) ? p.reactions._u : {},
+            comments: p.comments || [],
+            savedBy: p.saved_by || [],
+            saved_by: p.saved_by || [],
+            type: p.type || 'single',
+            content: p.content || [],
+            tokens_received: p.tokens_received || 0,
+            rating: p.rating || 'SFW / Apto',
+            is_private: p.is_private === true || p.isPrivate === true,
+            copy_count: p.copy_count || 0,
+            needs_reference: p.needs_reference || false,
+            needsReference: p.needs_reference || false,
+            admin_featured: p.admin_featured || false,
+            is_featured: p.is_featured || false,
+            featured_until: p.featured_until || null,
+            tool: p.tool || 'ChatGPT',
+            extraConfig: p.extra_config || [],
+            tags: p.tags || [],
+            profiles: p.expand?.author ? {
+                username: p.expand.author.username,
+                avatar_url: p.expand.author.avatar ? pb.files.getUrl(p.expand.author, p.expand.author.avatar) : null,
+                level: p.expand.author.level
+            } : null
+        }));
     },
 
     async getPublicStats() {

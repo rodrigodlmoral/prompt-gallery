@@ -2313,7 +2313,10 @@ const init = async () => {
     console.log("[PROFILE] store.init done.");
     if (profileUser) {
         console.log(`[PROFILE] fetching profile for: ${profileUser}`);
-        await store.fetchUserProfileByUsername(profileUser);
+        const user = await store.fetchUserProfileByUsername(profileUser);
+        if (user) {
+            await store.loadUserPrompts(user.id);
+        }
         console.log("[PROFILE] fetch done.");
     }
     window.initDone = true;
