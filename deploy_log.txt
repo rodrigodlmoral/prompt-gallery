@@ -1,14 +1,15 @@
 Iniciando despliegue 
-09/02/2026  0:36:13.01 
+10/02/2026 12:30:59.80 
 Resetting repo... 
 Already on 'main'
-HEAD is now at e99d68a Auto-Deploy Update: 09/02/2026  0:32:33.76
+HEAD is now at 41fa774 Auto-Deploy Update: 10/02/2026 12:28:38.14
 From https://github.com/rodrigodlmoral/prompt-gallery
  * branch            main       -> FETCH_HEAD
 Already up to date.
 Limpieza OK. 
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\admin.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\admin_fix.css
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\batch_upload.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\counter.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\javascript.svg
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\main.js
@@ -17,9 +18,12 @@ C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\profile.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\store-final.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\style.css
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\uploadService.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\AdvancedFilters.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\DetailModal.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\SearchSuggestions.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\data\tagAliases.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\data\tags.js
-12 archivo(s) copiado(s)
+16 archivo(s) copiado(s)
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\public\vite.svg
 1 archivo(s) copiado(s)
         1 archivo(s) copiado(s).
@@ -27,8 +31,10 @@ C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\public\vite.svg
         1 archivo(s) copiado(s).
         1 archivo(s) copiado(s).
         1 archivo(s) copiado(s).
+        1 archivo(s) copiado(s).
+        1 archivo(s) copiado(s).
 warning: in the working copy of 'src/counter.js', LF will be replaced by CRLF the next time Git touches it
-[main 1f49641] Auto-Deploy Update: 09/02/2026  0:36:15.20
- 1 file changed, 4 insertions(+), 4 deletions(-)
+[main 2bd9ab7] Auto-Deploy Update: 10/02/2026 12:31:01.57
+ 2 files changed, 5 insertions(+), 1 deletion(-)
 To https://github.com/rodrigodlmoral/prompt-gallery.git
-   e99d68a..1f49641  main -> main
+   41fa774..2bd9ab7  main -> main

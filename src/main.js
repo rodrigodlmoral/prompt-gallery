@@ -1,5 +1,5 @@
 import './style.css'
-// Deploy Timestamp: 2026-02-08T15:17:00-06:00 (Force Update)
+// Deploy Timestamp: 2026-02-09T18:52:00-06:00 (UI Fix + Maintenance 3D)
 import './admin_fix.css' // Emergency CSS Fix for Admin Panel
 import { pb } from './pocketbase.js';
 import { store, TOOLS, RATINGS, RATING_INFO, INFO_ICON, LEVEL_REQS } from './store-final.js';
@@ -12,35 +12,130 @@ import { SearchSuggestions } from './components/SearchSuggestions.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;
-const MAINTENANCE_END_TIME = new Date('2026-02-09T08:00:00-06:00').getTime(); // 8:00 AM Local (Mañana)
+
 
 const renderMaintenance = () => {
-    document.body.innerHTML = `
-    <div style = "height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0a0a0a; color:white; font-family: 'Inter', sans-serif; text-align:center; padding:20px">
-            <div style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); padding: 50px; border-radius: 32px; border: 1px solid rgba(255, 255, 255, 0.12); max-width: 500px; box-shadow: 0 20px 50px rgba(0,0,0,0.5)">
-                <div style="font-size: 5rem; margin-bottom: 25px; animation: float 3s ease-in-out infinite">🏗️</div>
-                <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 15px; background: linear-gradient(135deg, #fff 0%, #888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -1px">Estamos Mejorando</h1>
-                <p style="color: #aaa; line-height: 1.6; font-size: 1.1rem; font-weight: 300">
-                    Prompt Gallery se encuentra en proceso de migración para ofrecerte una experiencia más rápida y estable.
-                </p>
-                <div style="margin-top: 35px; padding: 25px; background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.15)">
-                    <p style="font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 3px; font-weight: 700">Estado del Sistema</p>
-                    <div style="font-size: 1.8rem; font-weight: 700; margin: 15px 0; color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.1)">Migración en Progreso</div>
-                    <p style="font-size: 0.85rem; color: #555">Regresaremos lo antes posible</p>
-                </div>
-                <p style="margin-top: 35px; font-size: 0.8rem; color: #444; font-style: italic">Gracias por tu infinita paciencia.</p>
-            </div>
-            <style>
-                @keyframes float {
-                    0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-10px); }
-                }
-                body { margin: 0; overflow: hidden; background: #050505; }
-            </style>
-        </div>
+    // 1. Apply blur and safety to the main app container
+    const appContainer = document.getElementById('app');
+    if (appContainer) {
+        appContainer.style.filter = 'blur(20px) saturate(150%)';
+        appContainer.style.pointerEvents = 'none';
+        appContainer.style.userSelect = 'none';
+        appContainer.style.transition = 'filter 1s ease';
+    }
+
+    // 2. Create the Fixed Overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'maintenance-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        z-index: 999999;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Inter', sans-serif;
+        overflow: hidden;
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
     `;
 
-    // Temporizador removido por solicitud del usuario
+    overlay.innerHTML = `
+        <div style="position: absolute; inset: 0; background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%); pointer-events: none;"></div>
+        <div class="maint-scene" style="perspective: 1500px; width: 100%; display: flex; justify-content: center; align-items: center;">
+            <div class="maint-card" style="
+                width: 95%;
+                max-width: 550px;
+                background: rgba(20, 20, 20, 0.6);
+                backdrop-filter: blur(30px) saturate(200%);
+                -webkit-backdrop-filter: blur(30px) saturate(200%);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 48px;
+                padding: 70px 40px;
+                box-shadow: 
+                    0 50px 100px rgba(0, 0, 0, 0.8),
+                    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+                    0 0 40px rgba(59, 130, 246, 0.1);
+                transform: rotateX(12deg) rotateY(-8deg);
+                animation: float3d 8s ease-in-out infinite;
+                position: relative;
+                overflow: hidden;
+            ">
+                <!-- Depth Gloss -->
+                <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(135deg, transparent, rgba(255,255,255,0.05), transparent); transform: rotate(45deg); pointer-events: none;"></div>
+                
+                <div style="position: relative; z-index: 1; text-align: center;">
+                    <div style="font-size: 5rem; margin-bottom: 25px; filter: drop-shadow(0 20px 40px rgba(59, 130, 246, 0.6));">💎</div>
+                    <h1 style="
+                        font-size: clamp(1.8rem, 8vw, 2.5rem); 
+                        font-weight: 1000; 
+                        margin-bottom: 25px; 
+                        text-transform: uppercase;
+                        letter-spacing: -1px;
+                        background: linear-gradient(135deg, #fff 0%, #3b82f6 50%, #1d4ed8 100%);
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                        line-height: 1;
+                        white-space: nowrap;
+                    ">PROMPT-GALLERY</h1>
+                    
+                    <div style="
+                        display: inline-block;
+                        padding: 8px 20px;
+                        background: rgba(59, 130, 246, 0.15);
+                        border: 1px solid rgba(59, 130, 246, 0.3);
+                        border-radius: 100px;
+                        color: #93c5fd;
+                        font-size: 0.7rem;
+                        font-weight: 900;
+                        letter-spacing: 3px;
+                        text-transform: uppercase;
+                        margin-bottom: 40px;
+                    ">Mantenimiento de Elite</div>
+
+                    <p style="color: rgba(255,255,255,0.7); line-height: 1.8; font-size: 1.15rem; font-weight: 400; margin-bottom: 45px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                        Estamos recalibrando los servidores para el lanzamiento oficial de la nueva identidad.
+                    </p>
+
+                    <div style="
+                        padding: 30px;
+                        background: rgba(0,0,0,0.6);
+                        border-radius: 28px;
+                        border: 1px solid rgba(255,255,255,0.1);
+                        position: relative;
+                        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+                    ">
+                        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 20px; overflow: hidden;">
+                            <div style="width: 85%; height: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa, #93c5fd); animation: progress 3.5s ease-in-out infinite;"></div>
+                        </div>
+                        <p style="font-size: 0.8rem; color: #666; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">Sincronizando Archivos Finales...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            @keyframes float3d {
+                0%, 100% { transform: rotateX(10deg) rotateY(-10deg) translateY(0px); }
+                50% { transform: rotateX(15deg) rotateY(5deg) translateY(-25px); }
+            }
+            @keyframes progress {
+                0% { transform: translateX(-100%); }
+                50% { transform: translateX(0%); }
+                100% { transform: translateX(100%); }
+            }
+            body { 
+                margin: 0; 
+                background: #000; 
+                height: 100vh; 
+                width: 100vw; 
+                overflow: hidden !important; 
+            }
+        </style>
+    `;
+
+    document.body.appendChild(overlay);
 };
 
 
@@ -356,14 +451,151 @@ const renderCollage = (p, isHero = false) => {
 // --- LEGAL CONTENT ---
 const LEGAL_TEXTS = {
     tos: `
-    <h2> Términos de Servicio</h2>
-        <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
-            <p><strong>1. Licencia de Uso:</strong> Prompt Gallery es una plataforma para compartir, descubrir y organizar prompts de IA. Al utilizar nuestros servicios, aceptas operar bajo estos términos.</p>
-            <p><strong>2. Propiedad Intelectual:</strong> Tú conservas todos los derechos de autor sobre los prompts y secuencias que creas. Sin embargo, al publicarlos en la plataforma (en modo público), otorgas a Prompt Gallery y a sus usuarios una licencia no exclusiva, mundial y gratuita para ver, copiar, modificar y ejecutar dichos prompts.</p>
-            <p><strong>3. Responsabilidad del Contenido:</strong> Eres el único responsable del material que subes. La plataforma actúa como un intermediario pasivo. Nos reservamos el derecho de eliminar cualquier contenido que viole leyes internacionales, derechos de autor de terceros o nuestras políticas de seguridad.</p>
-            <p><strong>4. Clasificación Obligatoria:</strong> Es tu deber etiquetar correctamente el contenido (SFW, Sugestivo, NSFW). El uso indebido de etiquetas resultará en la suspensión de la cuenta.</p>
-            <p><strong>5. Modificaciones:</strong> Nos reservamos el derecho de actualizar estos términos en cualquier momento. El uso continuado implica la aceptación de los cambios.</p>
+    <h2 style="font-size: 1.2rem; color: #fff; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;">Términos y Servicios – Prompt-Gallery</h2>
+    <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px; font-size: 0.9rem; line-height: 1.6; color: #ccc;">
+        <style>
+            .tos-section { margin-bottom: 25px; }
+            .tos-section h3 { color: #fff; font-size: 1rem; margin-bottom: 10px; font-weight: 700; }
+            .tos-section p { margin-bottom: 8px; }
+            .tos-section ul { margin-bottom: 10px; padding-left: 20px; list-style-type: disc; }
+            .tos-section li { margin-bottom: 5px; }
+            .tos-sub { font-weight: 600; color: #eee; display: block; margin-top: 10px; margin-bottom: 5px; }
+        </style>
+
+        <div class="tos-section">
+            <h3>1. Aceptación de los términos</h3>
+            <p>Al usar Prompt-Gallery aceptas estos Términos y cualquier política adicional.</p>
+            <p>Si no estás de acuerdo, debes dejar de usar la plataforma.</p>
+            <p>El uso continuo implica aceptación de futuras actualizaciones.</p>
         </div>
+
+        <div class="tos-section">
+            <h3>2. Elegibilidad para usar la plataforma</h3>
+            <p>Debes tener al menos 18 años o mayoría legal en tu país.</p>
+            <p>Debes proporcionar información real en tu cuenta.</p>
+            <p>No puedes usar el servicio si fuiste suspendido previamente.</p>
+        </div>
+
+        <div class="tos-section">
+            <h3>3. Cuenta y seguridad</h3>
+            <p>Eres responsable de:</p>
+            <ul>
+                <li>Tu contraseña.</li>
+                <li>Actividad realizada desde tu cuenta.</li>
+            </ul>
+            <p>Debes avisar si detectas acceso no autorizado.</p>
+            <p>Prompt-Gallery puede suspender cuentas por seguridad.</p>
+        </div>
+
+        <div class="tos-section">
+            <h3>4. Naturaleza de la plataforma</h3>
+            <p>Prompt-Gallery es un sitio para:</p>
+            <ul>
+                <li>Compartir prompts, imágenes generadas por IA y recursos creativos.</li>
+                <li>Mostrar galerías y proyectos creativos.</li>
+                <li>Explorar contenido generado con IA.</li>
+            </ul>
+        </div>
+
+        <div class="tos-section">
+            <h3>5. Propiedad intelectual del contenido</h3>
+            <p>Tú sigues siendo dueño de lo que subes, pero:</p>
+            <p>Concedes a Prompt-Gallery una licencia global, gratuita y no exclusiva para:</p>
+            <ul>
+                <li>Mostrar tu contenido.</li>
+                <li>Distribuirlo dentro de la plataforma.</li>
+                <li>Adaptarlo técnicamente para visualización.</li>
+            </ul>
+            <p>Esta licencia dura mientras el contenido esté publicado.</p>
+        </div>
+
+        <div class="tos-section">
+            <h3>6. Uso del contenido por otros usuarios</h3>
+            <p>El contenido público puede ser:</p>
+            <ul>
+                <li>Visualizado.</li>
+                <li>Compartido dentro de la plataforma.</li>
+                <li>Usado según la licencia que indiques.</li>
+            </ul>
+            <p>Si no defines licencia: Solo se permite visualización y uso personal.</p>
+        </div>
+
+        <div class="tos-section">
+            <h3>7. Contenido prohibido</h3>
+            <p>No puedes publicar:</p>
+            <span class="tos-sub">Ilegal o peligroso</span>
+            <ul>
+                <li>Contenido ilegal o fraudulento.</li>
+                <li>Violencia extrema o explotación.</li>
+                <li>Contenido que viole derechos de autor.</li>
+            </ul>
+            <span class="tos-sub">Sensible o éticamente problemático</span>
+            <ul>
+                <li>Representaciones sexuales de menores.</li>
+                <li>Deepfakes dañinos de personas reales.</li>
+                <li>Acoso, odio o discriminación.</li>
+            </ul>
+            <span class="tos-sub">Manipulación o fraude</span>
+            <ul>
+                <li>Spam, bots o scraping no autorizado.</li>
+                <li>Malware, phishing o engaños.</li>
+            </ul>
+            <p>Prompt-Gallery puede eliminar contenido sin previo aviso.</p>
+        </div>
+
+        <div class="tos-section">
+            <h3>8. Contenido NSFW / adulto</h3>
+            <p>Si se permite en tu plataforma (opcional):</p>
+            <ul>
+                <li>Debe etiquetarse correctamente.</li>
+                <li>Solo para mayores de edad.</li>
+                <li>No debe involucrar personas reales sin consentimiento.</li>
+                <li>Debe cumplir leyes aplicables.</li>
+            </ul>
+        </div>
+
+        <div class="tos-section">
+            <h3>9. Privacidad y datos</h3>
+            <p>Se recopilan datos básicos para operar la plataforma: Cuenta, actividad y analítica técnica.</p>
+            <p>Consulta la Política de Privacidad para detalles.</p>
+            <p>No vendemos datos personales sin consentimiento.</p>
+        </div>
+
+        <div class="tos-section">
+            <h3>10. Pagos y servicios premium (si aplica)</h3>
+            <p>Algunas funciones pueden ser de pago. Los precios pueden cambiar. No se garantizan reembolsos salvo indicación contraria. Impuestos aplican según tu país.</p>
+        </div>
+
+        <div class="tos-section">
+            <h3>11. Moderación y cumplimiento</h3>
+            <p>Prompt-Gallery puede eliminar contenido, suspender cuentas o limitar funciones si hay incumplimiento legal, riesgo para la comunidad o uso abusivo del sistema.</p>
+        </div>
+
+        <div class="tos-section">
+            <h3>12. Limitación de responsabilidad</h3>
+            <p>El servicio se ofrece "tal cual". No garantizamos disponibilidad continua ni ausencia de errores. No somos responsables por pérdida de datos o uso indebido por terceros.</p>
+        </div>
+
+        <div class="tos-section">
+            <h3>13. Indemnización</h3>
+            <p>Aceptas indemnizar a Prompt-Gallery si tu contenido genera reclamos legales o si violas derechos de terceros.</p>
+        </div>
+
+        <div class="tos-section">
+            <h3>14. Cambios en los términos</h3>
+            <p>Podemos actualizar estos términos. Notificaremos cambios relevantes. El uso posterior implica aceptación.</p>
+        </div>
+
+        <div class="tos-section">
+            <h3>15. Terminación del servicio</h3>
+            <p>Podemos suspender cuentas o cerrar la plataforma sin obligación de continuidad permanente.</p>
+        </div>
+
+        <div class="tos-section">
+            <h3>16. Legislación aplicable</h3>
+            <p>Los términos se rigen por la legislación correspondiente al país donde opere Prompt-Gallery. Las disputas se resolverán conforme a esa jurisdicción.</p>
+        </div>
+    </div>
 `,
     privacy: `
     <h2> Política de Privacidad</h2>
@@ -392,16 +624,16 @@ const LEGAL_TEXTS = {
         <div style="text-align:left; max-height:60vh; overflow-y:auto; padding-right:10px">
             <p><strong>¿Qué es Prompt Gallery?</strong><br>
                 Es una comunidad para entusiastas de la IA Generativa. Puedes guardar, organizar y compartir prompts para herramientas como Midjourney, Stable Diffusion, DALL-E, etc.</p>
-
+ 
             <p><strong>¿Es gratuito?</strong><br>
                 Sí, el registro y uso básico es 100% gratuito. Ofrecemos funciones avanzadas para usuarios activos que suben de nivel.</p>
-
+ 
             <p><strong>¿Qué son los PromptBits?</strong><br>
                 Son puntos de reputación y moneda virtual. Los ganas al recibir propinas de otros usuarios o contribuir a la comunidad. Sirven para destacar tus posts y apoyar a otros creadores.</p>
-
+ 
             <p><strong>¿Puedo vender mis prompts?</strong><br>
                 Actualmente la plataforma es de libre intercambio. Sin embargo, puedes incluir enlaces a tus redes o portafolios en tu perfil para que te contacten profesionalmente.</p>
-
+ 
             <p><strong>¿Cómo subo de nivel?</strong><br>
                 Publicando prompts de calidad. Cada nivel desbloquea nuevas funciones como publicar secuencias, personalizar tu perfil o destacar posts.</p>
         </div>
@@ -553,18 +785,23 @@ const getFilteredPrompts = () => {
 const Header = () => `
     <header style = "height:auto; display:flex; flex-direction:column">
     <div class="container" style="height:72px; border-bottom:1px solid #222">
-        <div class="logo" onclick="window.goHome()" style="cursor:pointer">✨ Prompt Gallery</div>
+        <div class="logo" onclick="window.goHome()" style="cursor:pointer; ${!store.currentUser ? 'position: absolute; left: 50%; transform: translateX(-50%); font-size: 1.76rem; z-index: 10;' : ''}">
+            <span style="-webkit-text-fill-color: initial; text-shadow: 0 0 10px rgba(255,255,255,0.2);">💎</span>
+            <span style="background: linear-gradient(135deg, #93c5fd 0%, #3b82f6 50%, #1d4ed8 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">PROMPT-GALLERY</span>
+        </div>
         
         <!-- Desktop Search -->
+        ${store.currentUser ? `
         <div class="search-bar search-desktop" style="position:relative">
             <!-- Trap for Chrome Autofill -->
             <input type="password" style="display:none" autocomplete="new-password">
             <input type="text" class="search-input" id="searchInput" autocomplete="chrome-off-v2" spellcheck="false" placeholder="Buscar..." value="${searchQuery}" name="gall_find_v${Date.now()}">
             <div id="search-suggestions-mount"></div>
         </div>
+        ` : ''}
 
         <!-- Mobile Search Toggle -->
-        <div class="search-mobile-btn" onclick="document.querySelector('.search-mobile-overlay').classList.add('active'); document.getElementById('searchMobileInput').focus()">🔍</div>
+        ${store.currentUser ? `<div class="search-mobile-btn" onclick="document.querySelector('.search-mobile-overlay').classList.add('active'); document.getElementById('searchMobileInput').focus()">🔍</div>` : ''}
         <nav>
             ${store.currentUser ? `
                 ${store.currentUser.role === 'admin' ? `<a href="/admin.html" class="btn-outline" style="border-color:gold; color:gold; text-decoration:none; padding: 10px 15px; border-radius: 8px; font-weight: 600;">👑 Admin</a>` : ''}
@@ -574,7 +811,7 @@ const Header = () => `
                     <span>${store.currentUser.username}</span>
                 </div>
                 <button class="btn-outline" onclick="window.doLogout()">Salir</button>
-            ` : `<button class="btn" id="loginBtn">Iniciar Sesión</button>`}
+            ` : ''}
         </nav>
     </div>
 
@@ -949,9 +1186,27 @@ const Gallery = () => {
         <div style="background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%); padding: 60px 20px; border-radius: 20px; border: 2px solid var(--accent); box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center;">
             <div style="font-size: 4rem; margin-bottom: 20px;">🔓</div>
             <h2 style="font-size: 2rem; color: #fff; margin-bottom: 10px;">¡Desbloquea toda la galería!</h2>
-            <p style="color: #888; font-size: 1.1rem; margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto;">
+            <p style="color: #888; font-size: 1.1rem; margin-bottom: 25px; max-width: 600px; margin-left: auto; margin-right: auto;">
                 Has visto los 12 prompts más recientes. Regístrate gratis para acceder a toda la colección, guardar tus favoritos y compartir tus propias creaciones.
             </p>
+
+            <!-- Stats Bar -->
+            <div style="display: flex; gap: 30px; justify-content: center; margin-bottom: 35px; background: rgba(255,255,255,0.03); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.users.toLocaleString()}</div>
+                    <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">👤 Usuarios</div>
+                </div>
+                <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+                <div style="text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.prompts.toLocaleString()}</div>
+                    <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">🖼️ Prompts</div>
+                </div>
+                <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+                <div style="text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.visits.toLocaleString()}</div>
+                    <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">🔥 Visitas</div>
+                </div>
+            </div>
             <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
                 <button class="btn" onclick="window.openRegister()" style="padding: 15px 40px; font-size: 1.2rem; border-radius: 50px; background: var(--accent); color: white; border: none; cursor: pointer; font-weight: bold; box-shadow: 0 5px 15px var(--accent-alpha);">
                     🚀 Crear Cuenta Gratis
@@ -1004,7 +1259,16 @@ const AuthModal = () => `
                     <p>¿No tienes cuenta? <a href="#" onclick="window.toggleAuth('reg')">Regístrate</a></p>
             </div>
             <div id="regForm" style="display:none;">
-                <h2>Registro</h2>
+                <h2 style="margin-bottom: 20px;">Registro</h2>
+                
+                <div class="community-rules" style="margin-bottom: 25px; text-align: left;">
+                    <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); font-size: 0.85rem; line-height: 1.5; color: #ccc;">
+                        <div style="margin-bottom: 8px;">🔞 <strong>Edad:</strong> Debes ser mayor de 18 años para usar esta plataforma.</div>
+                        <div style="margin-bottom: 8px;">🤝 <strong>Consentimiento:</strong> El contenido real de terceros requiere permiso explícito.</div>
+                        <div style="margin-bottom: 0;">🛡️ <strong>Responsabilidad:</strong> Eres responsable de todo el contenido que publiques.</div>
+                    </div>
+                    <p style="font-size: 0.8rem; color: #888; margin-top: 15px; margin-bottom: 15px; text-align: center; opacity: 0.8;">Al continuar, aceptas nuestros términos y condiciones</p>
+                </div>
                 <input type="text" id="regEmail" class="form-input" placeholder="Email">
                     <input type="text" id="regUser" class="form-input" placeholder="Usuario">
                         <div style="position:relative">
@@ -1297,7 +1561,7 @@ const render = () => {
 
     // Actualizar solo las partes dinámicas
     const topBarMount = document.getElementById('topbar-mount');
-    if (topBarMount) topBarMount.innerHTML = TopBar();
+    if (topBarMount) topBarMount.innerHTML = store.currentUser ? TopBar() : '';
 
     const headerMount = document.getElementById('header-mount');
     if (headerMount) headerMount.innerHTML = Header();
@@ -1372,17 +1636,57 @@ window.doLoginSubmit = async () => {
     if (!res.success) alert(res.msg);
 };
 
+const ALLOWED_DOMAINS = [
+    // Globales
+    'gmail.com', 'hotmail.com', 'outlook.com', 'live.com', 'msn.com',
+    'yahoo.com', 'yahoo.es', 'icloud.com', 'me.com', 'apple.com',
+    'protonmail.com', 'proton.me', 'tutanota.com', 'tuta.io',
+    // Regionales / Otros
+    'aol.com', 'zoho.com', 'yandex.com', 'mail.com', 'gmx.com',
+    'rocketmail.com', 'fastmail.com', 'hushmail.com'
+];
+
 window.doRegisterSubmit = async () => {
-    const res = await store.register(document.getElementById('regEmail').value, document.getElementById('regUser').value, document.getElementById('regPass').value);
-    if (!res.success) alert(res.msg);
+    const email = document.getElementById('regEmail').value.trim().toLowerCase();
+    const domain = email.split('@')[1];
+
+    if (!ALLOWED_DOMAINS.includes(domain)) {
+        const errorMsg = "Por seguridad no puedes registrarte con ese correo, prueba con otro.";
+        if (window.toast) window.toast(errorMsg, "error");
+        else alert(errorMsg);
+        return;
+    }
+
+    const res = await store.register(email, document.getElementById('regUser').value, document.getElementById('regPass').value);
+    if (!res.success) {
+        alert(res.msg);
+    } else {
+        // ÉXITO: Limpiar formulario y avisar
+        document.getElementById('regEmail').value = '';
+        document.getElementById('regUser').value = '';
+        document.getElementById('regPass').value = '';
+
+        const successMsg = "🎉 ¡Cuenta creada! Por seguridad, hemos enviado un link de activación a tu correo. Revísalo (incluso en spam) para poder entrar.";
+        if (window.toast) window.toast(successMsg, "success");
+        else alert(successMsg);
+
+        window.toggleAuth('log'); // Mandar a login tras registro
+    }
 };
 
 window.doRecoverSubmit = async () => {
     const email = document.getElementById('recEmail').value;
     if (!email) { if (window.toast) window.toast("Por favor introduce tu email.", "warning"); return; }
     const res = await store.recoverPassword(email);
-    alert(res.msg);
-    if (res.success) window.toggleAuth('log');
+    if (res.success) {
+        if (window.toast) window.toast(res.msg, "success");
+        else alert(res.msg);
+        document.getElementById('recEmail').value = '';
+        window.toggleAuth('log');
+    } else {
+        if (window.toast) window.toast(res.msg, "error");
+        else alert(res.msg);
+    }
 };
 
 window.doActivateSubmit = async () => {
@@ -1429,7 +1733,7 @@ window.toast = (message, type = 'info') => {
     }
 
     const toast = document.createElement('div');
-    toast.className = `pg - toast ${type} `;
+    toast.className = `pg-toast ${type}`;
 
     let icon = '🔔';
     if (type === 'success') icon = '✅';
@@ -1539,14 +1843,24 @@ const isImageFile = (file) => {
     return validTypes.includes(file.type);
 };
 
-window.submitSupport = () => {
+window.submitSupport = async () => {
     const name = document.getElementById('supName').value;
     const email = document.getElementById('supEmail').value;
     const msg = document.getElementById('supMsg').value;
-    if (!name || !email || !msg) { if (window.toast) window.toast("Por favor completa todos los campos.", "warning"); return; }
-    store.addSupportTicket({ name, email, message: msg });
-    if (window.toast) window.toast("Ticket enviado correctamente. Te contactaremos pronto.", "success");
-    window.closeModals();
+
+    if (!name || !email || !msg) {
+        if (window.toast) window.toast("Por favor completa todos los campos.", "warning");
+        return;
+    }
+
+    const res = await store.addSupportTicket({ name, email, message: msg });
+
+    if (res.success) {
+        if (window.toast) window.toast("Ticket enviado correctamente. Te contactaremos pronto.", "success");
+        window.closeModals();
+    } else {
+        if (window.toast) window.toast(res.msg || "Error al enviar ticket", "error");
+    }
 };
 
 
@@ -2007,14 +2321,14 @@ window.doAdminFeaturePrompt = async () => {
 };
 
 window.doCopyPrompt = async (type = 'main') => {
-    const p = store.prompts.find(x => String(x.id) === String(currentId));
+    const p = store.prompts.find(x => String(x.id) === String(store.activePostId));
     if (!p) return;
 
     let text = '';
     if (type === 'main') {
-        text = p.type === 'sequence' ? p.content[currentSeqStep]?.prompt : p.prompt;
+        text = p.type === 'sequence' ? p.content[store.currentSeqStep]?.prompt : p.prompt;
     } else {
-        text = p.type === 'sequence' ? p.content[currentSeqStep]?.negative_prompt : p.negative_prompt;
+        text = p.type === 'sequence' ? p.content[store.currentSeqStep]?.negative_prompt : p.negative_prompt;
     }
 
     if (!text) {
@@ -2026,13 +2340,16 @@ window.doCopyPrompt = async (type = 'main') => {
         await navigator.clipboard.writeText(text);
 
         if (type === 'main') {
-            await store.incrementCopyCount(currentId);
+            const res = await store.incrementCopyCount(store.activePostId);
             window.toast("¡Prompt Copiado!", "success");
 
             // Actualizar Badge si existe
             const badge = document.getElementById('detCopyBadge');
-            if (badge) {
-                badge.innerText = `📋 Copiado ${p.copy_count + 1} veces`;
+            if (badge && res.success && res.count !== undefined) {
+                badge.innerText = `📋 Copiado ${res.count} veces`;
+            } else if (badge && res.selfCopy) {
+                // Si es auto-copia no incrementó en DB, pero mostramos el valor actual sincronizado
+                badge.innerText = `📋 Copiado ${p.copy_count || 0} veces`;
             }
         } else {
             window.toast("¡Negative Prompt Copiado!", "info");
@@ -2283,7 +2600,17 @@ window.doDeletePrompt = async (passedId) => {
 
 // --- SETTINGS FUNCTIONS ---
 // --- MASTER UNIFICATION WRAPPERS ---
-window.openDetail = (id) => store.openDetail(id);
+window.openDetail = (id) => {
+    const p = store.prompts.find(x => x.id === id);
+    if (!p) return;
+    const { applyBlur } = window.getModeration(p);
+    if (!store.currentUser && applyBlur) {
+        if (window.toast) window.toast("⚠️ Regístrate para visualizar contenido +18", "error");
+        else alert("Regístrate para visualizar contenido +18");
+        return;
+    }
+    store.openDetail(id);
+};
 window.doReact = (type) => store.doReact(type);
 window.prevSeqStep = () => store.prevSeqStep();
 window.nextSeqStep = () => store.nextSeqStep();
@@ -2858,17 +3185,18 @@ window.doSendTip = async (amount) => {
 let currentTipPostId = null;
 
 // Initial Render
-if (MAINTENANCE_MODE) {
-    renderMaintenance();
-} else {
-    try {
-        store.init().then(() => {
-            render();
-            console.log("MAIN JS INIT SUCCESS");
-        });
-    } catch (e) {
-        // ... err handling
-    }
+try {
+    store.init().then(() => {
+        render();
+        console.log("MAIN JS INIT SUCCESS");
+
+        // --- TRIGGER MAINTENANCE OVERLAY ---
+        if (MAINTENANCE_MODE) {
+            renderMaintenance();
+        }
+    });
+} catch (e) {
+    // ... err handling
 }
 
 // Handle browser back button basic simulation

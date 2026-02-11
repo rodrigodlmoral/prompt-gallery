@@ -1,0 +1,47 @@
+PROPUESTA TÉCNICA: SCROLL INFINITO SEGURO (Lotes de 60)
+======================================================
+
+Para: Prompt Gallery
+Objetivo: Implementar navegación fluida sin agotar recursos de PocketBase ni memoria del navegador.
+
+1. RESUMEN DE LA ESTRATEGIA
+---------------------------
+Carga inicial de 60 posts. Al desplazar el scroll hasta el final del Dashboard, se dispara una petición a PocketBase para los siguientes 60, y así sucesivamente.
+
+2. POR QUÉ 60 POSTS?
+--------------------
+- PocketBase: Las peticiones de 60 registros son "ligeras" para el servidor gratuito.
+- Balance Visual: 60 posts llenan varias pantallas de scroll, evitando que el usuario vea el "cargando" constantemente.
+- Rendimiento: 60 miniaturas de Cloudinary (~3MB en total) no afectan la velocidad de carga inicial.
+
+3. CAMBIOS EN EL "STORE" (store-final.js)
+-----------------------------------------
+- Nueva variable: `currentPage = 1`.
+- Nueva variable: `hasMore = true`.
+- Modificación de `loadPrompts()`:
+  * Ya no usaría "Jump to Tail" (el truco de los 200).
+  * Usaría `pb.collection('prompts').getList(this.currentPage, 60, { sort: '-created' })`.
+  * Se añadirían los nuevos registros a la lista existente: `this.prompts = [...this.prompts, ...newRecords]`.
+
+4. CAMBIOS EN LA INTERFAZ (main.js)
+-----------------------------------
+- Elemento Centinela: Se añade un <div> invisible al final de la galería.
+- Intersection Observer: Un "ojo" que vigila ese <div>. Cuando el usuario lo hace visible al scrollear hacia abajo, dispara automáticamente: `store.loadMore()`.
+- Skeleton Loading: Mientras cargan los siguientes 60, se muestran cuadros grises con animación de pulso para indicar actividad.
+
+5. MEJORAS DE RENDIMIENTO CLAVE
+-------------------------------
+- Lazy Loading: <img loading="lazy"> en todas las tarjetas. El navegador solo procesa los píxeles de las imágenes que están entrando a la vista.
+- Miniaturas Cloudinary: Se debe forzar el uso de URLs de miniatura (ej: `w_400,c_scale,q_auto,f_auto`) para el Dashboard. Reservar la imagen original de alta calidad SOLO para el modal de detalle.
+- Caché de Consulta: No se liberan los posts anteriores del DOM (para evitar parpadeos), pero se confía en que el navegador gestiona la memoria de elementos ocultos.
+
+6. SEGURIDAD ANTE SPAM DE SCROLL
+--------------------------------
+- Flag de Carga: Una variable bloquea nuevas peticiones si hay una en curso (evita que un scroll rápido dispare 10 peticiones a la vez).
+- Cooldown: Pequeña pausa de 500ms entre lotes para proteger el CPU de PocketHost.
+
+7. CONCLUSIÓN
+-------------
+Esta implementación es VIABLE y SEGURA. No requiere eliminar elementos (Virtualización) porque el navegador moderno maneja bien hasta 600-800 elementos con lazy loading. Protege tu plan gratuito de PocketBase y mejora la retención del usuario al permitirle explorar toda la historia sin límites.
+
+FIN DE LA PROPUESTA

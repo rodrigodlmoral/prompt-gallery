@@ -13,7 +13,8 @@ export default defineConfig({
             input: {
                 main: 'index.html',
                 admin: 'admin.html',
-                profile: 'profile.html'
+                profile: 'profile.html',
+                batch_upload: 'batch_upload.html'
             }
         }
     },

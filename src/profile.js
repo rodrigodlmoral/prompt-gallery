@@ -10,6 +10,105 @@ import { SearchSuggestions } from './components/SearchSuggestions.js';
 
 const app = document.getElementById('app');
 
+// --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
+const MAINTENANCE_MODE = false;
+
+const renderMaintenance = () => {
+    // 1. Apply blur and safety to the main app container
+    const appContainer = document.getElementById('app');
+    if (appContainer) {
+        appContainer.style.filter = 'blur(20px) saturate(150%)';
+        appContainer.style.pointerEvents = 'none';
+        appContainer.style.userSelect = 'none';
+        appContainer.style.transition = 'filter 1s ease';
+    }
+
+    // 2. Create the Fixed Overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'maintenance-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        z-index: 999999;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Inter', sans-serif;
+        overflow: hidden;
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+    `;
+
+    overlay.innerHTML = `
+        <div style="position: absolute; inset: 0; background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%); pointer-events: none;"></div>
+        <div class="maint-scene" style="perspective: 1500px; width: 100%; display: flex; justify-content: center; align-items: center;">
+            <div class="maint-card" style="
+                width: 95%;
+                max-width: 550px;
+                background: rgba(20, 20, 20, 0.6);
+                backdrop-filter: blur(30px) saturate(200%);
+                -webkit-backdrop-filter: blur(30px) saturate(200%);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 48px;
+                padding: 70px 40px;
+                box-shadow: 
+                    0 50px 100px rgba(0, 0, 0, 0.8),
+                    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+                    0 0 40px rgba(59, 130, 246, 0.1);
+                transform: rotateX(12deg) rotateY(-8deg);
+                animation: float3d 8s ease-in-out infinite;
+                position: relative;
+                overflow: hidden;
+            ">
+                <!-- Depth Gloss -->
+                <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(135deg, transparent, rgba(255,255,255,0.05), transparent); transform: rotate(45deg); pointer-events: none;"></div>
+                
+                <div style="position: relative; z-index: 1; text-align: center;">
+                    <div style="font-size: 5rem; margin-bottom: 25px; filter: drop-shadow(0 20px 40px rgba(59, 130, 246, 0.6));">💎</div>
+                    <h1 style="
+                        font-size: clamp(1.8rem, 8vw, 2.5rem); 
+                        font-weight: 1000; 
+                        margin-bottom: 25px; 
+                        text-transform: uppercase;
+                        letter-spacing: -1px;
+                        background: linear-gradient(135deg, #fff 0%, #3b82f6 50%, #1d4ed8 100%);
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                        line-height: 1;
+                        white-space: nowrap;
+                    ">PROMPT-GALLERY</h1>
+                    
+                    <div style="
+                        display: inline-block;
+                        padding: 8px 20px;
+                        background: rgba(59, 130, 246, 0.15);
+                        border: 1px solid rgba(59, 130, 246, 0.3);
+                        border-radius: 100px;
+                        color: #93c5fd;
+                        font-size: 0.7rem;
+                        font-weight: 900;
+                        letter-spacing: 3px;
+                        text-transform: uppercase;
+                        margin-bottom: 40px;
+                    ">Mantenimiento de Elite</div>
+
+                    <p style="color: rgba(255,255,255,0.7); line-height: 1.8; font-size: 1.15rem; font-weight: 400; margin-bottom: 45px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                        Estamos recalibrando los servidores para el lanzamiento oficial de la nueva identidad.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes float3d {
+                0%, 100% { transform: rotateX(12deg) rotateY(-8deg) translateY(0px); }
+                50% { transform: rotateX(15deg) rotateY(-5deg) translateY(-20px); }
+            }
+        </style>
+    `;
+    document.body.appendChild(overlay);
+};
+
 // --- STATE ---
 let currentView = 'profile'; // Fixed view for this file
 let profileUser = new URLSearchParams(window.location.search).get('u') || '';
@@ -243,13 +342,18 @@ const renderCollage = (p) => {
 const Header = () => `
     <header style = "height:auto; display:flex; flex-direction:column" >
         <div class="container" style="height:72px; border-bottom:1px solid #222">
-            <div class="logo" onclick="window.location.href='/'" style="cursor:pointer">✨ Prompt Gallery</div>
+            <div class="logo" onclick="window.location.href='/'" style="cursor:pointer; ${!store.currentUser ? 'position: absolute; left: 50%; transform: translateX(-50%); font-size: 1.76rem; z-index: 10;' : ''}">
+                <span style="-webkit-text-fill-color: initial; text-shadow: 0 0 10px rgba(255,255,255,0.2);">💎</span>
+                <span style="background: linear-gradient(135deg, #93c5fd 0%, #3b82f6 50%, #1d4ed8 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">PROMPT-GALLERY</span>
+            </div>
+            ${store.currentUser ? `
             <div class="search-bar search-desktop" style="position:relative">
                 <!-- Trap for Chrome Autofill -->
                 <input type="password" style="display:none" autocomplete="new-password">
                 <input type="text" class="search-input" id="searchInput" placeholder="Buscar..." value="${searchQuery}" autocomplete="chrome-off-v3" spellcheck="false" name="prof_find_v${Date.now()}">
                 <div id="search-suggestions-mount"></div>
             </div>
+            ` : ''}
             <nav>
                 ${store.currentUser ? `
                 ${store.currentUser.role === 'admin' ? `<a href="/admin.html" class="btn-outline" style="border-color:gold; color:gold; text-decoration:none; padding: 10px 15px; border-radius: 8px; font-weight: 600;">👑 Admin</a>` : ''}
@@ -259,9 +363,10 @@ const Header = () => `
                     <span>${store.currentUser.username}</span>
                 </div>
                 <button class="btn-outline" onclick="window.doLogout()">Salir</button>
-            ` : `<button class="btn" onclick="window.location.href='/'">Iniciar Sesión</button>`}
+            ` : ''}
             </nav>
         </div>
+        ${store.currentUser ? `
         <div class="container filters-bar" style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; background:rgba(0,0,0,0.3); align-items:center; justify-content: flex-end">
             <select onchange="window.setFilter('time', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
                 <option value="all" ${filters.time === 'all' ? 'selected' : ''}>📅 Todo el tiempo</option>
@@ -280,6 +385,7 @@ const Header = () => `
                 🔍 Filtros Avanzados ${(filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)) > 0 ? `<span style="background:#0070ba; color:white; border-radius:10px; padding:0 6px; font-size:0.7rem">${filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)}</span>` : ''}
             </button>
         </div>
+        ` : ''}
 </header> `;
 
 const ProfileHeader = () => {
@@ -443,11 +549,14 @@ const Gallery = () => {
         return (b.createdAt || 0) - (a.createdAt || 0);
     });
 
-    if (list.length === 0) return `<div class="container" style = "padding:100px; text-align:center; color:#666" > No hay prompts que coincidan con los filtros.</div> `;
+    const isVisitor = !store.currentUser;
+    const itemsToShow = isVisitor ? list.slice(0, 12) : list;
+
+    if (list.length === 0) return `<div class="container" style="padding:100px; text-align:center; color:#666">No hay prompts que coincidan con los filtros.</div>`;
 
     return `
-    <div class="container gallery-grid" style = "margin-top:20px" >
-        ${list.map(p => {
+    <div class="container gallery-grid" style="margin-top:20px">
+        ${itemsToShow.map(p => {
         const { applyBlur, warningLabel } = getModeration(p);
         const reactions = p.reactions || { like: 0 };
         return `
@@ -477,9 +586,48 @@ const Gallery = () => {
                     <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doDeletePrompt('${p.id}')" title="Eliminar Post">🗑️</button>
                 </div>` : ''}
             </div>`;
-    }).join('')
-        }
-    </div> `;
+    }).join('')}
+    </div> 
+    
+    ${isVisitor ? `
+    <div class="container" style="margin-top: 40px; padding: 40px 20px;">
+        <div style="background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%); padding: 60px 20px; border-radius: 20px; border: 2px solid var(--accent); box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">🔓</div>
+            <h2 style="font-size: 2rem; color: #fff; margin-bottom: 10px;">¡Desbloquea toda la galería!</h2>
+            <p style="color: #888; font-size: 1.1rem; margin-bottom: 25px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                Has visto los 12 prompts más recientes de @${profileUser}. Regístrate gratis para acceder a toda la colección, guardar tus favoritos y compartir tus propias creaciones.
+            </p>
+
+            <!-- Stats Bar -->
+            <div style="display: flex; gap: 30px; justify-content: center; margin-bottom: 35px; background: rgba(255,255,255,0.03); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.users.toLocaleString()}</div>
+                    <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">👤 Usuarios</div>
+                </div>
+                <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+                <div style="text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.prompts.toLocaleString()}</div>
+                    <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">🖼️ Prompts</div>
+                </div>
+                <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+                <div style="text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.visits.toLocaleString()}</div>
+                    <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">🔥 Visitas</div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn" onclick="window.openRegister()" style="padding: 15px 40px; font-size: 1.2rem; border-radius: 50px; background: var(--accent); color: white; border: none; cursor: pointer; font-weight: bold; box-shadow: 0 5px 15px var(--accent-alpha);">
+                    🚀 Crear Cuenta Gratis
+                </button>
+                <button class="btn-outline" onclick="window.openLogin()" style="padding: 15px 40px; font-size: 1.2rem; border-radius: 50px;">
+                    🔑 Iniciar Sesión
+                </button>
+            </div>
+        </div>
+    </div>
+    ` : ''}
+    `;
 };
 
 // --- ACTION FUNCTIONS ---
@@ -656,18 +804,24 @@ const SettingsModal = () => {
                     <label class="form-label">Nombre de Usuario</label>
                     <input type="text" id="setUser" class="form-input" value="${u.username}">
 
-                        <div style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px">
-                            <button class="btn-outline" onclick="document.getElementById('passSec').style.display = document.getElementById('passSec').style.display === 'none' ? 'block' : 'none'" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center">
-                                <span>🔒 Cambiar Contraseña</span>
+                        <div style="margin-top:15px; padding:15px; background:rgba(255,255,255,0.05); border-radius:12px; border:1px solid rgba(255,255,255,0.1)">
+                            <button class="btn-outline" onclick="document.getElementById('passSec').style.display = document.getElementById('passSec').style.display === 'none' ? 'block' : 'none'" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center; border:none; padding:10px 0">
+                                <span style="font-weight:700">🔒 Cambiar Contraseña</span>
                                 <span>▼</span>
                             </button>
-                            <div id="passSec" style="display:none; margin-top:10px">
-                                <label class="form-label">Nueva Contraseña</label>
-                                <div style="position:relative">
-                                    <input type="password" id="newPassInput" class="form-input" placeholder="Mínimo 6 caracteres" style="padding-right:40px">
-                                        <span onclick="window.togglePass('newPassInput', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                            <div id="passSec" style="display:none; margin-top:15px">
+                                <label class="form-label" style="font-size:0.75rem; color:#888">CONTRASEÑA ACTUAL</label>
+                                <div style="position:relative; margin-bottom:12px">
+                                    <input type="password" id="oldPassInput" class="form-input" placeholder="Tu clave vigente" style="padding-right:40px">
+                                    <span onclick="window.togglePass('oldPassInput', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
                                 </div>
-                                <button class="btn" onclick="window.doChangePassword()" style="margin-top:10px; width:100%; background:#d32f2f">Actualizar Contraseña</button>
+
+                                <label class="form-label" style="font-size:0.75rem; color:#888">NUEVA CONTRASEÑA</label>
+                                <div style="position:relative; margin-bottom:15px">
+                                    <input type="password" id="newPassInput" class="form-input" placeholder="Mínimo 6 caracteres" style="padding-right:40px">
+                                    <span onclick="window.togglePass('newPassInput', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                                </div>
+                                <button class="btn" id="btnUpdatePass" onclick="window.doChangePassword()" style="width:100%; background:linear-gradient(90deg, #d32f2f, #b71c1c); font-weight:800">Actualizar Contraseña</button>
                             </div>
                         </div>
 
@@ -837,6 +991,56 @@ const ConfirmModal = () => `
                     </div>
                 </div></div>`;
 
+const AuthModal = () => `
+        <div id="authModal" class="modal-overlay" style="display:none;"> <div class="modal-container">
+            <div id="loginForm">
+                <h2>Entrar</h2>
+                <input type="text" id="logUser" class="form-input" placeholder="Usuario o Email">
+                    <div style="position:relative">
+                        <input type="password" id="logPass" class="form-input" placeholder="Pass" style="padding-right:40px">
+                            <span onclick="window.togglePass('logPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                    </div>
+                    <button class="btn" style="width:100%" onclick="window.doLoginSubmit()">Login</button>
+                    <p style="margin-top:10px; font-size:0.9em">
+                        <a href="#" onclick="window.toggleAuth('rec')" style="color:#666">¿Olvidaste tu contraseña?</a>
+                    </p>
+                    <p>¿No tienes cuenta? <a href="#" onclick="window.toggleAuth('reg')">Regístrate</a></p>
+            </div>
+            <div id="regForm" style="display:none;">
+                <h2>Registro</h2>
+                <input type="text" id="regEmail" class="form-input" placeholder="Email">
+                    <input type="text" id="regUser" class="form-input" placeholder="Usuario">
+                        <div style="position:relative">
+                            <input type="password" id="regPass" class="form-input" placeholder="Contraseña" style="padding-right:40px">
+                                <span onclick="window.togglePass('regPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                        </div>
+                        <button class="btn" style="width:100%" onclick="window.doRegisterSubmit()">Registrar</button>
+                        <p>¿Ya tienes cuenta? <a href="#" onclick="window.toggleAuth('log')">Login</a></p>
+                    </div>
+                    <div id="recoverForm" style="display:none;">
+                        <h2>Recuperar Pass</h2>
+                        <p style="margin-bottom:15px; color:#888; font-size:0.85rem">Introduce tu email de registro:</p>
+                        <input type="email" id="recEmail" class="form-input" placeholder="ejemplo@correo.com" style="margin-bottom:15px">
+                            <button class="btn" style="width:100%" onclick="window.doRecoverSubmit()">Enviar Instrucciones</button>
+                            <p style="margin-top:15px; font-size:0.9rem">
+                                <a href="#" onclick="window.toggleAuth('log')" style="color:#666">Volver al Login</a>
+                            </p>
+                    </div>
+                    <div id="activateForm" style="display:none;">
+                        <h2>Activar Cuenta</h2>
+                        <p style="margin-bottom:15px; color:#a29bfe; font-size:0.85rem; font-weight:700">¡Bienvenido! Elige tu nueva contraseña para activar tu perfil.</p>
+                        <input type="text" id="actUser" class="form-input" placeholder="Usuario o Email">
+                            <div style="position:relative">
+                                <input type="password" id="actPass" class="form-input" placeholder="Nueva Contraseña" style="padding-right:40px">
+                                    <span onclick="window.togglePass('actPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                            </div>
+                            <button class="btn" style="width:100%" onclick="window.doActivateSubmit()">Activar y Entrar</button>
+                    </div>
+                    <button class="btn-outline" style="width:100%; border:none; margin-top:10px" onclick="window.closeModals()">Cancelar</button>
+            </div></div>`;
+
+const Modals = () => AuthModal() + CreateModal() + DetailModalTemplateLocal + ConfirmModal();
+
 
 // --- LOGIC ---
 // --- LOGIC ---
@@ -852,10 +1056,11 @@ const render = () => {
             ${SettingsModal()}
             ${CreateModal()}
             ${ConfirmModal()}
+            ${AuthModal()}
             ${ActivityModal()}
         `;
         const modalsMount = document.getElementById('modals-mount');
-        if (modalsMount) modalsMount.innerHTML = DetailModalTemplate();
+        if (modalsMount) modalsMount.innerHTML = DetailModalTemplateLocal();
     }
 
     const headerMount = document.getElementById('header-mount');
@@ -892,12 +1097,34 @@ const attachEvents = () => {
 };
 
 // --- MASTER UNIFICATION WRAPPERS ---
-window.openDetail = (id) => store.openDetail(id);
+window.openDetail = (id) => {
+    const p = store.prompts.find(x => x.id === id);
+    if (!p) return;
+    const { applyBlur } = window.getModeration(p);
+    if (!store.currentUser && applyBlur) {
+        if (window.toast) window.toast("⚠️ Regístrate para visualizar contenido +18", "error");
+        else alert("Regístrate para visualizar contenido +18");
+        return;
+    }
+    store.openDetail(id);
+};
 window.doReact = (type) => store.doReact(type);
 window.prevSeqStep = () => store.prevSeqStep();
 window.nextSeqStep = () => store.nextSeqStep();
 window.revealImage = (btn) => store.revealImage(btn);
 window.getModeration = (p, f) => store.getModeration(p, f);
+
+window.openDetail = (id) => {
+    const p = store.prompts.find(x => x.id === id);
+    if (!p) return;
+    const { applyBlur } = window.getModeration(p);
+    if (!store.currentUser && applyBlur) {
+        if (window.toast) window.toast("⚠️ Regístrate para visualizar contenido +18", "error");
+        else alert("Regístrate para visualizar contenido +18");
+        return;
+    }
+    store.openDetail(id);
+};
 
 // Comment Logic wrappers
 window.showSlider = () => store.showSlider();
@@ -936,8 +1163,16 @@ window.doCopyPrompt = async (type = 'main') => {
     await navigator.clipboard.writeText(text || '');
 
     if (type === 'main') {
-        await store.incrementCopyCount(store.activePostId);
+        const res = await store.incrementCopyCount(store.activePostId);
         window.toast("¡Prompt Copiado!", "success");
+
+        // Actualizar Badge si existe (Sincronización con DetailModal)
+        const badge = document.getElementById('detCopyBadge');
+        if (badge && res.success && res.count !== undefined) {
+            badge.innerText = `📋 Copiado ${res.count} veces`;
+        } else if (badge && res.selfCopy) {
+            badge.innerText = `📋 Copiado ${p.copy_count || 0} veces`;
+        }
     } else {
         window.toast("¡Negative Prompt Copiado!", "info");
     }
@@ -1017,9 +1252,6 @@ window.doSendTip = async (amount) => {
     }
 };
 
-window.toast = (msg, type) => {
-    alert(msg); // Placeholder for toast system if needed
-};
 
 let confirmResolver = null;
 window.askConfirm = (msg, icon) => {
@@ -1647,10 +1879,75 @@ window.doLogout = () => {
 };
 
 window.doFollow = async (username) => {
-    if (!store.currentUser) return window.location.href = '/';
+    if (!store.currentUser) return window.openLogin();
     await store.followUser(username);
     render();
 };
+
+window.toggleAuth = (m) => {
+    document.getElementById('loginForm').style.display = m === 'log' ? 'block' : 'none';
+    document.getElementById('regForm').style.display = m === 'reg' ? 'block' : 'none';
+    const recForm = document.getElementById('recoverForm');
+    if (recForm) recForm.style.display = m === 'rec' ? 'block' : 'none';
+    const actForm = document.getElementById('activateForm');
+    if (actForm) actForm.style.display = m === 'act' ? 'block' : 'none';
+};
+
+window.doLoginSubmit = async () => {
+    const res = await store.login(document.getElementById('logUser').value, document.getElementById('logPass').value);
+    if (!res.success) alert(res.msg);
+    else render();
+};
+
+window.doRegisterSubmit = async () => {
+    const res = await store.register(document.getElementById('regEmail').value, document.getElementById('regUser').value, document.getElementById('regPass').value);
+    if (!res.success) alert(res.msg);
+    else render();
+};
+
+window.doRecoverSubmit = async () => {
+    const email = document.getElementById('recEmail').value;
+    if (!email) { if (window.toast) window.toast("Por favor introduce tu email.", "warning"); return; }
+    const res = await store.recoverPassword(email);
+    if (res.success) {
+        if (window.toast) window.toast(res.msg, "success");
+        else alert(res.msg);
+        document.getElementById('recEmail').value = '';
+        window.toggleAuth('log');
+    } else {
+        if (window.toast) window.toast(res.msg, "error");
+        else alert(res.msg);
+    }
+};
+
+window.doActivateSubmit = async () => {
+    const userOrEmail = document.getElementById('actUser').value;
+    const pass = document.getElementById('actPass').value;
+    const token = new URLSearchParams(window.location.search).get('token');
+
+    if (!userOrEmail || !pass) { if (window.toast) window.toast("Rellena todos los campos.", "warning"); return; }
+    if (!token) return alert("Token de activación no encontrado.");
+
+    const res = await store.confirmResetPassword(token, pass, userOrEmail);
+    if (res.success) {
+        alert("¡Cuenta activada con éxito! Bienvenido.");
+        window.location.href = '/';
+    } else {
+        alert(res.msg);
+    }
+};
+
+window.openLogin = () => {
+    document.getElementById('authModal').style.display = 'flex';
+    window.toggleAuth('log');
+};
+
+window.openRegister = () => {
+    document.getElementById('authModal').style.display = 'flex';
+    window.toggleAuth('reg');
+};
+
+
 
 window.setProfileTab = (tab) => {
     profileTab = tab;
@@ -1704,10 +2001,30 @@ window.saveSettings = async () => {
     } else finishSave(null);
 };
 
-window.doChangePassword = () => {
+window.doChangePassword = async () => {
+    const op = document.getElementById('oldPassInput').value;
     const np = document.getElementById('newPassInput').value;
-    if (np.length < 6) { if (window.toast) window.toast("Mínimo 6 chars", "error"); return; }
-    store.changePassword(np);
+
+    if (!op) { if (window.toast) window.toast("Introduce tu clave actual", "warning"); return; }
+    if (np.length < 6) { if (window.toast) window.toast("La nueva clave debe tener 6+ caracteres", "warning"); return; }
+
+    const btn = document.getElementById('btnUpdatePass');
+    btn.disabled = true;
+    btn.innerText = "Verificando...";
+
+    const res = await store.changePassword(op, np);
+
+    if (res.success) {
+        if (window.toast) window.toast(res.msg, "success");
+        document.getElementById('oldPassInput').value = '';
+        document.getElementById('newPassInput').value = '';
+        document.getElementById('passSec').style.display = 'none';
+    } else {
+        if (window.toast) window.toast(res.msg, "error");
+    }
+
+    btn.disabled = false;
+    btn.innerText = "Actualizar Contraseña";
 };
 
 window.doDeleteAccount = async () => {
@@ -2002,6 +2319,10 @@ const init = async () => {
     window.initDone = true;
     render();
     console.log("[PROFILE] init fully done.");
+
+    if (MAINTENANCE_MODE) {
+        renderMaintenance();
+    }
 };
 
 // --- USER ACTIVITY LOGS ---

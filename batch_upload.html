@@ -13,16 +13,8 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PROMPT-GALLERY - Premium AI Art</title>
-  <meta name="description"
-    content="Descubre y comparte los mejores prompts para Gemini, Grok, Meta AI y más. Arma tu galería y monetiza tu talento." />
-
-  <!-- OpenGraph / Social Sharing -->
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="PROMPT-GALLERY - Premium AI Art" />
-  <meta property="og:description"
-    content="La mejor galería de prompts e imágenes de IA. ¡Crea tu perfil y comparte tus obras!" />
-  <meta property="og:image" content="https://prompt-gallery-v2.vercel.app/og-preview.png" />
+  <title>Batch Upload - PROMPT-GALLERY</title>
+  <meta name="description" content="Subida masiva de prompts a la galería." />
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,10 +24,11 @@
 
 <body>
   <div id="app">
+    <!-- El JS inyectará el contenido aquí -->
     <div
       style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#666; font-family:sans-serif">
-      <div style="font-size:3rem; animation: pulse 1s infinite">✨</div>
-      <p style="margin-top:20px; letter-spacing:1px; font-size:0.9rem">CARGANDO GALERÍA...</p>
+      <div style="font-size:3rem; animation: pulse 1s infinite">💎</div>
+      <p style="margin-top:20px; letter-spacing:1px; font-size:0.9rem">CARGANDO BATCH UPLOAD...</p>
       <style>
         @keyframes pulse {
           0% {
@@ -56,7 +49,7 @@
       </style>
     </div>
   </div>
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/batch_upload.js"></script>
 </body>
 
 </html>

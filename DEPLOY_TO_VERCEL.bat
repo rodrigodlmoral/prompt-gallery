@@ -40,8 +40,10 @@ if exist "%ORIGEN%\public" xcopy "%ORIGEN%\public" "%DESTINO%\public" /E /I /Y >
 copy /y "%ORIGEN%\index.html" "%DESTINO%\index.html" >> "%LOGFILE%" 2>&1
 copy /y "%ORIGEN%\admin.html" "%DESTINO%\admin.html" >> "%LOGFILE%" 2>&1
 copy /y "%ORIGEN%\profile.html" "%DESTINO%\profile.html" >> "%LOGFILE%" 2>&1
+copy /y "%ORIGEN%\batch_upload.html" "%DESTINO%\batch_upload.html" >> "%LOGFILE%" 2>&1
 copy /y "%ORIGEN%\package.json" "%DESTINO%\package.json" >> "%LOGFILE%" 2>&1
 copy /y "%ORIGEN%\vite.config.js" "%DESTINO%\vite.config.js" >> "%LOGFILE%" 2>&1
+copy /y "%ORIGEN%\vercel.json" "%DESTINO%\vercel.json" >> "%LOGFILE%" 2>&1
 
 echo [3/4] Enviando a GitHub...
 cd /d "%DESTINO%"

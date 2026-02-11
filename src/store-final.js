@@ -58,12 +58,15 @@ const store = {
     usersCache: {}, // { username: { ...profileData } }
     users: [],      // Admin list
     nuclearCache: { items: [], lastFetch: 0 }, // Cache for mass user search
+    stats: { users: 0, prompts: 0, visits: 0 },
 
     async init() {
         if (pb.authStore.isValid && pb.authStore.model) {
             await this._loadUserProfile(pb.authStore.model.id);
         }
         await this.loadPrompts();
+        await this.getPublicStats();
+        this.trackVisit();
     },
 
     async _loadUserProfile(userId) {
@@ -74,18 +77,30 @@ const store = {
 
                 // --- DYNAMIC AUTO-SYNC & ROBUSTNESS ---
                 try {
+                    // Contar posts reales
                     const stats = await pb.collection('prompts').getList(1, 1, {
                         filter: `author = "${userId}"`,
                         fields: 'id'
                     });
                     const realPosts = stats.totalItems || 0;
 
-                    // Si el valor en DB es distinto al real, lo corregimos físicamente en la DB
-                    if (profile.prompts_count !== realPosts) {
+                    // Calcular copias totales reales
+                    const allPrompts = await pb.collection('prompts').getFullList({
+                        filter: `author = "${userId}"`,
+                        fields: 'copy_count'
+                    });
+                    const realCopies = allPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
+
+                    const needsUpdate = (profile.prompts_count !== realPosts) || (profile.total_copies !== realCopies);
+
+                    if (needsUpdate) {
+                        console.log(`[ST_DEBUG] Auto-syncing profile for ${userId}: Posts ${realPosts}, Copies ${realCopies}`);
                         await pb.collection('users').update(userId, {
-                            prompts_count: realPosts
+                            prompts_count: realPosts,
+                            total_copies: realCopies
                         });
                         profile.prompts_count = realPosts;
+                        profile.total_copies = realCopies;
                     }
                 } catch (e) {
                     console.warn("Auto-sync error:", e);
@@ -186,6 +201,51 @@ const store = {
             this.prompts = [];
         }
         return this.prompts;
+    },
+
+    async getPublicStats() {
+        try {
+            // 1. Contar usuarios registrados
+            const usersRes = await pb.collection('users').getList(1, 1, { fields: 'id' });
+            this.stats.users = usersRes.totalItems;
+
+            // 2. Contar prompts totales
+            const promptsRes = await pb.collection('prompts').getList(1, 1, { fields: 'id' });
+            this.stats.prompts = promptsRes.totalItems;
+
+            // 3. Obtener visitas totales desde app_stats
+            try {
+                const statsRec = await pb.collection('app_stats').getFirstListItem('');
+                if (statsRec) this.stats.visits = statsRec.total_visits || 0;
+            } catch (e) {
+                console.warn("app_stats record not found. Creating one...");
+                // Si no existe, lo creamos (necesita permisos de creación para público o admin)
+                // Usualmente el admin lo crea manualmente, pero intentamos por robustez
+            }
+
+            return this.stats;
+        } catch (err) {
+            console.error("Error fetching stats:", err);
+            return this.stats;
+        }
+    },
+
+    async trackVisit() {
+        // Solo contar una vez por sesión de navegador
+        if (sessionStorage.getItem('pg_visited')) return;
+
+        try {
+            const statsRec = await pb.collection('app_stats').getFirstListItem('');
+            if (statsRec) {
+                await pb.collection('app_stats').update(statsRec.id, {
+                    'total_visits+': 1
+                });
+                sessionStorage.setItem('pg_visited', 'true');
+                this.stats.visits = (statsRec.total_visits || 0) + 1;
+            }
+        } catch (err) {
+            console.warn("Failed to track visit. Ensure 'app_stats' collection exists and has public update permission for total_visits field.");
+        }
     },
 
     async fetchUserProfileByUsername(rawUsername) {
@@ -316,6 +376,7 @@ const store = {
     async logActivity(action, details = {}) {
         if (!this.currentUser) return;
         try {
+            // Verificamos si la colección existe (intento silencioso)
             await pb.collection('activity_logs').create({
                 user: this.currentUser.id,
                 action: action,
@@ -323,8 +384,11 @@ const store = {
             });
             window.trackEvent(action, details);
         } catch (err) {
-            // Silenciar error 404 si la colección no existe (común en despliegues nuevos)
-            if (err.status !== 404) {
+            // Silenciar error 404/403 si la colección no existe o no hay permisos
+            if (err.status === 404 || err.status === 403) {
+                // Si falla en DB, al menos intentamos trackear en GA4
+                window.trackEvent(`${action}_fallback`, details);
+            } else {
                 console.warn("Failed to log activity:", err);
             }
         }
@@ -787,15 +851,19 @@ const store = {
         } catch (err) { return { success: false, msg: err.message }; }
     },
 
-    async changePassword(newPass) {
-        if (!this.currentUser) return { success: false };
+    async changePassword(oldPass, newPass) {
+        if (!this.currentUser) return { success: false, msg: "Sesión no válida" };
         try {
             await pb.collection('users').update(this.currentUser.id, {
+                oldPassword: oldPass,
                 password: newPass,
                 passwordConfirm: newPass
             });
-            return { success: true };
-        } catch (err) { return { success: false }; }
+            return { success: true, msg: "¡Contraseña actualizada con éxito!" };
+        } catch (err) {
+            const msg = err.data?.data?.oldPassword?.message || "Error al actualizar: verifica tu contraseña actual.";
+            return { success: false, msg };
+        }
     },
 
     async deleteAccount() {
@@ -936,17 +1004,42 @@ const store = {
         }
     },
 
+    async addSupportTicket(data) {
+        try {
+            await pb.collection('tickets').create({
+                name: data.name,
+                email: data.email,
+                message: data.message,
+                status: 'new'
+            });
+            return { success: true };
+        } catch (err) {
+            console.error("Support Ticket Error:", err);
+            return { success: false, msg: "Error al enviar el ticket." };
+        }
+    },
+
     // --- AUTH ---
 
     async login(email, password) {
         try {
             const authData = await pb.collection('users').authWithPassword(email, password);
             if (authData) {
+                // VERIFICACIÓN OBLIGATORIA
+                if (!authData.record.verified) {
+                    pb.authStore.clear();
+                    return {
+                        success: false,
+                        msg: "Debes verificar tu correo antes de ingresar. Por favor revisa tu bandeja de entrada o spam."
+                    };
+                }
                 await this._loadUserProfile(authData.record.id);
                 location.reload();
                 return { success: true };
             }
-        } catch (error) { return { success: false, msg: "Credenciales inválidas" }; }
+        } catch (error) {
+            return { success: false, msg: "Credenciales inválidas o error de conexión" };
+        }
     },
 
     async register(email, username, password) {
@@ -955,8 +1048,14 @@ const store = {
                 username, email, password, passwordConfirm: password,
                 name: username, tokens: 100, level: 0, xp: 0, role: 'user'
             });
+
+            // SOLICITAR VERIFICACIÓN AUTOMÁTICAMENTE
+            await pb.collection('users').requestVerification(email);
+
             return { success: true };
-        } catch (error) { return { success: false, msg: "Error al crear cuenta" }; }
+        } catch (error) {
+            return { success: false, msg: "Error al crear cuenta o el usuario/email ya existe." };
+        }
     },
 
     async logout() {
@@ -1013,41 +1112,58 @@ const store = {
 
     // --- COPY COUNT TRACKING CON ANTI-SPAM ---
     async incrementCopyCount(promptId) {
-        const COPY_COOLDOWN = 10000; // 10 segundos
-        const now = Date.now();
         const userId = this.currentUser?.id || 'anon';
         const key = `${userId}_${promptId}`;
+        const COPY_COOLDOWN = 10000;
+        const now = Date.now();
 
-        // Cooldown anti-spam
         if (!window._lastCopyTime) window._lastCopyTime = {};
         if (window._lastCopyTime[key] && (now - window._lastCopyTime[key]) < COPY_COOLDOWN) {
-            console.warn('⏱️ Cooldown activo para copias (10s)');
-            return { success: false, msg: 'Espera unos segundos antes de copiar de nuevo' };
+            return { success: false, msg: 'Cooldown activo (10s)' };
         }
-
         window._lastCopyTime[key] = now;
 
         try {
+            console.log(`[DEBUG_COPY] Iniciando copia para prompt ID: ${promptId}`);
             const prompt = await pb.collection('prompts').getOne(promptId);
 
-            // Anti-spam: No incrementar si el autor copia su propio prompt
+            // FIX: prompt.author es el ID de relación en PocketBase
+            // this.currentUser.id es el ID del usuario logueado
+            console.log(`[DEBUG_COPY] Author_ID: ${prompt.author} | Current_User_ID: ${userId}`);
+
             if (this.currentUser && prompt.author === this.currentUser.id) {
-                console.log('🚫 Auto-copia detectada, no se incrementa contador');
+                console.log('[DEBUG_COPY] Autor detectado. No sumamos para evitar auto-farmeo.');
                 return { success: true, selfCopy: true };
             }
 
-            const newCount = (prompt.copy_count || 0) + 1;
-            await pb.collection('prompts').update(promptId, {
-                copy_count: newCount
-            });
+            // Mantenemos compatibilidad con ambos nombres de campo probables
+            const oldVal = parseInt(prompt.copy_count || prompt.copies || 0);
+            const newVal = oldVal + 1;
 
-            // Verificar si el autor debe subir de nivel
+            console.log(`[DEBUG_COPY] Incrementando: ${oldVal} -> ${newVal}`);
+
+            // Actualizar en DB
+            const res = await pb.collection('prompts').update(promptId, {
+                copy_count: newVal
+            });
+            console.log(`[DEBUG_COPY] DB Update exitoso:`, res);
+
+            // Sincronizar localmente para que la UI se actualice de inmediato
+            const local = this.prompts.find(x => String(x.id) === String(promptId));
+            if (local) {
+                local.copy_count = newVal;
+                console.log('[DEBUG_COPY] Store local sincronizado');
+            }
+
+            // Notificar registro
+            this.logActivity('copy', { postId: promptId, count: newVal });
+
+            // Subida de nivel al autor
             await this._checkAuthorLevelUp(prompt.author);
 
-            console.log(`✅ Copy count incrementado: ${newCount}`);
-            return { success: true, count: newCount };
+            return { success: true, count: newVal };
         } catch (err) {
-            console.error('❌ Error incrementando copy_count:', err);
+            console.error('[DEBUG_COPY] Error crítico en persistencia:', err);
             return { success: false, msg: err.message };
         }
     },
@@ -1055,13 +1171,17 @@ const store = {
     // --- VERIFICACIÓN AUTOMÁTICA DE NIVEL DEL AUTOR ---
     async _checkAuthorLevelUp(authorId) {
         try {
+            console.log(`[DEBUG_LVL] Iniciando verificación para autor: ${authorId}`);
             // Obtener todos los prompts del autor
             const authorPrompts = await pb.collection('prompts').getFullList({
-                filter: `author = "${authorId}"`
+                filter: `author = "${authorId}"`,
+                fields: 'copy_count'
             });
 
             const totalPosts = authorPrompts.length;
             const totalCopies = authorPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
+
+            console.log(`[DEBUG_LVL] Real Stats -> Posts: ${totalPosts}, Copies: ${totalCopies}`);
 
             // Calcular nivel correcto basado en posts Y copias
             let newLevel = 0;
@@ -1071,22 +1191,35 @@ const store = {
                 }
             });
 
-            // Obtener nivel actual del autor
+            // Obtener datos actuales del autor
             const author = await pb.collection('users').getOne(authorId);
+            const isAdmin = this.currentUser?.role === 'admin';
+            const isSelf = this.currentUser?.id === authorId;
 
-            // Si el nivel, posts o copias cambiaron, actualizar
-            if (newLevel > (author.level || 0) || author.prompts_count !== totalPosts || author.total_copies !== totalCopies) {
-                await pb.collection('users').update(authorId, {
-                    level: Math.max(newLevel, author.level || 0),
-                    prompts_count: totalPosts,
-                    total_copies: totalCopies
-                });
-                if (newLevel > (author.level || 0)) {
-                    console.log(`🎉 Usuario ${author.username} subió a Nivel ${newLevel} (${LEVEL_REQS[newLevel].name})!`);
+            console.log(`[DEBUG_LVL] Current Level: ${author.level}, New Calculated: ${newLevel}`);
+
+            // IMPORTANTE: Solo actualizamos si hay cambios O si somos admin/autor con permisos
+            const hasChanges = (newLevel > (author.level || 0)) ||
+                (author.prompts_count !== totalPosts) ||
+                (author.total_copies !== totalCopies);
+
+            if (hasChanges) {
+                if (isAdmin || isSelf) {
+                    console.log(`[DEBUG_LVL] Actualizando registro de usuario ${authorId}...`);
+                    await pb.collection('users').update(authorId, {
+                        level: Math.max(newLevel, author.level || 0),
+                        prompts_count: totalPosts,
+                        total_copies: totalCopies
+                    });
+                    console.log(`[DEBUG_LVL] ✅ Usuario actualizado con éxito`);
+                } else {
+                    console.log(`[DEBUG_LVL] ⚠️ Cambio detectado pero el usuario actual NO tiene permisos para actualizar este perfil. El autor lo sincronizará al entrar a su perfil.`);
                 }
+            } else {
+                console.log(`[DEBUG_LVL] No se requieren cambios en el perfil.`);
             }
         } catch (err) {
-            console.warn('⚠️ Error checking author level:', err);
+            console.warn("[DEBUG_LVL] Error en verificación de nivel:", err);
         }
     },
 
