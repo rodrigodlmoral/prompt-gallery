@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-    base: './', // Use relative paths for assets
+    base: '/', // Use absolute paths for assets to avoid MIME errors on deep routes
     server: {
         port: 5174, // Fixed port
         open: false // Don't auto-open (the .bat file will do it)

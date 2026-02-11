@@ -13,12 +13,8 @@ import { SearchSuggestions } from './components/SearchSuggestions.js';
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;
 
-// DEBUG: Confirmar carga de script
-alert("🚀 MAIN.JS CARGADO!");
-console.log("🚀 MAIN.JS LOADED at " + new Date().toISOString());
-if (window.location.hash.includes('confirm-verification')) {
-    alert("🔍 Hash de verificación detectado en la URL!");
-}
+// Script Initialization
+console.log("🚀 Prompt Gallery Initialized");
 
 
 const renderMaintenance = () => {
