@@ -151,13 +151,16 @@ const store = {
     async loadUserPrompts(userId) {
         try {
             console.log(`[STORE] 🔍 Cargando galería completa del servidor para ID: ${userId}`);
+            // Quitamos 'sort' que causa 400 en PocketHost con filtros complejos
             const records = await pb.collection('prompts').getFullList({
                 filter: `author = "${userId}"`,
-                expand: 'author',
-                sort: '-created'
+                expand: 'author'
             });
 
             const mapped = this._mapPrompts(records);
+            // Ordenamos en cliente por seguridad
+            mapped.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
             // Fusionar con los prompts globales para evitar duplicados en memoria
             const existingIds = new Set(this.prompts.map(p => p.id));
             const newOnes = mapped.filter(p => !existingIds.has(p.id));
@@ -261,23 +264,13 @@ const store = {
 
     async fetchUserProfileByUsername(rawUsername) {
         if (!rawUsername) return null;
-
-        // --- SANITIZATION ---
         const username = rawUsername.trim().replace(/['"]/g, "");
 
         if (this.usersCache[username] && (Date.now() - this.usersCache[username]._fetchedAt < 60000)) {
             return this.usersCache[username];
         }
 
-        const logError = (msg) => {
-            console.error(`[ST_DEBUG] ${msg}`);
-            // Banner disabled to avoid UI clutter
-        };
-
         try {
-            // STRATEGY 1: HYBRID SEARCH (v7.0 - "The Dragnet")
-            // Problem: API Filters cause 400 Bad Request.
-            // Solution: Try strict filter. If fails, fetch raw list and filter in client (JavaScript).
             let directFound = null;
 
             // 1.1 Try Strict Filter First (Best case)
@@ -287,38 +280,25 @@ const store = {
                 });
                 if (resName.items.length > 0) directFound = resName.items[0];
             } catch (e1) {
-                // 1.2 DRAGNET FALLBACK (If Filter Fails)
-                console.warn(`[ST_DEBUG] Strategy 1 Filter Failed (${e1.status}). Engaging DRAGNET...`);
-
+                console.warn(`[ST_DEBUG] Strategy 1 Filter Failed. Engaging DRAGNET...`);
                 try {
-                    // Fetch top 50 users WITHOUT FILTER (Bypass API bug)
-                    // We know 'valentine' is recent, so listing by -created should find him.
-                    const dragnet = await pb.collection('users').getList(1, 50, {
-                        sort: '-created'
-                    });
-
+                    const dragnet = await pb.collection('users').getList(1, 50, { sort: '-created' });
                     const targetLower = username.toLowerCase();
                     directFound = dragnet.items.find(u =>
                         (u.name && u.name.toLowerCase() === targetLower) ||
                         (u.username && u.username.toLowerCase() === targetLower)
                     );
-
-                    if (directFound) {
-                        console.log(`[ST_DEBUG] DRAGNET SUCCESS: Found ${username} in raw list.`);
-                    }
                 } catch (e2) {
                     console.error(`[ST_DEBUG] Dragnet Failed:`, e2);
                 }
             }
 
             if (directFound) {
-                console.log(`[ST_DEBUG] Strategy 1 Found: ${username} (ID: ${directFound.id})`);
-
-                // --- AUTO-CURACIÓN: RECONEXIÓN DE POSTS (v12) ---
+                // --- AUTO-CURACIÓN: RECONEXIÓN DE POSTS (v14) ---
                 try {
                     const userId = directFound.id;
                     const ghosts = await pb.collection('prompts').getFullList({
-                        filter: `author != "${userId}" && (author_name = "${username}" || username = "${username}")`
+                        filter: `author != "${userId}" && author_name = "${username}"`
                     });
 
                     if (ghosts.length > 0) {
@@ -326,15 +306,15 @@ const store = {
                         for (const p of ghosts) {
                             await pb.collection('prompts').update(p.id, { author: userId });
                         }
+                        await pb.collection('users').update(userId, { "prompts_count+": 0 });
                     }
                 } catch (e) {
                     console.warn("[REPAIR] Fallo en reconexión:", e);
                 }
-
                 return this._cacheUser(username, directFound);
             }
 
-            // STRATEGY 2: ID Check (If looks like ID)
+            // STRATEGY 2: ID Check
             if (username.length === 15) {
                 try {
                     const u = await pb.collection('users').getOne(username);
@@ -342,19 +322,14 @@ const store = {
                 } catch (e) { }
             }
 
-            // STRATEGY 3: NUCLEAR FALLBACK (Fetch LARGER list & filter in memory case-insensitive)
-            // CACHE CHECK (5 min validity)
+            // STRATEGY 3: NUCLEAR FALLBACK
             let items = [];
-            const CACHE_TTL = 300000; // 5 min
-
+            const CACHE_TTL = 300000;
             if (this.nuclearCache.items.length > 0 && (Date.now() - this.nuclearCache.lastFetch < CACHE_TTL)) {
-                console.log("[ST_DEBUG] ⚡ Usando CACHÉ NUCLEAR (No se descarga nada)...");
                 items = this.nuclearCache.items;
             } else {
                 const nuclearRes = await pb.collection('users').getList(1, 1000, { sort: '-updated' });
                 items = nuclearRes.items;
-
-                // Update Cache
                 this.nuclearCache.items = items;
                 this.nuclearCache.lastFetch = Date.now();
             }
@@ -366,13 +341,11 @@ const store = {
             );
 
             if (found) {
-                console.log(`[SUCCESS] Found user '${found.username}' via Nuclear Search (Matches: ${username})`);
                 return this._cacheUser(username, found);
             }
 
-            logError(`[FAIL] Usuario '${username}' no encontrado en los últimos 1000 registros.`);
         } catch (err) {
-            logError(`[CRITICAL] Error final: ${err.message}`);
+            console.error(`[CRITICAL] Error fetching profile: ${err.message}`);
         }
         return null;
     },

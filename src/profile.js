@@ -508,9 +508,6 @@ const Gallery = () => {
         ? store.currentUser
         : (store.users.find(u => u.username === profileUser || u.name === profileUser) || store.usersCache[profileUser]);
 
-    console.log(`[PROFILE_DEBUG] Gallery: profileUser="${profileUser}", userFoundID="${user?.id}"`);
-    console.log(`[PROFILE_DEBUG] Total prompts in store: ${store.prompts.length}`);
-
     if (!user) return '<div class="container" style="padding:40px 0; color:#666">Cargando galería...</div>';
 
     let list = [...store.prompts].filter(p => {
@@ -519,10 +516,6 @@ const Gallery = () => {
 
         // Scope Check (Creations vs Saved)
         const inScope = profileTab === 'creations' ? isMine : p.savedBy?.includes(user.id);
-
-        if (profileUser === 'smangel97' && profileTab === 'creations') {
-            console.log(`[PROFILE_DEBUG] Post "${p.title}": author_id="${p.author_id}", targetID="${user.id}", match=${isMine}`);
-        }
 
         if (!inScope) return false;
 
