@@ -577,55 +577,81 @@ const store = {
         }
 
         // 2. Fetch Recent Logs (May fail if filter is complex, so we isolate it)
+        // 2. Fetch Recent Ledger Transactions (Official Money Flow)
         try {
-            const recentLogs = await pb.collection('activity_logs').getList(1, 20, {
-                filter: `user = "${uid}" || details.recipientId = "${uid}"`,
+            const ledgerRecords = await pb.collection('ledger').getList(1, 20, {
+                filter: `from_user = "${uid}" || to_user = "${uid}"`,
+                sort: '-created',
+                expand: 'from_user,to_user',
+                $autoCancel: false
+            });
+
+            const ledgerTxs = ledgerRecords.items.map(rec => {
+                const isSender = rec.from_user === uid;
+
+                if (rec.type === 'TIP' || rec.type === 'PURCHASE' || rec.type === 'FEE') {
+                    if (isSender) {
+                        const toName = rec.expand?.to_user?.username || 'Usuario';
+                        return {
+                            type: 'sent',
+                            amount: -rec.amount,
+                            description: rec.description || `Enviado a @${toName}`,
+                            date: rec.created,
+                            icon: '📤'
+                        };
+                    } else {
+                        const fromName = rec.expand?.from_user?.username || 'Usuario';
+                        return {
+                            type: 'received',
+                            amount: rec.amount,
+                            description: rec.description || `Recibido de @${fromName}`,
+                            date: rec.created,
+                            icon: '📥'
+                        };
+                    }
+                }
+                // Fallback for other types
+                return {
+                    type: isSender ? 'expense' : 'income',
+                    amount: isSender ? -rec.amount : rec.amount,
+                    description: rec.description || 'Transacción',
+                    date: rec.created,
+                    icon: isSender ? '📉' : '📈'
+                };
+            });
+
+            transactions = [...transactions, ...ledgerTxs];
+        } catch (err) {
+            console.error('[ECONOMY] Error fetching ledger:', err);
+        }
+
+        // 3. Fetch Copy Bonuses from Activity Logs (Legacy/System)
+        try {
+            const bonusLogs = await pb.collection('activity_logs').getList(1, 20, {
+                filter: `user = "${uid}" && action = "copy_milestone_bonus"`,
                 sort: '-created',
                 $autoCancel: false
             });
 
-            transactions = recentLogs.items.map(log => {
-                const isSender = log.user === uid;
+            const bonusTxs = bonusLogs.items.map(log => {
                 const details = log.details || {};
+                return {
+                    type: 'bonus',
+                    amount: details.bonus || 0,
+                    description: `🎉 Milestone: ${details.copies} copias`,
+                    date: log.created,
+                    icon: '🏆'
+                };
+            });
 
-                if (log.action === 'send_tip') {
-                    if (isSender) {
-                        return {
-                            type: 'sent',
-                            amount: -(details.amount || 0),
-                            description: `Enviado a @${details.recipient || 'Usuario'}`,
-                            date: log.created_at || log.created,
-                            icon: '📤'
-                        };
-                    } else {
-                        return {
-                            type: 'received',
-                            amount: details.amount || 0,
-                            description: `Recibido de @${log.expand?.user?.username || 'Usuario'}`,
-                            date: log.created_at || log.created,
-                            icon: '📥'
-                        };
-                    }
-                } else if (log.action === 'copy_milestone_bonus') {
-                    return {
-                        type: 'bonus',
-                        amount: details.bonus || 0,
-                        description: `🎉 Milestone: ${details.copies} copias`,
-                        date: log.created_at || log.created,
-                        icon: '🏆'
-                    };
-                }
-                return null;
-            }).filter(Boolean);
-
-            // Update detailed stats from logs if possible (better than placeholders)
-            // Note: This only counts visible/recent logs, so it's partial. 
-            // We rely on user record stats for totals.
-
+            transactions = [...transactions, ...bonusTxs];
         } catch (err) {
-            console.warn('[ECONOMY] Error fetching activity logs (Dashboard will show partial data):', err);
-            // We don't crash, just show empty transactions
+            console.warn('[ECONOMY] Error fetching bonus logs:', err);
         }
+
+        // 4. Sort merged list
+        transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        transactions = transactions.slice(0, 20);
 
         return {
             currentBalance,
