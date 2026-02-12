@@ -187,6 +187,14 @@ window.doCopyPrompt = async (type = 'main') => {
 
 window.doSavePrompt = () => {
     if (!store.currentUser) return alert("Inicia sesión para guardar");
+
+    // Level Check (Level 1+)
+    const levelCheck = store.checkLevelFeature('favorite');
+    if (!levelCheck.hasAccess) {
+        toast(levelCheck.message, 'warning');
+        return;
+    }
+
     store.toggleSave(store.activePostId);
     alert('✅ ¡Guardado! Podrás ver este prompt en tu pestaña de "Guardados" en tu perfil.');
     window.toggleOptionsMenu();

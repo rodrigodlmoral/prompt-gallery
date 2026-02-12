@@ -31,6 +31,14 @@ window.openTip = (postId) => {
         if (window.openLogin) window.openLogin();
         return;
     }
+
+    // Level Check (Level 1+)
+    const levelCheck = store.checkLevelFeature('transfer');
+    if (!levelCheck.hasAccess) {
+        toast(levelCheck.message, 'warning');
+        return;
+    }
+
     const p = store.prompts.find(x => String(x.id) === String(postId));
     if (!p) {
         toast("❌ Post no encontrado", 'error');
@@ -77,11 +85,21 @@ window.openTip = (postId) => {
                     <h2 style="color:#fff; margin:0 0 5px 0">Enviar a @${p.author}</h2>
                     <p style="color:#888; margin-bottom:20px">Apoya el post "${p.title}"</p>
 
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px">
                         <button onclick="window.doSendTip(5)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 5</button>
                         <button onclick="window.doSendTip(10)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 10</button>
                         <button onclick="window.doSendTip(20)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 20</button>
                         <button onclick="window.doSendTip(50)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 50</button>
+                    </div>
+
+                    <div style="display:flex; gap:8px; margin-bottom:20px; align-items:center">
+                        <input id="customTipAmount" type="number" min="1" step="1" placeholder="Otro monto..."
+                            style="flex:1; background:#0f0f23; border:1px solid #333; color:#fff; padding:10px 14px; border-radius:8px; font-size:1rem; outline:none;"
+                            onkeydown="if(event.key==='Enter'){document.getElementById('sendCustomTipBtn').click()}" />
+                        <button id="sendCustomTipBtn" onclick="const v=parseInt(document.getElementById('customTipAmount').value);if(v>0)window.doSendTip(v);else window.toast&&window.toast('Ingresa un monto válido','warning')"
+                            style="background:linear-gradient(135deg,#a855f7,#6366f1); border:none; color:#fff; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:600; white-space:nowrap">
+                            Enviar
+                        </button>
                     </div>
 
                     <div style="font-size:0.85rem; color:#666; margin-bottom:20px">

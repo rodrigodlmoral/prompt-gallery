@@ -8,11 +8,13 @@ import { TAG_ALIASES } from './data/tagAliases.js';
 import { DetailModalTemplate } from './components/DetailModal.js';
 import { SearchSuggestions } from './components/SearchSuggestions.js';
 import { getSearchSuggestions } from './utils/search-logic.js';
+import { initEconomyDashboard } from './components/EconomyDashboard.js';
+import './utils/LevelDebug.js'; // Load Debug Tools
 
 const app = document.getElementById('app');
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
-const MAINTENANCE_MODE = false;
+const MAINTENANCE_MODE = true;
 
 const renderMaintenance = () => {
     // 1. Apply blur and safety to the main app container
@@ -1013,6 +1015,7 @@ const render = () => {
         app.innerHTML = `
             <div id="header-mount"></div>
             <div id="profile-header-mount"></div>
+            <div id="economyDashboardContainer"></div>
             <div id="profile-gallery-container"></div>
             <div id="modals-mount"></div>
             <div id="adv-filter-mount"></div>
@@ -1040,6 +1043,15 @@ const render = () => {
     if (advFilterMount) advFilterMount.innerHTML = AdvancedFilters(filters);
 
     attachEvents();
+
+    // Economy Dashboard (own profile only)
+    const isOwnProfile = store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser);
+    if (isOwnProfile) {
+        initEconomyDashboard('economyDashboardContainer');
+    } else {
+        const ecoContainer = document.getElementById('economyDashboardContainer');
+        if (ecoContainer) ecoContainer.innerHTML = '';
+    }
 
     // Solo scrollear arriba si no es un render incremental
     window._isIncrementalRender = false;
@@ -2232,11 +2244,21 @@ window.openDirectTip = (recipientId, username) => {
                             <h2 style="color:#fff; margin:0 0 5px 0">Apoyar a @${username}</h2>
                             <p style="color:#888; margin-bottom:20px">Regala PromptBits directamente a este creador</p>
 
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px">
                                 <button onclick="window.doSendDirectTip('${recipientId}', 5)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 5</button>
                                 <button onclick="window.doSendDirectTip('${recipientId}', 10)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 10</button>
                                 <button onclick="window.doSendDirectTip('${recipientId}', 20)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 20</button>
                                 <button onclick="window.doSendDirectTip('${recipientId}', 50)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 50</button>
+                            </div>
+
+                            <div style="display:flex; gap:8px; margin-bottom:20px; align-items:center">
+                                <input id="customDirectTipAmount" type="number" min="1" step="1" placeholder="Otro monto..."
+                                    style="flex:1; background:#0f0f23; border:1px solid #333; color:#fff; padding:10px 14px; border-radius:8px; font-size:1rem; outline:none;"
+                                    onkeydown="if(event.key==='Enter'){document.getElementById('sendCustomDirectTipBtn').click()}" />
+                                <button id="sendCustomDirectTipBtn" onclick="const v=parseInt(document.getElementById('customDirectTipAmount').value);if(v>0)window.doSendDirectTip('${recipientId}',v);else window.toast&&window.toast('Ingresa un monto válido','warning')"
+                                    style="background:linear-gradient(135deg,#a855f7,#6366f1); border:none; color:#fff; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:600; white-space:nowrap">
+                                    Enviar
+                                </button>
                             </div>
 
                             <div style="font-size:0.85rem; color:#666; margin-bottom:20px">

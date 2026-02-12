@@ -1,5 +1,7 @@
 import { pb } from './pocketbase.js';
 import { uploadToCloudinary } from './uploadService.js';
+import { LevelSystem } from './lib/LevelSystem.js';
+import { checkCopyMilestone, getNextMilestone } from './lib/CopyBonusSystem.js';
 
 // --- GOOGLE ANALYTICS HELPER ---
 window.trackEvent = (name, params = {}) => {
@@ -32,12 +34,89 @@ window.normalizeProfile = (p) => {
 };
 
 export const LEVEL_REQS = [
-    { posts: 0, copies: 0, name: 'Explorador', benefits: ['Comentar en prompts', 'Guardar favoritos', 'Enviar PromptBits'], icon: '🛡️', color: '#888' },
-    { posts: 10, copies: 0, name: 'Novato', benefits: ['Publicar Secuencias (Multi-imagen)'], icon: '🌱', color: '#4caf50' },
-    { posts: 25, copies: 0, name: 'Creador Jr', benefits: ['Cambiar foto de perfil', 'Añadir redes sociales al perfil'], icon: '🎨', color: '#2196f3' },
-    { posts: 50, copies: 15, name: 'Creador', benefits: ['Sin cooldown en comentarios', 'Medalla especial de plata'], icon: '🏆', color: '#ff9800' },
-    { posts: 100, copies: 40, name: 'Artista', benefits: ['Destacar tus propios posts (Self-Promo)', 'Panel de estadísticas avanzado'], icon: '💎', color: '#9c27b0' },
-    { posts: 250, copies: 80, name: 'Maestro', benefits: ['Herramientas de moderación básica', 'Soporte prioritario 24/7'], icon: '👑', color: 'gold' }
+    {
+        posts: 0,
+        copies: 0,
+        name: 'Explorador',
+        benefits: [
+            'Welcome Bonus: +50 💎 al registro +50 💎 primer prompt',
+            'Acceso completo a galería y filtros',
+            'Publicar prompts: 3 diarios máximo',
+            'Seguir usuarios y copiar prompts'
+        ],
+        icon: '🛡️',
+        color: '#22c55e'
+    },
+    {
+        posts: 5,
+        copies: 0,
+        name: 'Novato',
+        benefits: [
+            'Level Up Bonus: +10 💎',
+            'Publicar prompts: 5 diarios máximo',
+            'Comentar y guardar favoritos',
+            'Enviar/Recibir PromptBits',
+            'Destacar posts (coste estándar)'
+        ],
+        icon: '🌱',
+        color: '#3b82f6'
+    },
+    {
+        posts: 25,
+        copies: 0,
+        name: 'Creador Jr',
+        benefits: [
+            'Level Up Bonus: +20 💎',
+            'Publicar prompts: 10 diarios máximo',
+            'Cambiar foto de perfil',
+            'Publicar secuencias multi-imagen',
+            'Destacar posts (descuento nivel 2)'
+        ],
+        icon: '🎨',
+        color: '#a855f7'
+    },
+    {
+        posts: 50,
+        copies: 100,
+        name: 'Creador Elite',
+        benefits: [
+            'Level Up Bonus: +30 💎',
+            'Publicar prompts: 20 diarios máximo',
+            'Añadir redes sociales y bio',
+            'Ultraboost 24hrs (próximamente)',
+            'Destacar posts (descuento nivel 3)'
+        ],
+        icon: '🏆',
+        color: '#f97316'
+    },
+    {
+        posts: 100,
+        copies: 200,
+        name: 'Artista Prompter',
+        benefits: [
+            'Level Up Bonus: +40 💎',
+            'Publicar prompts: 30 diarios máximo',
+            'Badge visual destacado',
+            'Early access a herramientas',
+            'Destacar posts (descuento nivel 4)'
+        ],
+        icon: '💎',
+        color: '#ef4444'
+    },
+    {
+        posts: 250,
+        copies: 500,
+        name: 'Maestro Prompter',
+        benefits: [
+            'Level Up Bonus: +50 💎',
+            'Publicar prompts: 50 diarios máximo',
+            'Programa de Creadores (Monetización)',
+            'Perfil Verificado',
+            'Analytics Avanzados'
+        ],
+        icon: '👑',
+        color: '#eab308'
+    }
 ];
 
 export const TOOLS = ['ChatGPT', 'Gemini', 'Grok', 'Meta', 'DIGEN AI', 'SD 1.5', 'SD 2.0', 'SDXL', 'Flux', 'Midjourney', 'Whisk', 'Huggingface', 'Fooocus', 'ComfyUI', 'Perchance', 'Otro'];
@@ -465,6 +544,87 @@ const store = {
         }
     },
 
+    // === PHASE 5: Economy Stats (Server-Side Optimized) ===
+    async getEconomyStats(userId = null) {
+        const uid = userId || this.currentUser?.id;
+        if (!uid) return null;
+
+        try {
+            // 1. Get stats directly from user record (O(1) complexity)
+            // If viewing another user, we might need to fetch them if not in cache
+            let user = this.currentUser;
+            if (uid !== this.currentUser?.id) {
+                user = await pb.collection('users').getOne(uid);
+            }
+
+            const currentBalance = user.tokens || 0;
+            const totalEarned = user.total_earned || 0;
+            const totalSpent = user.total_spent || 0;
+            // totalReceived and totalBonuses are subsets, we might stop tracking them individually 
+            // for the summary to save resources, or we calculate them if needed.
+            // For now, let's keep the dashboard simple and efficient using the pre-calculated totals.
+
+            // 2. Fetch ONLY the recent history (Lightweight query)
+            // We fetch the last 20 items for this user. 
+            // We do NOT need to fetch ALL history to calculate totals anymore.
+            const recentLogs = await pb.collection('activity_logs').getList(1, 20, {
+                filter: `user = "${uid}" || details.recipientId = "${uid}"`, // Sent or Received
+                sort: '-created'
+            });
+
+            // 3. Map logs to transaction format
+            const transactions = recentLogs.items.map(log => {
+                const isSender = log.user === uid;
+                const details = log.details || {};
+
+                if (log.action === 'send_tip') {
+                    if (isSender) {
+                        return {
+                            type: 'sent',
+                            amount: -(details.amount || 0),
+                            description: `Enviado a @${details.recipient || 'Usuario'}`,
+                            date: log.created,
+                            icon: '📤'
+                        };
+                    } else {
+                        // Received
+                        return {
+                            type: 'received',
+                            amount: details.amount || 0,
+                            description: `Recibido de @${log.expand?.user?.username || 'Usuario'}`,
+                            date: log.created,
+                            icon: '📥'
+                        };
+                    }
+                } else if (log.action === 'copy_milestone_bonus') {
+                    return {
+                        type: 'bonus',
+                        amount: details.bonus || 0,
+                        description: `🎉 Milestone: ${details.copies} copias`,
+                        date: log.created,
+                        icon: '🏆'
+                    };
+                }
+                return null;
+            }).filter(Boolean);
+
+            return {
+                currentBalance,
+                totalEarned,
+                totalSpent,
+                netFlow: totalEarned - totalSpent,
+                // We no longer calculate exact transaction counts to avoid heavy counts
+                // We show recent transactions instead
+                transactions
+            };
+        } catch (err) {
+            console.error('[ECONOMY] Error fetching stats:', err);
+            return {
+                currentBalance: 0, totalEarned: 0, totalSpent: 0, netFlow: 0, transactions: []
+            };
+        }
+    },
+
     async getTopCreators() {
         try {
             const records = await pb.collection('users').getList(1, 10, {
@@ -480,6 +640,36 @@ const store = {
 
     async addPrompt(data) {
         if (!this.currentUser) return { success: false, msg: "Inicia sesión para publicar" };
+
+        // --- CHECK DAILY POST LIMIT (V3 LEVEL-BASED RESTRICTION) ---
+        const levelSystem = new LevelSystem(pb);
+        const userLevel = this.currentUser.level || 0;
+        const levelInfo = levelSystem.getLevelInfo(userLevel);
+
+        // Count posts published today
+        const today = new Date().toISOString().split('T')[0];
+        const todayStart = `${today} 00:00:00`;
+        const todayEnd = `${today} 23:59:59`;
+
+        try {
+            const todayPosts = await pb.collection('prompts').getList(1, 1, {
+                filter: `author = "${this.currentUser.id}" && created >= "${todayStart}" && created <= "${todayEnd}"`,
+                fields: 'id'
+            });
+
+            const postsToday = todayPosts.totalItems || 0;
+            const maxPerDay = levelInfo.benefits.find(b => b.includes('diarios'))?.match(/\d+/)?.[0] || 3;
+
+            if (postsToday >= parseInt(maxPerDay)) {
+                return {
+                    success: false,
+                    msg: `Has alcanzado tu límite diario de ${maxPerDay} prompts (Nivel ${userLevel}: ${levelInfo.name}). ¡Sube de nivel para publicar más!`
+                };
+            }
+        } catch (err) {
+            console.error('[DAILY LIMIT CHECK] Error:', err);
+            // Continue on error (don't block user if check fails)
+        }
 
         let imageUrl = '';
         const uploadImage = async (base64) => {
@@ -527,46 +717,62 @@ const store = {
                 saved_by: []
             });
 
-            // --- LEVEL UP LOGIC (POSTS + COPIAS) ---
-            const oldLevel = this.currentUser.level || 0;
+            // --- LEVEL UP LOGIC & REWARDS (V3 ECONOMY) ---
+            const levelSystem = new LevelSystem(pb);
+            const levelCheck = await levelSystem.checkLevelUp(this.currentUser.id);
 
-            // Obtener total de posts
-            const userPrompts = await pb.collection('prompts').getList(1, 1, {
-                filter: `author = "${this.currentUser.id}"`
+            if (!levelCheck) {
+                console.error('[ECONOMY] Failed to check level up');
+                return { success: true, leveledUp: false };
+            }
+
+            const { shouldLevelUp, oldLevel, newLevel, levelName } = levelCheck;
+
+            // Define Bonuses
+            const LEVEL_UP_BONUSES = [0, 10, 20, 30, 40, 50]; // Index maps to Level 0-5
+            const BASE_REWARD = (oldLevel >= 5) ? 2 : 1;      // +2 for Maestro, +1 for others
+
+            let tokensToAdd = BASE_REWARD;
+
+            if (shouldLevelUp) {
+                // Add the specific bonus for the NEW level reached
+                const bonus = LEVEL_UP_BONUSES[newLevel] || 10;
+                tokensToAdd += bonus;
+
+                console.log(`[ECONOMY] 🎉 Level Up! ${oldLevel} -> ${newLevel} (${levelName}). Reward: ${tokensToAdd} (${BASE_REWARD} base + ${bonus} bonus)`);
+
+                // Show level-up notification
+                if (window.showToast) {
+                    window.showToast(`🎉 ¡Subiste a Nivel ${newLevel}: ${levelName}! +${bonus} 💎 Bonus`, 'success');
+                }
+            } else {
+                console.log(`[ECONOMY] Standard Reward. ${tokensToAdd} tokens.`);
+            }
+
+            // Get fresh stats for update
+            const userPromptsStats = await pb.collection('prompts').getList(1, 1, {
+                filter: `author = "${this.currentUser.id}"`,
+                fields: 'id'
             });
-            const totalPosts = userPrompts.totalItems;
+            const totalPosts = userPromptsStats.totalItems;
 
-            // Obtener total de copias de TODOS los prompts del usuario
             const allPrompts = await pb.collection('prompts').getFullList({
-                filter: `author = "${this.currentUser.id}"`
+                filter: `author = "${this.currentUser.id}"`,
+                fields: 'copy_count'
             });
             const totalCopies = allPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
 
-            // Calcular nivel (considerando posts Y copias)
-            let newLevel = 0;
-            LEVEL_REQS.forEach((req, idx) => {
-                if (totalPosts >= req.posts && totalCopies >= req.copies) {
-                    newLevel = idx;
-                }
-            });
+            // Calculate progress for UI
+            const progress = levelSystem.calculateProgress(newLevel, totalPosts, totalCopies);
 
-            let leveledUp = false;
-            if (newLevel > oldLevel) {
-                leveledUp = true;
-                await pb.collection('users').update(this.currentUser.id, {
-                    level: newLevel,
-                    prompts_count: totalPosts,
-                    total_copies: totalCopies,
-                    tokens: (this.currentUser.tokens || 0) + 10 // Bonus for level up
-                });
-            } else {
-                // Just regular reward (1 token per post)
-                await pb.collection('users').update(this.currentUser.id, {
-                    tokens: (this.currentUser.tokens || 0) + 1,
-                    prompts_count: totalPosts, // Physical backup
-                    total_copies: totalCopies   // Physical backup
-                });
-            }
+            // Update User
+            await pb.collection('users').update(this.currentUser.id, {
+                level: newLevel,
+                level_progress: progress,
+                prompts_count: totalPosts,
+                total_copies: totalCopies,
+                tokens: (this.currentUser.tokens || 0) + tokensToAdd
+            });
 
             await this._loadUserProfile(this.currentUser.id);
             await this.loadPrompts();
@@ -574,9 +780,10 @@ const store = {
 
             return {
                 success: true,
-                leveledUp: leveledUp,
+                leveledUp: shouldLevelUp,
                 newLevel: newLevel,
-                tokensEarned: leveledUp ? 10 : 1
+                levelName: shouldLevelUp ? levelName : null,
+                tokensEarned: tokensToAdd
             };
         } catch (err) {
             console.error("Publish error:", err);
@@ -776,7 +983,17 @@ const store = {
     },
 
     async sendTip(postId, amount, recipientId = null) {
-        if (!this.currentUser || this.currentUser.tokens < amount) return { success: false, msg: 'Saldo insuficiente' };
+        if (!this.currentUser) return { success: false, msg: 'Inicia sesión' };
+
+        // Level Check (Level 1+)
+        const levelCheck = this.checkLevelFeature('transfer');
+        if (!levelCheck.hasAccess) {
+            return { success: false, msg: levelCheck.message };
+        }
+
+        if (!Number.isInteger(amount) || amount <= 0) return { success: false, msg: 'Monto inválido' };
+        if (this.currentUser.tokens < amount) return { success: false, msg: `Saldo insuficiente. Tienes ${this.currentUser.tokens} 💎` };
+
         try {
             let actualRecipientId = recipientId;
             let authorUsername = '';
@@ -784,21 +1001,66 @@ const store = {
                 const prompt = this.prompts.find(p => String(p.id) === String(postId));
                 if (prompt) { actualRecipientId = prompt.author_id; authorUsername = prompt.author; }
             }
-            if (!actualRecipientId) return { success: false };
+            if (!actualRecipientId) return { success: false, msg: 'Destinatario no encontrado' };
+
+            // Prevent self-transfer
+            if (actualRecipientId === this.currentUser.id) {
+                return { success: false, msg: 'No puedes enviarte PromptBits a ti mismo' };
+            }
 
             const recipient = await pb.collection('users').getOne(actualRecipientId);
+            const recipientName = recipient.name || recipient.username || 'Usuario';
+
             const batch = pb.createBatch();
-            batch.collection('users').update(this.currentUser.id, { tokens: this.currentUser.tokens - amount });
-            batch.collection('users').update(actualRecipientId, { tokens: (recipient.tokens || 0) + amount });
+
+            // Update Sender: -tokens, +total_spent
+            const newSenderBalance = this.currentUser.tokens - amount;
+            const newSenderSpent = (this.currentUser.total_spent || 0) + amount;
+            batch.collection('users').update(this.currentUser.id, {
+                tokens: newSenderBalance,
+                total_spent: newSenderSpent
+            });
+
+            // Update Recipient: +tokens, +total_earned
+            // We read from 'recipient' object fetched above
+            const newRecipientBalance = (recipient.tokens || 0) + amount;
+            const newRecipientEarned = (recipient.total_earned || 0) + amount;
+            batch.collection('users').update(actualRecipientId, {
+                tokens: newRecipientBalance,
+                total_earned: newRecipientEarned
+            });
+
             batch.collection('activity_logs').create({
                 user: this.currentUser.id,
                 action: 'send_tip',
-                details: { amount, recipient: authorUsername || actualRecipientId }
+                details: {
+                    amount,
+                    recipient: authorUsername || recipientName,
+                    recipientId: actualRecipientId,
+                    postId: postId || null,
+                    type: postId ? 'post_tip' : 'direct_transfer'
+                }
             });
             await batch.send();
+
+            // Update local user state immediately
+            if (this.currentUser) {
+                this.currentUser.tokens = newSenderBalance;
+                this.currentUser.total_spent = newSenderSpent;
+            }
             await this._loadUserProfile(this.currentUser.id);
-            return { success: true };
-        } catch (err) { return { success: false }; }
+
+            return {
+                success: true,
+                msg: `✅ ¡${amount} 💎 enviados a @${recipientName}!`,
+                amount,
+                recipientName,
+                newBalance: newSenderBalance
+            };
+        } catch (err) {
+            console.error('[TRANSFER] Error:', err);
+            return { success: false, msg: 'Error en la transferencia. Intenta de nuevo.' };
+        }
     },
 
     async followUser(targetUsername) {
@@ -874,6 +1136,44 @@ const store = {
             this.logout();
             return { success: true };
         } catch (err) { return { success: false }; }
+    },
+
+    // --- LEVEL SYSTEM HELPERS ---
+
+    /**
+     * Check if current user has access to a level-gated feature
+     * @param {string} feature - Feature name (e.g., 'comment', 'favorite', 'transfer', 'boost')
+     * @returns {object} { hasAccess: boolean, requiredLevel: number, message: string }
+     */
+    checkLevelFeature(feature) {
+        if (!this.currentUser) {
+            return { hasAccess: false, requiredLevel: 1, message: "Inicia sesión para continuar" };
+        }
+
+        const userLevel = this.currentUser.level || 0;
+        const featureRequirements = {
+            'comment': { level: 1, name: 'Novato', message: 'Necesitas ser Nivel 1 (Novato) para comentar. ¡Publica 5 prompts para subir!' },
+            'favorite': { level: 1, name: 'Novato', message: 'Necesitas ser Nivel 1 (Novato) para guardar favoritos. ¡Publica 5 prompts!' },
+            'transfer': { level: 1, name: 'Novato', message: 'Necesitas ser Nivel 1 (Novato) para transferir PromptBits. ¡Publica 5 prompts!' },
+            'boost': { level: 1, name: 'Novato', message: 'Necesitas ser Nivel 1 (Novato) para destacar posts. ¡Publica 5 prompts!' },
+            'avatar': { level: 2, name: 'Creador Jr', message: 'Necesitas ser Nivel 2 (Creador Jr) para cambiar tu foto de perfil. ¡Publica 25 prompts!' },
+            'sequence': { level: 2, name: 'Creador Jr', message: 'Necesitas ser Nivel 2 (Creador Jr) para publicar secuencias. ¡Publica 25 prompts!' }
+        };
+
+        const requirement = featureRequirements[feature];
+        if (!requirement) {
+            return { hasAccess: true, requiredLevel: 0, message: '' };
+        }
+
+        if (userLevel >= requirement.level) {
+            return { hasAccess: true, requiredLevel: requirement.level, message: '' };
+        }
+
+        return {
+            hasAccess: false,
+            requiredLevel: requirement.level,
+            message: requirement.message
+        };
     },
 
     // --- ADMIN ACTIONS ---
@@ -1277,10 +1577,19 @@ const store = {
             // Notificar registro
             this.logActivity('copy', { postId: promptId, count: newVal });
 
+            // === PHASE 5: Copy Milestone Bonus ===
+            const milestoneResult = await checkCopyMilestone(prompt.author, promptId, newVal);
+            if (milestoneResult.milestoneReached) {
+                console.log(`[COPY_BONUS] 🎉 Milestone! ${milestoneResult.copies} copies = +${milestoneResult.bonus} 💎`);
+                if (prompt.author === this.currentUser?.id && window.toast) {
+                    window.toast(`🎉 ¡Tu prompt alcanzó ${milestoneResult.copies} copias! +${milestoneResult.bonus} 💎`, 'success');
+                }
+            }
+
             // Subida de nivel al autor
             await this._checkAuthorLevelUp(prompt.author);
 
-            return { success: true, count: newVal };
+            return { success: true, count: newVal, milestone: milestoneResult };
         } catch (err) {
             console.error('[DEBUG_COPY] Error crítico en persistencia:', err);
             return { success: false, msg: err.message };
@@ -1627,6 +1936,13 @@ const store = {
     async postComm() {
         if (!this.currentUser) {
             if (window.toast) window.toast("Debes iniciar sesión para comentar", "error");
+            return;
+        }
+
+        // Level Check (Level 1+)
+        const levelCheck = this.checkLevelFeature('comment');
+        if (!levelCheck.hasAccess) {
+            if (window.toast) window.toast(levelCheck.message, 'warning');
             return;
         }
 

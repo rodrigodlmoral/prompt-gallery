@@ -1,6 +1,7 @@
 import './style.css'
 import './admin_fix.css'
 import { store } from './store-final.js'
+import './utils/LevelDebug.js'; // Load Debug Tools
 
 const app = document.getElementById('app');
 
