@@ -549,31 +549,42 @@ const store = {
         const uid = userId || this.currentUser?.id;
         if (!uid) return null;
 
+        let currentBalance = 0;
+        let totalEarned = 0;
+        let totalSpent = 0;
+        let totalReceived = 0;
+        let totalBonuses = 0;
+        let transactionCount = 0;
+        let transactions = [];
+
+        // 1. Get User Stats (Reliable)
         try {
-            // 1. Get stats directly from user record (O(1) complexity)
-            // If viewing another user, we might need to fetch them if not in cache
             let user = this.currentUser;
             if (uid !== this.currentUser?.id) {
                 user = await pb.collection('users').getOne(uid);
             }
+            if (user) {
+                currentBalance = user.tokens || 0;
+                totalEarned = user.total_earned || 0;
+                totalSpent = user.total_spent || 0;
 
-            const currentBalance = user.tokens || 0;
-            const totalEarned = user.total_earned || 0;
-            const totalSpent = user.total_spent || 0;
-            // totalReceived and totalBonuses are subsets, we might stop tracking them individually 
-            // for the summary to save resources, or we calculate them if needed.
-            // For now, let's keep the dashboard simple and efficient using the pre-calculated totals.
+                // Estimates based on available data
+                totalReceived = Math.max(0, totalEarned - (user.total_rewards || 0)); // Simplified
+                transactionCount = (user.prompts_count || 0) + (user.total_copies || 0); // Placeholder if no real count
+            }
+        } catch (e) {
+            console.error('[ECONOMY] Error getting user stats:', e);
+        }
 
-            // 2. Fetch ONLY the recent history (Lightweight query)
-            // We fetch the last 20 items for this user. 
-            // We do NOT need to fetch ALL history to calculate totals anymore.
+        // 2. Fetch Recent Logs (May fail if filter is complex, so we isolate it)
+        try {
             const recentLogs = await pb.collection('activity_logs').getList(1, 20, {
-                filter: `user = "${uid}" || details.recipientId = "${uid}"`, // Sent or Received
-                sort: '-created'
+                filter: `user = "${uid}" || details.recipientId = "${uid}"`,
+                sort: '-created',
+                $autoCancel: false
             });
 
-            // 3. Map logs to transaction format
-            const transactions = recentLogs.items.map(log => {
+            transactions = recentLogs.items.map(log => {
                 const isSender = log.user === uid;
                 const details = log.details || {};
 
@@ -583,16 +594,15 @@ const store = {
                             type: 'sent',
                             amount: -(details.amount || 0),
                             description: `Enviado a @${details.recipient || 'Usuario'}`,
-                            date: log.created,
+                            date: log.created_at || log.created,
                             icon: '📤'
                         };
                     } else {
-                        // Received
                         return {
                             type: 'received',
                             amount: details.amount || 0,
                             description: `Recibido de @${log.expand?.user?.username || 'Usuario'}`,
-                            date: log.created,
+                            date: log.created_at || log.created,
                             icon: '📥'
                         };
                     }
@@ -601,28 +611,32 @@ const store = {
                         type: 'bonus',
                         amount: details.bonus || 0,
                         description: `🎉 Milestone: ${details.copies} copias`,
-                        date: log.created,
+                        date: log.created_at || log.created,
                         icon: '🏆'
                     };
                 }
                 return null;
             }).filter(Boolean);
 
-            return {
-                currentBalance,
-                totalEarned,
-                totalSpent,
-                netFlow: totalEarned - totalSpent,
-                // We no longer calculate exact transaction counts to avoid heavy counts
-                // We show recent transactions instead
-                transactions
-            };
+            // Update detailed stats from logs if possible (better than placeholders)
+            // Note: This only counts visible/recent logs, so it's partial. 
+            // We rely on user record stats for totals.
+
         } catch (err) {
-            console.error('[ECONOMY] Error fetching stats:', err);
-            return {
-                currentBalance: 0, totalEarned: 0, totalSpent: 0, netFlow: 0, transactions: []
-            };
+            console.warn('[ECONOMY] Error fetching activity logs (Dashboard will show partial data):', err);
+            // We don't crash, just show empty transactions
         }
+
+        return {
+            currentBalance,
+            totalEarned,
+            totalSpent,
+            netFlow: totalEarned - totalSpent,
+            totalReceived,   // Fixed: Added
+            totalBonuses,    // Fixed: Added (default 0 for now)
+            transactionCount, // Fixed: Added
+            transactions
+        };
     },
 
     async getTopCreators() {
