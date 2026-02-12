@@ -1,0 +1,14 @@
+{
+  "url": "https://prompt-gallery.pockethost.io/api/collections/activity_logs/records?page=1&perPage=500&skipTotal=1&filter=action%20%3D%20%22send_tip%22&sort=created",
+  "status": 400,
+  "response": {
+    "message": "Something went wrong while processing your request.",
+    "status": 400
+  },
+  "isAbort": false,
+  "originalError": {
+    "url": "https://prompt-gallery.pockethost.io/api/collections/activity_logs/records?page=1&perPage=500&skipTotal=1&filter=action%20%3D%20%22send_tip%22&sort=created",
+    "status": 400
+  },
+  "name": "ClientResponseError 400"
+}

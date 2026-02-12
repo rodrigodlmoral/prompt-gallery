@@ -14,6 +14,8 @@ import { TipModal } from './components/Modals/TipModal.js';
 import { ConfirmModal } from './components/Modals/ConfirmModal.js';
 import { ActivityModal } from './components/Modals/ActivityModal.js';
 import { setupLevelModals } from './components/Modals/LevelModals.js';
+import './utils/LevelDebug.js'; // Load Debug Tools
+
 import { renderTopCreators } from './components/TopCreators.js';
 
 import { AdvancedFilters } from './components/AdvancedFilters.js';
@@ -1008,6 +1010,9 @@ const processTokens = async () => {
     console.log("🔍 Checking for tokens in URL/Hash...");
     const urlParams = new URLSearchParams(window.location.search);
     let token = urlParams.get('token');
+
+    // DEBUG AUTH REMOVED
+
     let type = '';
 
     const hash = window.location.hash;

@@ -1,0 +1,26 @@
+{
+  "data": {
+    "fields": {
+      "1": {
+        "collectionId": {
+          "code": "validation_required",
+          "message": "Cannot be blank."
+        }
+      },
+      "2": {
+        "collectionId": {
+          "code": "validation_required",
+          "message": "Cannot be blank."
+        }
+      },
+      "4": {
+        "values": {
+          "code": "validation_required",
+          "message": "Cannot be blank."
+        }
+      }
+    }
+  },
+  "message": "Failed to create collection.",
+  "status": 400
+}

@@ -1,0 +1,5 @@
+ClientResponseError 400: Something went wrong while processing your request.
+ClientResponseError 400: Something went wrong while processing your request.
+    at file:///C:/Users/dquiroz/.gemini/antigravity/scratch/prompt-gallery-v2/node_modules/pocketbase/dist/pocketbase.es.mjs:1:36090
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async main (file:///C:/Users/dquiroz/.gemini/antigravity/scratch/prompt-gallery-v2/scripts/v3-migration/backfill_economy.js:87:22)

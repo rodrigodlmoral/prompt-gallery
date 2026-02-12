@@ -1,4 +1,6 @@
+import { escapeHTML } from '../utils/security.js';
 import { store, LEVEL_REQS } from '../store-final.js';
+import { createCompactLevelBadge } from './LevelBadge.js';
 import { pb } from '../pocketbase.js';
 
 export const renderTopCreators = (details, currentUser) => {
@@ -45,6 +47,10 @@ export const renderTopCreators = (details, currentUser) => {
             rankBadgeStyle = 'background: #333; color: #fff;';
         }
 
+        // Get Level Info from V3 Config
+        const userLevel = u.level || 0;
+        const levelInfo = LEVEL_REQS[userLevel] || LEVEL_REQS[0];
+
         return `
                 <div class="tc-card" onclick="window.openUserProfile('${username}')" style="cursor:pointer; ${cardStyle} position:relative; display:flex; flex-direction:column; align-items:center; padding:15px 10px; background:#111; border-radius:12px; height:180px; justify-content:space-between;">
                     
@@ -60,10 +66,26 @@ export const renderTopCreators = (details, currentUser) => {
                         </div>
                     </div>
 
-                    <div class="tc-level-badge" style="background:#222; padding:4px 12px; border-radius:10px; font-size:0.75rem; color:#aaa; margin-top:5px;">
-                        Nivel ${u.level || 0}
+                    <div class="tc-level-badge" style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.3rem;
+                        padding: 4px 10px;
+                        border-radius: 10px;
+                        font-size: 0.7rem;
+                        font-weight: 700;
+                        background: ${levelInfo.color}20;
+                        border: 1.5px solid ${levelInfo.color};
+                        color: ${levelInfo.color};
+                        margin-top: 5px;
+                    ">
+                        <span style="font-size: 0.85rem;">${levelInfo.icon}</span>
+                        <span>Nv ${userLevel}</span>
                     </div>
                 </div>`;
+    }).join('')}
+        </div>
+    </div>
     }).join('')}
         </div>
     </div>

@@ -8,6 +8,8 @@ import { TAG_ALIASES } from './data/tagAliases.js';
 import { DetailModalTemplate } from './components/DetailModal.js';
 import { SearchSuggestions } from './components/SearchSuggestions.js';
 import { getSearchSuggestions } from './utils/search-logic.js';
+import { initEconomyDashboard } from './components/EconomyDashboard.js';
+import './utils/LevelDebug.js'; // Load Debug Tools
 
 const app = document.getElementById('app');
 
@@ -1013,6 +1015,7 @@ const render = () => {
         app.innerHTML = `
             <div id="header-mount"></div>
             <div id="profile-header-mount"></div>
+            <div id="economyDashboardContainer"></div>
             <div id="profile-gallery-container"></div>
             <div id="modals-mount"></div>
             <div id="adv-filter-mount"></div>
@@ -1040,6 +1043,15 @@ const render = () => {
     if (advFilterMount) advFilterMount.innerHTML = AdvancedFilters(filters);
 
     attachEvents();
+
+    // Economy Dashboard (own profile only)
+    const isOwnProfile = store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser);
+    if (isOwnProfile) {
+        initEconomyDashboard('economyDashboardContainer');
+    } else {
+        const ecoContainer = document.getElementById('economyDashboardContainer');
+        if (ecoContainer) ecoContainer.innerHTML = '';
+    }
 
     // Solo scrollear arriba si no es un render incremental
     window._isIncrementalRender = false;
@@ -1862,10 +1874,39 @@ window.doLoginSubmit = async () => {
     else render();
 };
 
+// Domain whitelist (debe coincidir con AuthModal.js)
+const ALLOWED_DOMAINS = [
+    'gmail.com', 'hotmail.com', 'outlook.com', 'live.com', 'msn.com',
+    'yahoo.com', 'yahoo.es', 'icloud.com', 'me.com', 'apple.com',
+    'protonmail.com', 'proton.me', 'tutanota.com', 'tuta.io',
+    'aol.com', 'zoho.com', 'yandex.com', 'mail.com', 'gmx.com',
+    'rocketmail.com', 'fastmail.com', 'hushmail.com', 'prompt-gallery.app'
+];
+
 window.doRegisterSubmit = async () => {
-    const res = await store.register(document.getElementById('regEmail').value, document.getElementById('regUser').value, document.getElementById('regPass').value);
-    if (!res.success) alert(res.msg);
-    else render();
+    const email = document.getElementById('regEmail').value.trim().toLowerCase();
+    const domain = email.split('@')[1];
+
+    if (!ALLOWED_DOMAINS.includes(domain)) {
+        if (window.toast) window.toast("Por seguridad no puedes registrarte con ese correo, prueba con otro.", "error");
+        else alert("Por seguridad no puedes registrarte con ese correo, prueba con otro.");
+        return;
+    }
+
+    const res = await store.register(email, document.getElementById('regUser').value, document.getElementById('regPass').value);
+    if (!res.success) {
+        alert(res.msg);
+    } else {
+        // ÉXITO: Limpiar formulario y avisar sobre verificación
+        document.getElementById('regEmail').value = '';
+        document.getElementById('regUser').value = '';
+        document.getElementById('regPass').value = '';
+
+        if (window.toast) window.toast("🎉 ¡Cuenta creada! Hemos enviado un link de activación a tu correo. Revísalo (incluso en spam) para poder entrar.", "success");
+        else alert("🎉 ¡Cuenta creada! Hemos enviado un link de activación a tu correo. Revísalo (incluso en spam) para poder entrar.");
+
+        window.toggleAuth('log'); // Mandar a login tras registro
+    }
 };
 
 window.doRecoverSubmit = async () => {
@@ -1886,15 +1927,25 @@ window.doRecoverSubmit = async () => {
 window.doActivateSubmit = async () => {
     const userOrEmail = document.getElementById('actUser').value;
     const pass = document.getElementById('actPass').value;
-    const token = new URLSearchParams(window.location.search).get('token');
+
+    // Buscar token en variable global, query params, o hash fragment (PocketBase usa hash)
+    const token = window._authToken || new URLSearchParams(window.location.search).get('token') || (window.location.hash.split('/').pop());
 
     if (!userOrEmail || !pass) { if (window.toast) window.toast("Rellena todos los campos.", "warning"); return; }
-    if (!token) return alert("Token de activación no encontrado.");
+    if (!token || token.length < 10) return alert("Token de activación no encontrado o inválido.");
+
+    if (window.toast) window.toast("Procesando solicitud...", "info");
 
     const res = await store.confirmResetPassword(token, pass, userOrEmail);
     if (res.success) {
-        alert("¡Cuenta activada con éxito! Bienvenido.");
-        window.location.href = '/';
+        const isPasswordReset = window._authType === 'password-reset';
+        const msg = isPasswordReset
+            ? "¡Contraseña actualizada con éxito! Ya puedes entrar."
+            : "¡Cuenta activada con éxito! Bienvenido.";
+        alert(msg);
+        window.location.hash = '';
+        window.location.search = '';
+        window.location.reload();
     } else {
         alert(res.msg);
     }
@@ -2232,11 +2283,21 @@ window.openDirectTip = (recipientId, username) => {
                             <h2 style="color:#fff; margin:0 0 5px 0">Apoyar a @${username}</h2>
                             <p style="color:#888; margin-bottom:20px">Regala PromptBits directamente a este creador</p>
 
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px">
                                 <button onclick="window.doSendDirectTip('${recipientId}', 5)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 5</button>
                                 <button onclick="window.doSendDirectTip('${recipientId}', 10)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 10</button>
                                 <button onclick="window.doSendDirectTip('${recipientId}', 20)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 20</button>
                                 <button onclick="window.doSendDirectTip('${recipientId}', 50)" style="background:transparent; border:1px solid #a29bfe; color:#a29bfe; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600">💎 50</button>
+                            </div>
+
+                            <div style="display:flex; gap:8px; margin-bottom:20px; align-items:center">
+                                <input id="customDirectTipAmount" type="number" min="1" step="1" placeholder="Otro monto..."
+                                    style="flex:1; background:#0f0f23; border:1px solid #333; color:#fff; padding:10px 14px; border-radius:8px; font-size:1rem; outline:none;"
+                                    onkeydown="if(event.key==='Enter'){document.getElementById('sendCustomDirectTipBtn').click()}" />
+                                <button id="sendCustomDirectTipBtn" onclick="const v=parseInt(document.getElementById('customDirectTipAmount').value);if(v>0)window.doSendDirectTip('${recipientId}',v);else window.toast&&window.toast('Ingresa un monto válido','warning')"
+                                    style="background:linear-gradient(135deg,#a855f7,#6366f1); border:none; color:#fff; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:600; white-space:nowrap">
+                                    Enviar
+                                </button>
                             </div>
 
                             <div style="font-size:0.85rem; color:#666; margin-bottom:20px">
@@ -2409,3 +2470,70 @@ window.doClaimGhosts = async () => {
 };
 
 init();
+
+// --- TOKEN DETECTION (Password Reset & Email Verification) ---
+// Replicado de main.js para que funcione también en la página de perfil
+window._authToken = window._authToken || '';
+window._authType = window._authType || '';
+
+const processTokensProfile = async () => {
+    console.log("🔍 [PROFILE] Checking for tokens in URL/Hash...");
+    const urlParams = new URLSearchParams(window.location.search);
+    let token = urlParams.get('token');
+    let type = '';
+
+    const hash = window.location.hash;
+
+    if (!token && hash) {
+        if (hash.includes('confirm-verification')) {
+            const parts = hash.split('/');
+            token = parts[parts.length - 1];
+            type = 'verify';
+            console.log("✅ [PROFILE] Verification token found:", token);
+        } else if (hash.includes('confirm-password-reset')) {
+            token = hash.split('/').pop();
+            type = 'password-reset';
+            console.log("✅ [PROFILE] Reset token found:", token);
+        }
+    }
+
+    if (token && token.length >= 10) {
+        window._authToken = token;
+        window._authType = type;
+        console.log(`🔐 [PROFILE] Token detectado [${type || 'auto'}]. Procesando...`);
+
+        if (type === 'verify') {
+            const res = await store.confirmVerification(token);
+            if (res.success) {
+                alert("✅ ¡Cuenta verificada con éxito! Bienvenido a la comunidad.\n\nPor favor inicia sesión para empezar.");
+                window.location.hash = '';
+                const modal = document.getElementById('authModal');
+                if (modal) {
+                    window.toggleAuth('log');
+                    modal.style.display = 'flex';
+                }
+            } else {
+                alert("❌ " + (res.msg || "Error al verificar la cuenta."));
+                window.location.hash = '';
+            }
+        } else {
+            // Password Reset o Activación — mostrar el formulario de activación
+            const modal = document.getElementById('authModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                window.toggleAuth('act');
+
+                if (type === 'password-reset') {
+                    const titleEl = document.getElementById('actTitle');
+                    const descEl = document.getElementById('actDesc');
+                    if (titleEl) titleEl.innerText = "Nueva Contraseña";
+                    if (descEl) descEl.innerText = "Introduce tu usuario y la nueva contraseña que deseas usar.";
+                    const btnEl = document.querySelector('#activateForm .btn');
+                    if (btnEl) btnEl.innerText = "Cambiar y Entrar";
+                }
+            }
+        }
+    }
+};
+
+window.addEventListener('load', processTokensProfile);

@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-02-12T03:30:03.672Z",
+  "users": {
+    "total": 228,
+    "with_tokens": 43,
+    "total_tokens_in_circulation": 4094,
+    "users_with_negative_tokens": [],
+    "users_with_suspicious_amounts": [],
+    "users_without_moderation_settings": 228
+  },
+  "prompts": {
+    "total": 0,
+    "with_copies": 0,
+    "total_copies": 0,
+    "orphaned_prompts": [],
+    "prompts_with_negative_copies": []
+  },
+  "inconsistencies": [],
+  "errors": [
+    "Prompt audit failed: Something went wrong while processing your request."
+  ]
+}
