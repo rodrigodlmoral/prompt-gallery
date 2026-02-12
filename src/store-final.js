@@ -625,31 +625,59 @@ const store = {
             console.error('[ECONOMY] Error fetching ledger:', err);
         }
 
-        // 3. Fetch Copy Bonuses from Activity Logs (Legacy/System)
+        // 3. Fetch Activity Logs (Bonuses + Legacy Tips fallback)
         try {
-            const bonusLogs = await pb.collection('activity_logs').getList(1, 20, {
-                filter: `user = "${uid}" && action = "copy_milestone_bonus"`,
+            const logRecords = await pb.collection('activity_logs').getList(1, 20, {
+                filter: `(user = "${uid}" || details.recipientId = "${uid}") && (action = "copy_milestone_bonus" || action = "send_tip")`,
                 sort: '-created',
                 $autoCancel: false
             });
 
-            const bonusTxs = bonusLogs.items.map(log => {
+            const logTxs = logRecords.items.map(log => {
                 const details = log.details || {};
-                return {
-                    type: 'bonus',
-                    amount: details.bonus || 0,
-                    description: `🎉 Milestone: ${details.copies} copias`,
-                    date: log.created,
-                    icon: '🏆'
-                };
-            });
 
-            transactions = [...transactions, ...bonusTxs];
+                if (log.action === 'copy_milestone_bonus') {
+                    return {
+                        type: 'bonus',
+                        amount: details.bonus || 0,
+                        description: `🎉 Milestone: ${details.copies} copias`,
+                        date: log.created,
+                        icon: '🏆'
+                    };
+                }
+
+                if (log.action === 'send_tip') {
+                    // Check if we already have this transaction from Ledger (simple time proximity check could be added, but for now show all to be safe)
+                    // We prioritize showing data over perfect deduping in this recovery phase.
+                    const isSender = log.user === uid;
+                    if (isSender) {
+                        return {
+                            type: 'sent',
+                            amount: -(details.amount || 0),
+                            description: `Enviado a @${details.recipient || 'Usuario'}`,
+                            date: log.created,
+                            icon: '📤'
+                        };
+                    } else {
+                        return {
+                            type: 'received',
+                            amount: details.amount || 0,
+                            description: `Recibido de @${log.expand?.user?.username || 'Usuario'}`,
+                            date: log.created,
+                            icon: '📥'
+                        };
+                    }
+                }
+                return null;
+            }).filter(Boolean);
+
+            transactions = [...transactions, ...logTxs];
         } catch (err) {
-            console.warn('[ECONOMY] Error fetching bonus logs:', err);
+            console.warn('[ECONOMY] Error fetching activity logs:', err);
         }
 
-        // 4. Sort merged list
+        // 4. Sort and Dedupe (Simple ID check if possible, otherwise just sort)
+        // We sort descending by date
         transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
         transactions = transactions.slice(0, 20);
 
