@@ -1042,6 +1042,7 @@ const store = {
         }
     },
 
+
     async followUser(targetUsername) {
         if (!this.currentUser) return { success: false };
         try {
