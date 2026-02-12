@@ -576,108 +576,32 @@ const store = {
             console.error('[ECONOMY] Error getting user stats:', e);
         }
 
-        // 2. Fetch Recent Logs (May fail if filter is complex, so we isolate it)
-        // 2. Fetch Recent Ledger Transactions (Official Money Flow)
+        // 2. Fetch Transaction History via Secure API (Bypasses ACLs)
         try {
-            const ledgerRecords = await pb.collection('ledger').getList(1, 20, {
-                filter: `from_user = "${uid}" || to_user = "${uid}"`,
-                sort: '-created',
-                expand: 'from_user,to_user',
-                $autoCancel: false
-            });
-
-            const ledgerTxs = ledgerRecords.items.map(rec => {
-                const isSender = rec.from_user === uid;
-
-                if (rec.type === 'TIP' || rec.type === 'PURCHASE' || rec.type === 'FEE') {
-                    if (isSender) {
-                        const toName = rec.expand?.to_user?.username || 'Usuario';
-                        return {
-                            type: 'sent',
-                            amount: -rec.amount,
-                            description: rec.description || `Enviado a @${toName}`,
-                            date: rec.created,
-                            icon: '📤'
-                        };
-                    } else {
-                        const fromName = rec.expand?.from_user?.username || 'Usuario';
-                        return {
-                            type: 'received',
-                            amount: rec.amount,
-                            description: rec.description || `Recibido de @${fromName}`,
-                            date: rec.created,
-                            icon: '📥'
-                        };
+            // We use our own Vercel API which runs as Admin to read Ledger/Logs
+            // This fixes the issue where users can't see incoming transactions due to PB rules
+            const token = pb.authStore.token;
+            if (token) {
+                const res = await fetch('/api/history', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
                     }
-                }
-                // Fallback for other types
-                return {
-                    type: isSender ? 'expense' : 'income',
-                    amount: isSender ? -rec.amount : rec.amount,
-                    description: rec.description || 'Transacción',
-                    date: rec.created,
-                    icon: isSender ? '📉' : '📈'
-                };
-            });
+                });
 
-            transactions = [...transactions, ...ledgerTxs];
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.items && Array.isArray(data.items)) {
+                        transactions = data.items;
+                    }
+                } else {
+                    console.warn('[ECONOMY] Failed to fetch history API:', res.status);
+                }
+            }
         } catch (err) {
-            console.error('[ECONOMY] Error fetching ledger:', err);
+            console.error('[ECONOMY] Error calling history API:', err);
         }
 
-        // 3. Fetch Activity Logs (Broader Activity)
-        try {
-            // Simplified filter: Just get anything related to this user ID
-            // We filter by 'action' in Javascript to avoid complex PB filter strings failing
-            const logRecords = await pb.collection('activity_logs').getList(1, 40, {
-                filter: `user = "${uid}" || details.recipientId = "${uid}"`,
-                sort: '-created',
-                $autoCancel: false
-            });
-
-            const logTxs = logRecords.items.map(log => {
-                const details = log.details || {};
-
-                // Client-side filtering of actions
-                if (log.action === 'copy_milestone_bonus') {
-                    return {
-                        type: 'bonus',
-                        amount: details.bonus || 0,
-                        description: `🎉 Milestone: ${details.copies} copias`,
-                        date: log.created,
-                        icon: '🏆'
-                    };
-                }
-
-                if (log.action === 'send_tip') {
-                    const isSender = log.user === uid;
-                    if (isSender) {
-                        return {
-                            type: 'sent',
-                            amount: -(details.amount || 0),
-                            description: `Enviado a @${details.recipient || 'Usuario'}`,
-                            date: log.created,
-                            icon: '📤'
-                        };
-                    } else {
-                        // Ensure we only show if we are the recipient
-                        // (The filter details.recipientId might match)
-                        return {
-                            type: 'received',
-                            amount: details.amount || 0,
-                            description: `Recibido de @${log.expand?.user?.username || 'Usuario'}`,
-                            date: log.created,
-                            icon: '📥'
-                        };
-                    }
-                }
-                return null;
-            }).filter(Boolean);
-
-            transactions = [...transactions, ...logTxs];
-        } catch (err) {
-            console.warn('[ECONOMY] Error fetching activity logs:', err);
-        }
+        // Transactions are already sorted and formatted by the API
 
         // 4. Sort and Dedupe (Simple ID check if possible, otherwise just sort)
         // We sort descending by date
