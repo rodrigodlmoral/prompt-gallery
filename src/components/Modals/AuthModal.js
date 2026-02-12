@@ -125,7 +125,7 @@ window.doActivateSubmit = async () => {
     const userOrEmail = document.getElementById('actUser').value;
     const pass = document.getElementById('actPass').value;
 
-    // Buscar token en el buscador o en el hash (o en la variable global del módulo main/window)
+    // Buscar token en la variable global, en query params, o en el hash fragment
     const token = window._authToken || new URLSearchParams(window.location.search).get('token') || (window.location.hash.split('/').pop());
 
     if (!userOrEmail || !pass) { toast("Rellena todos los campos.", "warning"); return; }
@@ -133,26 +133,18 @@ window.doActivateSubmit = async () => {
 
     toast("Procesando solicitud...", "info");
 
-    // CRITICAL FIX: Determinar si es password-reset o account-activation
-    const isPasswordReset = window._authType === 'password-reset';
-
-    let res;
-    if (isPasswordReset) {
-        // PASSWORD RESET: Usar el método específico para reset de contraseña
-        res = await store.confirmPasswordReset(token, pass, userOrEmail);
-    } else {
-        // ACCOUNT ACTIVATION: Usar el método de activación original
-        res = await store.confirmResetPassword(token, pass, userOrEmail);
-    }
+    // Usar el método canónico para ambos flujos (activación y reset usan el mismo endpoint PB)
+    const res = await store.confirmResetPassword(token, pass, userOrEmail);
 
     if (res.success) {
+        const isPasswordReset = window._authType === 'password-reset';
         const msg = isPasswordReset
             ? "¡Contraseña actualizada con éxito! Ya puedes entrar."
             : "¡Cuenta activada con éxito! Bienvenido.";
         alert(msg);
         window.location.hash = '';
         window.location.search = '';
-        window.location.reload(); // Recargar para limpiar estado
+        window.location.reload();
     } else {
         alert(res.msg);
     }

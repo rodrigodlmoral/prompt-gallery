@@ -1457,30 +1457,18 @@ const store = {
         catch (err) { return { success: false, msg: "Error al enviar correo." }; }
     },
 
+    // MÉTODO CANÓNICO para activación de cuenta Y password reset
+    // Ambos usan el mismo endpoint de PocketBase: confirmPasswordReset
     async confirmResetPassword(token, password, userOrEmail) {
         try {
-            // 1. Confirmar el cambio de contraseña
+            // 1. Confirmar el cambio de contraseña via PocketBase
             await pb.collection('users').confirmPasswordReset(token, password, password);
 
             // 2. Login automático inmediatamente
             return await this.login(userOrEmail, password);
         } catch (err) {
-            console.error("Reset error:", err);
-            return { success: false, msg: "El link ha expirado o es inválido." };
-        }
-    },
-
-    async confirmPasswordReset(token, password, userOrEmail) {
-        try {
-            // CRITICAL: Este método es SOLO para password reset (olvidé mi contraseña)
-            // NO para activación de cuenta
-            await pb.collection('users').confirmPasswordReset(token, password, password);
-
-            // Login automático después de cambiar contraseña
-            return await this.login(userOrEmail, password);
-        } catch (err) {
-            console.error("Password reset error:", err);
-            return { success: false, msg: "El link ha expirado o es inválido." };
+            console.error("Reset/Activate error:", err);
+            return { success: false, msg: "El link ha expirado o es inválido. Solicita uno nuevo." };
         }
     },
 
