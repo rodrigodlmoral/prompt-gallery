@@ -603,11 +603,11 @@ const store = {
             // Fallback: Native Fetch (Works if ACLs are fixed by server hook)
             console.log('[ECONOMY] Using native fetch fallback...');
             try {
-                // A) Ledger
+                // A) Ledger (Native Fallback)
+                // Removed 'expand' to avoid 400 Bad Request if relation data is inconsistent
                 const ledgerRecords = await pb.collection('ledger').getList(1, 20, {
                     filter: `from_user = "${uid}" || to_user = "${uid}"`,
                     sort: '-created',
-                    expand: 'from_user,to_user',
                     $autoCancel: false
                 });
 
@@ -615,11 +615,11 @@ const store = {
                     const isSender = rec.from_user === uid;
                     if (rec.type === 'TIP' || rec.type === 'PURCHASE') {
                         if (isSender) {
-                            const toName = rec.expand?.to_user?.username || 'Usuario';
-                            return { type: 'sent', amount: -rec.amount, description: rec.description || `Enviado a @${toName}`, date: rec.created, icon: '📤', id: rec.id };
+                            // Without expand, we fallback to generic 'Usuario' or try to use cached profiles if available
+                            // This ensures the list at least LOADS.
+                            return { type: 'sent', amount: -rec.amount, description: rec.description || `Enviado`, date: rec.created, icon: '📤', id: rec.id };
                         } else {
-                            const fromName = rec.expand?.from_user?.username || 'Usuario';
-                            return { type: 'received', amount: rec.amount, description: rec.description || `Recibido de @${fromName}`, date: rec.created, icon: '📥', id: rec.id };
+                            return { type: 'received', amount: rec.amount, description: rec.description || `Recibido`, date: rec.created, icon: '📥', id: rec.id };
                         }
                     }
                     return { type: isSender ? 'expense' : 'income', amount: isSender ? -rec.amount : rec.amount, description: rec.description || 'Transacción', date: rec.created, icon: isSender ? '📉' : '📈', id: rec.id };
