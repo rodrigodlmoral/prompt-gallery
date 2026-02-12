@@ -12,9 +12,7 @@ export default async function handler(req, res) {
 
         // 1. Fix LEDGER
         try {
-            const ledger = await pb.collection('ledger').getOne(await getCollectionId(pb, 'ledger')); // Helper to get ID
-            // Or easier: fetch collection by name if API allows, but JS SDK usually needs update by ID.
-            // Actually, we can fetch the collection meta using collections service
+            // Fetch collection meta by name (supported by JS SDK as seen with activity_logs)
             const ledgerColl = await pb.collections.getOne('ledger');
 
             const rule = "from_user = @request.auth.id || to_user = @request.auth.id";
