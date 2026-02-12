@@ -6,7 +6,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { recipientEmail, recipientId, amount } = req.body;
+    const { recipientEmail, recipientId, amount, postId, type } = req.body;
     const authHeader = req.headers.authorization;
 
     // 2. Validaciones básicas
@@ -41,7 +41,7 @@ export default async function handler(req, res) {
         // 5. Obtener datos FRESCOS del Sender
         const sender = await pbAdmin.collection('users').getOne(senderId);
 
-        if (sender.tokens < amount) {
+        if ((sender.tokens || 0) < amount) {
             return res.status(400).json({ error: 'Saldo insuficiente' });
         }
 
@@ -61,26 +61,40 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'No puedes transferirte a ti mismo' });
         }
 
-        // 7. EJECUTAR TRANSFERENCIA
+        // 7. EJECUTAR TRANSFERENCIA (Secuencial para evitar condiciones de carrera en logs)
 
         // A) Restar al Sender
         await pbAdmin.collection('users').update(sender.id, {
-            "tokens-": amount
+            "tokens-": amount,
+            "total_spent+": amount
         });
 
         // B) Sumar al Recipient
         await pbAdmin.collection('users').update(recipient.id, {
-            "tokens+": amount
+            "tokens+": amount,
+            "total_earned+": amount
         });
 
-        // C) Registrar Log de Transacción
-        await pbAdmin.collection('economy_transactions').create({
-            from_user: sender.id,
-            to_user: recipient.id,
-            amount: amount,
-            type: 'transfer',
-            status: 'completed'
-        });
+        // C) Registrar Log de Transacción (CORREGIDO: activity_logs)
+        const recipientName = recipient.username || recipient.name || 'Usuario';
+
+        try {
+            // Log para el Dashboard y Stats
+            await pbAdmin.collection('activity_logs').create({
+                user: sender.id,
+                action: 'send_tip', // Importante para getEconomyStats
+                details: {
+                    amount: parseInt(amount),
+                    recipient: recipientName,
+                    recipientId: recipient.id,
+                    postId: postId || null,
+                    type: type || 'direct_transfer'
+                }
+            });
+        } catch (logErr) {
+            console.error("Error creating log:", logErr);
+            // No fallamos la transacción si solo falla el log, pero lo reportamos en consola Vercel
+        }
 
         return res.status(200).json({ success: true, message: 'Transferencia exitosa' });
 
