@@ -14,7 +14,7 @@ import './utils/LevelDebug.js'; // Load Debug Tools
 const app = document.getElementById('app');
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 const renderMaintenance = () => {
     // 1. Apply blur and safety to the main app container
