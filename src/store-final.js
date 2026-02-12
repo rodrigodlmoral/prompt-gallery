@@ -1170,6 +1170,20 @@ const store = {
         }
     },
 
+    async confirmPasswordReset(token, password, userOrEmail) {
+        try {
+            // CRITICAL: Este método es SOLO para password reset (olvidé mi contraseña)
+            // NO para activación de cuenta
+            await pb.collection('users').confirmPasswordReset(token, password, password);
+
+            // Login automático después de cambiar contraseña
+            return await this.login(userOrEmail, password);
+        } catch (err) {
+            console.error("Password reset error:", err);
+            return { success: false, msg: "El link ha expirado o es inválido." };
+        }
+    },
+
     async confirmVerification(token) {
         try {
             await pb.collection('users').confirmVerification(token);

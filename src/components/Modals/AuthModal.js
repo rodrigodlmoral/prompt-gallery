@@ -133,9 +133,22 @@ window.doActivateSubmit = async () => {
 
     toast("Procesando solicitud...", "info");
 
-    const res = await store.confirmResetPassword(token, pass, userOrEmail);
+    // CRITICAL FIX: Determinar si es password-reset o account-activation
+    const isPasswordReset = window._authType === 'password-reset';
+
+    let res;
+    if (isPasswordReset) {
+        // PASSWORD RESET: Usar el método específico para reset de contraseña
+        res = await store.confirmPasswordReset(token, pass, userOrEmail);
+    } else {
+        // ACCOUNT ACTIVATION: Usar el método de activación original
+        res = await store.confirmResetPassword(token, pass, userOrEmail);
+    }
+
     if (res.success) {
-        const msg = window._authType === 'password-reset' ? "¡Contraseña actualizada con éxito! Ya puedes entrar." : "¡Cuenta activada con éxito! Bienvenido.";
+        const msg = isPasswordReset
+            ? "¡Contraseña actualizada con éxito! Ya puedes entrar."
+            : "¡Cuenta activada con éxito! Bienvenido.";
         alert(msg);
         window.location.hash = '';
         window.location.search = '';
