@@ -1,4 +1,5 @@
 import PocketBase from 'pocketbase';
+import crypto from 'crypto';
 
 export default async function handler(req, res) {
     // 1. Solo permitir POST
@@ -75,14 +76,32 @@ export default async function handler(req, res) {
             "total_earned+": amount
         });
 
-        // C) Registrar Log de Transacción (CORREGIDO: activity_logs)
         const recipientName = recipient.username || recipient.name || 'Usuario';
+        const senderName = sender.username || sender.name || 'Usuario';
 
+        // C) Registrar en LEDGER (Oficial, solicitado por Usuario)
         try {
-            // Log para el Dashboard y Stats
+            const txHash = crypto.randomBytes(16).toString('hex');
+            await pbAdmin.collection('ledger').create({
+                amount: parseInt(amount),
+                type: 'TIP', // Enum: DAILY_LOGIN, POST_REWARD, LEVEL_UP, TIP, PURCHASE, FEE
+                from_user: sender.id,
+                to_user: recipient.id,
+                tx_hash: txHash,
+                description: `Propina de ${senderName} a ${recipientName}`
+            });
+            console.log(`[LEDGER] Transaction recorded: ${txHash}`);
+        } catch (ledgerErr) {
+            console.error("Error creating ledger record:", ledgerErr);
+            // No fallamos si el ledger falla, pero es crítico loguearlo
+        }
+
+        // D) Registrar en ACTIVITY_LOGS (Compatibilidad UI Actual)
+        // El frontend actual (store-final.js) lee de aquí para mostrar el historial
+        try {
             await pbAdmin.collection('activity_logs').create({
                 user: sender.id,
-                action: 'send_tip', // Importante para getEconomyStats
+                action: 'send_tip',
                 details: {
                     amount: parseInt(amount),
                     recipient: recipientName,
@@ -92,8 +111,7 @@ export default async function handler(req, res) {
                 }
             });
         } catch (logErr) {
-            console.error("Error creating log:", logErr);
-            // No fallamos la transacción si solo falla el log, pero lo reportamos en consola Vercel
+            console.error("Error creating activity log:", logErr);
         }
 
         return res.status(200).json({ success: true, message: 'Transferencia exitosa' });
