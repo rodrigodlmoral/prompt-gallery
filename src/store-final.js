@@ -625,10 +625,12 @@ const store = {
             console.error('[ECONOMY] Error fetching ledger:', err);
         }
 
-        // 3. Fetch Activity Logs (Bonuses + Legacy Tips fallback)
+        // 3. Fetch Activity Logs (Broader Activity)
         try {
-            const logRecords = await pb.collection('activity_logs').getList(1, 20, {
-                filter: `(user = "${uid}" || details.recipientId = "${uid}") && (action = "copy_milestone_bonus" || action = "send_tip")`,
+            // Simplified filter: Just get anything related to this user ID
+            // We filter by 'action' in Javascript to avoid complex PB filter strings failing
+            const logRecords = await pb.collection('activity_logs').getList(1, 40, {
+                filter: `user = "${uid}" || details.recipientId = "${uid}"`,
                 sort: '-created',
                 $autoCancel: false
             });
@@ -636,6 +638,7 @@ const store = {
             const logTxs = logRecords.items.map(log => {
                 const details = log.details || {};
 
+                // Client-side filtering of actions
                 if (log.action === 'copy_milestone_bonus') {
                     return {
                         type: 'bonus',
@@ -647,8 +650,6 @@ const store = {
                 }
 
                 if (log.action === 'send_tip') {
-                    // Check if we already have this transaction from Ledger (simple time proximity check could be added, but for now show all to be safe)
-                    // We prioritize showing data over perfect deduping in this recovery phase.
                     const isSender = log.user === uid;
                     if (isSender) {
                         return {
@@ -659,6 +660,8 @@ const store = {
                             icon: '📤'
                         };
                     } else {
+                        // Ensure we only show if we are the recipient
+                        // (The filter details.recipientId might match)
                         return {
                             type: 'received',
                             amount: details.amount || 0,
