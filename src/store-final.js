@@ -577,29 +577,89 @@ const store = {
         }
 
         // 2. Fetch Transaction History via Secure API (Bypasses ACLs)
+        // 2. Fetch Transaction History (Hybrid Strategy: API Proxy -> Native Fallback)
+        let fetchedViaApi = false;
         try {
-            // We use our own Vercel API which runs as Admin to read Ledger/Logs
-            // This fixes the issue where users can't see incoming transactions due to PB rules
+            // Priority: Use Secure API Proxy (Bypasses ACLs on Vercel)
             const token = pb.authStore.token;
             if (token) {
                 const res = await fetch('/api/history', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (res.ok) {
                     const data = await res.json();
                     if (data.items && Array.isArray(data.items)) {
                         transactions = data.items;
+                        fetchedViaApi = true;
                     }
-                } else {
-                    console.warn('[ECONOMY] Failed to fetch history API:', res.status);
                 }
             }
         } catch (err) {
-            console.error('[ECONOMY] Error calling history API:', err);
+            console.warn('[ECONOMY] API Proxy failed, falling back to native fetch:', err);
         }
+
+        if (!fetchedViaApi) {
+            // Fallback: Native Fetch (Works if ACLs are fixed by server hook)
+            console.log('[ECONOMY] Using native fetch fallback...');
+            try {
+                // A) Ledger
+                const ledgerRecords = await pb.collection('ledger').getList(1, 20, {
+                    filter: `from_user = "${uid}" || to_user = "${uid}"`,
+                    sort: '-created',
+                    expand: 'from_user,to_user',
+                    $autoCancel: false
+                });
+
+                const ledgerTxs = ledgerRecords.items.map(rec => {
+                    const isSender = rec.from_user === uid;
+                    if (rec.type === 'TIP' || rec.type === 'PURCHASE') {
+                        if (isSender) {
+                            const toName = rec.expand?.to_user?.username || 'Usuario';
+                            return { type: 'sent', amount: -rec.amount, description: rec.description || `Enviado a @${toName}`, date: rec.created, icon: '📤', id: rec.id };
+                        } else {
+                            const fromName = rec.expand?.from_user?.username || 'Usuario';
+                            return { type: 'received', amount: rec.amount, description: rec.description || `Recibido de @${fromName}`, date: rec.created, icon: '📥', id: rec.id };
+                        }
+                    }
+                    return { type: isSender ? 'expense' : 'income', amount: isSender ? -rec.amount : rec.amount, description: rec.description || 'Transacción', date: rec.created, icon: isSender ? '📉' : '📈', id: rec.id };
+                });
+                transactions = [...transactions, ...ledgerTxs];
+
+                // B) Activity Logs (Bonuses)
+                // Simplified client-side filter
+                const logRecords = await pb.collection('activity_logs').getList(1, 40, {
+                    filter: `user = "${uid}" || details.recipientId = "${uid}"`,
+                    sort: '-created',
+                    $autoCancel: false
+                });
+
+                const logTxs = logRecords.items.map(log => {
+                    const details = log.details || {};
+                    if (log.action === 'copy_milestone_bonus') {
+                        return { type: 'bonus', amount: details.bonus || 0, description: `🎉 Milestone: ${details.copies} copias`, date: log.created, icon: '🏆', id: log.id };
+                    }
+                    if (log.action === 'send_tip') {
+                        const isSender = log.user === uid;
+                        if (isSender) return { type: 'sent', amount: -(details.amount || 0), description: `Enviado a @${details.recipient || 'Usuario'}`, date: log.created, icon: '📤', id: log.id };
+                        else return { type: 'received', amount: details.amount || 0, description: `Recibido de @${log.expand?.user?.username || 'Usuario'}`, date: log.created, icon: '📥', id: log.id };
+                    }
+                    return null;
+                }).filter(Boolean);
+                transactions = [...transactions, ...logTxs];
+
+            } catch (nativeErr) {
+                console.error('[ECONOMY] Native fetch failed too:', nativeErr);
+            }
+        }
+
+        // Final Sort & Dedupe (by ID)
+        const seenIds = new Set();
+        transactions = transactions.filter(tx => {
+            if (tx.id && seenIds.has(tx.id)) return false;
+            if (tx.id) seenIds.add(tx.id);
+            return true;
+        });
 
         // Transactions are already sorted and formatted by the API
 
