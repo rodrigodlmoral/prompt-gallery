@@ -1,8 +1,14 @@
 {
+    "cleanUrls": true,
+    "trailingSlash": false,
     "rewrites": [
         {
-            "source": "/(.*)",
-            "destination": "/index.html"
+            "source": "/admin",
+            "destination": "/admin.html"
+        },
+        {
+            "source": "/profile",
+            "destination": "/profile.html"
         }
     ]
 }

@@ -1,3 +1,6 @@
+import { store } from '../store-final.js';
+import { toast } from '../utils/ui-helpers.js';
+
 export const DetailModalTemplate = () => `
 <div id="viewModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) window.closeModals()">
     <div class="view-modal-wrapper">
@@ -85,3 +88,221 @@ export const DetailModalTemplate = () => `
         <div class="ad-bottom"></div>
     </div>
 </div>`;
+
+// --- LOGIC ---
+
+window.openDetail = (id) => {
+    const p = store.prompts.find(x => x.id === id);
+    if (!p) return;
+    const { applyBlur } = store.getModeration(p);
+    if (!store.currentUser && applyBlur) {
+        if (toast) toast("⚠️ Regístrate para visualizar contenido +18", "error");
+        else alert("Regístrate para visualizar contenido +18");
+        return;
+    }
+    store.openDetail(id);
+};
+
+window.toggleOptionsMenu = () => {
+    const menu = document.getElementById('optionsMenu');
+    const isAdmin = store.currentUser && store.currentUser.role === 'admin';
+    const optAdmin = document.getElementById('optAdminFeature');
+
+    if (optAdmin) {
+        optAdmin.style.display = isAdmin ? 'block' : 'none';
+        if (isAdmin) {
+            const p = store.prompts.find(x => String(x.id) === String(store.activePostId || currentId)); // Handle global currentId if needed
+            // NOTE: currentId might be undefined here if strictly modular, but store.activePostId is reliable
+            if (p) optAdmin.innerText = p.is_featured ? '⭐ Quitar Destacado' : '🌟 Marcar Destacado';
+        }
+    }
+
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+};
+
+window.doAdminFeaturePrompt = async () => {
+    const id = store.activePostId;
+    if (!id) return;
+    const res = await store.toggleFeatured(id);
+    if (res.success) {
+        alert(res.newState ? "✅ Prompt ahora es Destacado PERMANENTE" : "✅ Destacado removido");
+        window.toggleOptionsMenu();
+        store.openDetail(id); // Refresh modal
+        if (window.render) window.render(); // Refresh gallery
+    } else {
+        alert("❌ " + res.msg);
+    }
+};
+
+window.doCopyPrompt = async (type = 'main') => {
+    const p = store.prompts.find(x => String(x.id) === String(store.activePostId));
+    if (!p) return;
+
+    let text = '';
+    if (type === 'main') {
+        text = p.type === 'sequence' ? p.content[store.currentSeqStep]?.prompt : p.prompt;
+    } else {
+        text = p.type === 'sequence' ? p.content[store.currentSeqStep]?.negative_prompt : p.negative_prompt;
+    }
+
+    if (!text) {
+        toast("No hay texto para copiar", "warning");
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(text);
+
+        if (type === 'main') {
+            const res = await store.incrementCopyCount(store.activePostId);
+            toast("¡Prompt Copiado!", "success");
+
+            // Actualizar Badge si existe
+            const badge = document.getElementById('detCopyBadge');
+            if (badge && res.success && res.count !== undefined) {
+                badge.innerText = `📋 Copiado ${res.count} veces`;
+            } else if (badge && res.selfCopy) {
+                // Si es auto-copia no incrementó en DB, pero mostramos el valor actual sincronizado
+                badge.innerText = `📋 Copiado ${p.copy_count || 0} veces`;
+            }
+        } else {
+            toast("¡Negative Prompt Copiado!", "info");
+        }
+
+        if (window.trackEvent) {
+            window.trackEvent('copy_prompt', {
+                id: p.id,
+                title: p.title,
+                author: p.author,
+                tool: p.tool,
+                type: type
+            });
+        }
+
+        if (window.render) window.render();
+    } catch (err) {
+        console.error("Error al copiar:", err);
+    }
+};
+
+window.doSavePrompt = () => {
+    if (!store.currentUser) return alert("Inicia sesión para guardar");
+    store.toggleSave(store.activePostId);
+    alert('✅ ¡Guardado! Podrás ver este prompt en tu pestaña de "Guardados" en tu perfil.');
+    window.toggleOptionsMenu();
+};
+
+window.doUnsavePrompt = (id) => {
+    if (!store.currentUser) return;
+    if (confirm('¿Quieres quitar este prompt de tus guardados?')) {
+        store.toggleSave(id);
+        if (window.render) window.render();
+    }
+};
+
+window.doReportPrompt = () => {
+    if (!store.currentUser) return alert("Inicia sesión para reportar");
+    const p = store.prompts.find(x => x.id === store.activePostId);
+    if (p && p.author === store.currentUser.username) return alert("No puedes reportar tu propio post.");
+
+    const reason = prompt("¿Por qué reportas este contenido?\n1. Contenido ilegal\n2. Spam\n3. Acoso\n4. Otro");
+    if (reason) {
+        store.addReport(store.activePostId, reason, '');
+        alert('✅ Reporte enviado');
+    }
+    window.toggleOptionsMenu();
+};
+
+window.doHidePrompt = () => {
+    if (!store.currentUser) return alert("Inicia sesión");
+    store.hidePrompt(store.activePostId);
+    alert('✅ Post ocultado de tu feed');
+    window.closeModals();
+    if (window.render) window.render();
+};
+
+window.doBlockUser = () => {
+    if (!store.currentUser) return alert("Inicia sesión");
+    const p = store.prompts.find(x => x.id === store.activePostId);
+    if (!p) return;
+    if (p.author === store.currentUser.username) return alert("No puedes bloquearte a ti mismo.");
+
+    if (confirm(`¿Bloquear a ${p.author}? No verás más sus posts.`)) {
+        store.blockUser(p.author);
+        alert('✅ Usuario bloqueado');
+        window.closeModals();
+        if (window.render) window.render();
+    }
+    window.toggleOptionsMenu();
+};
+
+window.doToggleFeatured = async (id) => {
+    const res = await store.toggleFeatured(id);
+    if (res.success) {
+        if (window.render) window.render();
+    } else {
+        alert(res.msg);
+    }
+};
+
+window.doDeletePrompt = async (passedId) => {
+    const idToDelete = passedId || store.activePostId;
+    if (!idToDelete) return alert("Error: No se encontró el ID del post");
+
+    if (confirm('¿Eliminar este post permanentemente?')) {
+        const res = await store.removePrompt(idToDelete);
+        if (res.success) {
+            // If we deleted the currently open detail view, close it
+            if (idToDelete === store.activePostId) window.closeModals();
+            alert('✅ Post eliminado');
+            if (window.render) window.render();
+        } else {
+            alert('❌ ' + res.msg);
+        }
+    }
+    // Only close options menu if it was open (usually from card view)
+    if (!passedId) window.toggleOptionsMenu();
+};
+
+window.doFullScreen = () => {
+    const img = document.getElementById('detImg');
+    const container = img ? img.parentElement : null;
+    const target = container || img;
+
+    if (target) {
+        if (target.requestFullscreen) {
+            target.requestFullscreen();
+        } else if (target.webkitRequestFullscreen) { /* Safari */
+            target.webkitRequestFullscreen();
+        } else if (target.msRequestFullscreen) { /* IE11 */
+            target.msRequestFullscreen();
+        } else if (img && img.src) {
+            window.open(img.src, '_blank');
+        }
+    }
+};
+
+window.doDeleteComment = (commentId) => {
+    if (!store.currentUser) return;
+    if (confirm("¿Seguro que quieres eliminar este comentario?")) {
+        store.removeComment(store.activePostId, commentId);
+        store.openDetail(store.activePostId);
+    }
+};
+
+// Wrappers
+window.doReact = (type) => store.doReact(type);
+window.prevSeqStep = () => store.prevSeqStep();
+window.nextSeqStep = () => store.nextSeqStep();
+window.showSlider = () => store.showSlider();
+window.initCrystalSlider = () => store.initCrystalSlider();
+window.postComm = () => store.postComm();
+
+window.revealImage = () => {
+    const wrap = document.getElementById('detImgWrap');
+    if (wrap) {
+        wrap.classList.remove('card-blurred');
+        const overlay = wrap.querySelector('.blur-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+};

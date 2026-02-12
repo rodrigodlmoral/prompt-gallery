@@ -7,6 +7,7 @@ import { TAG_CATEGORIES } from './data/tags.js';
 import { TAG_ALIASES } from './data/tagAliases.js';
 import { DetailModalTemplate } from './components/DetailModal.js';
 import { SearchSuggestions } from './components/SearchSuggestions.js';
+import { getSearchSuggestions } from './utils/search-logic.js';
 
 const app = document.getElementById('app');
 
@@ -125,57 +126,16 @@ let filters = {
     tags: []
 };
 
-window.getSearchableUsers = () => {
-    const promptAuthors = store.prompts.map(p => ({
-        username: p.author,
-        avatar: p.profiles?.avatar_url || (p.expand?.author?.avatar ? pb.files.getUrl(p.expand.author, p.expand.author.avatar) : null)
-    }));
-    const allKnownUsers = [
-        ...Object.values(store.usersCache),
-        ...store.nuclearCache.items,
-        ...promptAuthors
-    ].map(u => window.normalizeProfile ? window.normalizeProfile(u) : u);
-    const seenUsernames = new Set();
-    return allKnownUsers.filter(u => {
-        if (!u || !u.username || seenUsernames.has(u.username)) return false;
-        seenUsernames.add(u.username);
-        return true;
-    });
-};
-
 window.handleSearchTyping = (val) => {
-    const query = val.trim().toLowerCase();
+    const query = val.trim();
     const mount = document.getElementById('search-suggestions-mount');
     if (!mount) return;
     if (query.length === 0) {
         mount.innerHTML = '';
         return;
     }
-    const uniqueUsers = window.getSearchableUsers();
-    const users = uniqueUsers.filter(u => u.username?.toLowerCase().startsWith(query)).sort((a, b) => a.username.localeCompare(b.username)).slice(0, 5);
-    const prompts = store.prompts.filter(p => p.title?.toLowerCase().startsWith(query)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5);
-
-    const allTags = [...new Set(Object.values(TAG_CATEGORIES).flat())];
-    const aliasMatches = Object.entries(TAG_ALIASES)
-        .filter(([eng, esp]) => eng.toLowerCase().includes(query))
-        .flatMap(([eng, esp]) => esp);
-
-    const tags = allTags.filter(t => t.toLowerCase().includes(query) || aliasMatches.includes(t))
-        .sort((a, b) => a.localeCompare(b))
-        .slice(0, 8);
-
-    const contentMatches = store.prompts
-        .filter(p => (p.prompt || '').toLowerCase().includes(query))
-        .map(p => {
-            const body = p.prompt || '';
-            const idx = body.toLowerCase().indexOf(query);
-            const start = Math.max(0, idx - 25);
-            const end = Math.min(body.length, idx + query.length + 35);
-            let snippet = body.substring(start, end).replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            return { ...p, matchSnippet: snippet };
-        })
-        .slice(0, 5);
-    mount.innerHTML = SearchSuggestions({ users, prompts, tags, contentMatches });
+    const results = getSearchSuggestions({ query, store });
+    mount.innerHTML = SearchSuggestions(results);
 };
 
 window.handleSearch = (val) => {

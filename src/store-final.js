@@ -1094,7 +1094,8 @@ const store = {
             // 1. CREACIÓN DE CUENTA DIRECTA (Confiamos en las restricciones de PB)
             await pb.collection('users').create({
                 username, email, password, passwordConfirm: password,
-                name: username, tokens: 100, level: 0, xp: 0, role: 'user'
+                name: username, tokens: 100, level: 0, xp: 0, role: 'user',
+                moderation: { suggestive: 'BLUR', nsfw: 'BLUR' }
             });
 
             // 2. SOLICITAR VERIFICACIÓN AUTOMÁTICAMENTE
@@ -1337,7 +1338,7 @@ const store = {
         if (!forcedRating && p.type === 'sequence' && p.content && p.content.length > 0) {
             rating = p.content[0].rating || 'SFW / Apto';
         }
-        const mod = this.currentUser?.moderation || { suggestive: 'ON', nsfw: 'BLUR' };
+        const mod = this.currentUser?.moderation || { suggestive: 'BLUR', nsfw: 'BLUR' };
         let applyBlur = false; let warningLabel = '';
         if (rating === 'Sugestivo' && mod.suggestive === 'BLUR') { applyBlur = true; warningLabel = 'SUGESTIVO'; }
         if (rating === 'NSFW / +18' && mod.nsfw === 'BLUR') { applyBlur = true; warningLabel = 'NSFW'; }
