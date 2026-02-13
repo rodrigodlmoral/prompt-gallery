@@ -155,9 +155,9 @@ const renderBroadcastTab = async (container) => {
             const isSelected = window.selectedBroadcastUsers.has(u.id);
             const date = new Date(u.created).toLocaleDateString();
 
-            // Fix "undefined" username
-            let displayName = u.username;
-            if (!displayName || displayName === 'undefined') displayName = u.name;
+            // Fix "undefined" username - User clarified it's "name"
+            let displayName = u.name;
+            if (!displayName || displayName === 'undefined') displayName = u.username;
             if (!displayName || displayName === 'undefined') displayName = u.email ? u.email.split('@')[0] : 'Usuario';
 
             return `
