@@ -1503,15 +1503,21 @@ const store = {
     // MÉTODO CANÓNICO para activación de cuenta Y password reset
     // Ambos usan el mismo endpoint de PocketBase: confirmPasswordReset
     async confirmResetPassword(token, password, userOrEmail) {
+        // 1. Confirmar el cambio de contraseña via PocketBase
         try {
-            // 1. Confirmar el cambio de contraseña via PocketBase
             await pb.collection('users').confirmPasswordReset(token, password, password);
-
-            // 2. Login automático inmediatamente
-            return await this.login(userOrEmail, password);
         } catch (err) {
-            console.error("Reset/Activate error:", err);
+            console.error("Reset Token Error:", err);
             return { success: false, msg: "El link ha expirado o es inválido. Solicita uno nuevo." };
+        }
+
+        // 2. Login automático inmediatamente (Si falla, no invalidamos el éxito anterior)
+        try {
+            return await this.login(userOrEmail, password);
+        } catch (loginErr) {
+            console.warn("Auto-login failed after reset:", loginErr);
+            // Aunque falle el login, el reset fue exitoso.
+            return { success: true, warning: "Contraseña actualizada, pero el auto-login falló. Por favor inicia sesión manualmente." };
         }
     },
 

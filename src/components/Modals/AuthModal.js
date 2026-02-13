@@ -137,14 +137,21 @@ window.doActivateSubmit = async () => {
     const res = await store.confirmResetPassword(token, pass, userOrEmail);
 
     if (res.success) {
-        const isPasswordReset = window._authType === 'password-reset';
-        const msg = isPasswordReset
-            ? "¡Contraseña actualizada con éxito! Ya puedes entrar."
-            : "¡Cuenta activada con éxito! Bienvenido.";
-        alert(msg);
-        window.location.hash = '';
-        window.location.search = '';
-        window.location.reload();
+        if (res.warning) {
+            // Caso especial: Reset OK, Login Falló
+            alert("⚠️ " + res.warning);
+            window.toggleAuth('log'); // Mandar a login manual
+        } else {
+            // Caso ideal: Reset OK, Login OK
+            const isPasswordReset = window._authType === 'password-reset';
+            const msg = isPasswordReset
+                ? "¡Contraseña actualizada con éxito! Ya puedes entrar."
+                : "¡Cuenta activada con éxito! Bienvenido.";
+            alert(msg);
+            window.location.hash = '';
+            window.location.search = '';
+            window.location.reload();
+        }
     } else {
         alert(res.msg);
     }
