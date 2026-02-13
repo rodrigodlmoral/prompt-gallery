@@ -131,34 +131,68 @@ const renderAdmin = async () => {
 
 // --- BROADCAST TAB ---
 const renderBroadcastTab = async (container) => {
+    // 1. Initial Loading State
+    container.innerHTML = `<div style="text-align:center; padding:50px; color:#666"><div class="loading-spinner"></div> Cargando usuarios para broadcast...</div>`;
+
+    // 2. Fetch Users
+    await store.adminLoadAllUsers();
+    let users = store.getAllUsers().filter(u => u.email && u.email.includes('@')); // Basic validation
+
+    // Default Sort: Created Date (Newest First)
+    users.sort((a, b) => new Date(b.created) - new Date(a.created));
+    window.broadcastUsers = users; // Store for sorting/filtering
+    window.selectedBroadcastUsers = new Set(users.map(u => u.id)); // Default: Select All
+
+    // 3. Render UI
+    const renderTable = () => {
+        const tbody = document.getElementById('broadcastUserTableBody');
+        if (!tbody) return;
+
+        const countEl = document.getElementById('selectedCount');
+        if (countEl) countEl.innerText = window.selectedBroadcastUsers.size;
+
+        tbody.innerHTML = window.broadcastUsers.map(u => {
+            const isSelected = window.selectedBroadcastUsers.has(u.id);
+            const date = new Date(u.created).toLocaleDateString();
+            return `
+                <tr style="border-bottom:1px solid #333; ${isSelected ? 'background:rgba(0,255,0,0.05)' : ''}">
+                    <td style="text-align:center">
+                        <input type="checkbox" onchange="window.toggleBroadcastUser('${u.id}', this.checked)" ${isSelected ? 'checked' : ''}>
+                    </td>
+                    <td style="color:${isSelected ? '#fff' : '#888'}">
+                        <div style="font-weight:bold">${u.username}</div>
+                        <div style="font-size:0.75rem; color:#666">${u.email}</div>
+                    </td>
+                    <td style="font-size:0.8rem; color:#aaa">${date}</td>
+                    <td style="font-size:0.8rem; text-align:center">Lvl ${u.level || 0}</td>
+                </tr>
+            `;
+        }).join('');
+    };
+
     container.innerHTML = `
-        <div style="max-width: 800px; margin: 0 auto;">
+        <div style="max-width: 1000px; margin: 0 auto; display:grid; grid-template-columns: 1fr 350px; gap:20px;">
+            
+            <!-- LEFT: EMAIL COMPOSER -->
             <div style="background:#1a1a1a; padding:20px; border-radius:12px; border:1px solid #333">
-                <h2 style="color:gold; margin-top:0">📢 Enviar Broadcast (Newsletter)</h2>
-                <p style="color:#888; font-size:0.9rem; margin-bottom:20px">
-                    Envía correos masivos a todos los usuarios registrados. 
-                    El sistema enviará <b>1 correo cada 5 segundos</b> para evitar ser marcado como SPAM.
-                </p>
-
+                <h2 style="color:gold; margin-top:0">📢 Redactar Correo</h2>
+                
                 <div class="form-group" style="margin-bottom:15px">
-                    <label class="form-label">Asunto del Correo</label>
-                    <input type="text" id="broadcastSubject" class="form-input" placeholder="Ej: ¡Nuevas funciones en Prompt Gallery!">
+                    <label class="form-label">Asunto</label>
+                    <input type="text" id="broadcastSubject" class="form-input" placeholder="Ej: ¡Noticias de Prompt Gallery!">
                 </div>
-
-
 
                 <div class="form-group" style="margin-bottom:15px">
                     <label class="form-label">Contenido HTML</label>
-                    <textarea id="broadcastHtml" class="form-textarea" style="height:300px; width:100% !important; box-sizing:border-box; font-family:monospace; font-size:0.85rem; resize:vertical" placeholder="<h1>Hola!</h1><p>Escribe tu HTML aquí...</p>"></textarea>
+                    <textarea id="broadcastHtml" class="form-textarea" style="height:300px; width:100% !important; box-sizing:border-box; font-family:monospace; font-size:0.75rem; resize:vertical" placeholder="<h1>Hola!</h1>..."></textarea>
                     <div style="margin-top:5px; display:flex; gap:10px">
                         <button class="btn-outline" onclick="window.previewBroadcast()" style="font-size:0.8rem">👁️ Previsualizar</button>
                     </div>
                 </div>
 
-                <div id="broadcastPreview" style="background:white; color:black; padding:20px; border-radius:8px; margin-bottom:20px; display:none; max-height:300px; overflow-y:auto; border:2px dashed #444; width:100%; box-sizing:border-box">
-                    <!-- Preview Here -->
-                </div>
+                <div id="broadcastPreview" style="background:white; color:black; padding:20px; border-radius:8px; margin-bottom:20px; display:none; max-height:300px; overflow-y:auto; border:2px dashed #444; width:100%; box-sizing:border-box"></div>
 
+                <!-- PROGRESS & LOGS -->
                 <div id="broadcastProgress" style="display:none; margin-top:20px; background:#111; padding:15px; border-radius:8px; border:1px solid #333">
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.9rem">
                         <span id="progressText">Enviando: 0/0</span>
@@ -167,16 +201,85 @@ const renderBroadcastTab = async (container) => {
                     <div style="width:100%; height:10px; background:#333; border-radius:5px; overflow:hidden">
                         <div id="progressBar" style="width:0%; height:100%; background:gold; transition:width 0.3s"></div>
                     </div>
-                    <div id="progressLog" style="margin-top:10px; height:100px; overflow-y:auto; font-family:monospace; font-size:0.75rem; color:#888; background:#000; padding:5px"></div>
+                    <div id="progressLog" style="margin-top:10px; height:150px; overflow-y:auto; font-family:monospace; font-size:0.75rem; color:#888; background:#000; padding:5px"></div>
                 </div>
-
-                <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:15px">
+                
+                <!-- ACTIONS -->
+                <div id="broadcastControls" style="margin-top:20px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #333; padding-top:20px">
                     <button class="btn-outline" onclick="window.sendTestEmail()">🧪 Enviar Prueba (A mí)</button>
-                    <button class="btn" style="background:gold; color:black; font-weight:bold" onclick="window.startBroadcast()">🚀 ENVIAR A TODOS</button>
+                    <button class="btn" style="background:gold; color:black; font-weight:bold" onclick="window.startBroadcast()">🚀 ENVIAR A SELECCIONADOS (<span id="btnSelCount">${users.length}</span>)</button>
                 </div>
             </div>
+
+            <!-- RIGHT: USER SELECTION -->
+            <div style="background:#1a1a1a; padding:20px; border-radius:12px; border:1px solid #333; display:flex; flex-direction:column; height:fit-content; max-height:800px">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
+                    <h3 style="color:#ccc; margin:0; font-size:1rem">Destinatarios</h3>
+                    <span style="background:#333; padding:4px 8px; border-radius:4px; font-size:0.8rem; color:white">
+                        <span id="selectedCount">${users.length}</span> / ${users.length}
+                    </span>
+                </div>
+
+                <div style="display:flex; gap:5px; margin-bottom:10px">
+                    <button class="btn-sm" onclick="window.broadcastSelectAll(true)" style="flex:1; font-size:0.7rem">Todos</button>
+                    <button class="btn-sm" onclick="window.broadcastSelectAll(false)" style="flex:1; font-size:0.7rem">Ninguno</button>
+                </div>
+                
+                <div style="display:flex; gap:5px; margin-bottom:10px">
+                    <button class="btn-sm" onclick="window.sortBroadcastUsers('date')" style="flex:1; font-size:0.7rem">📅 Fecha</button>
+                    <button class="btn-sm" onclick="window.sortBroadcastUsers('level')" style="flex:1; font-size:0.7rem">🏆 Nivel</button>
+                </div>
+
+                <div style="flex:1; overflow-y:auto; border:1px solid #333; border-radius:8px; background:#111">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.8rem">
+                        <thead style="background:#222; position:sticky; top:0">
+                            <tr>
+                                <th style="padding:8px; width:30px">✅</th>
+                                <th style="padding:8px; text-align:left">Usuario</th>
+                                <th style="padding:8px; text-align:left">Fecha</th>
+                                <th style="padding:8px; text-align:center">Lvl</th>
+                            </tr>
+                        </thead>
+                        <tbody id="broadcastUserTableBody">
+                            <!-- Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     `;
+
+    // Initial Render
+    renderTable();
+
+    // Helper: Sort
+    window.sortBroadcastUsers = (criteria) => {
+        if (criteria === 'date') {
+            window.broadcastUsers.sort((a, b) => new Date(b.created) - new Date(a.created));
+        } else if (criteria === 'level') {
+            window.broadcastUsers.sort((a, b) => (b.level || 0) - (a.level || 0));
+        }
+        renderTable();
+    };
+
+    // Helper: Select Logic
+    window.toggleBroadcastUser = (id, checked) => {
+        if (checked) window.selectedBroadcastUsers.add(id);
+        else window.selectedBroadcastUsers.delete(id);
+
+        document.getElementById('selectedCount').innerText = window.selectedBroadcastUsers.size;
+        document.getElementById('btnSelCount').innerText = window.selectedBroadcastUsers.size;
+        // Re-render row style only? Or full table? Full table is safer for highlight sync
+        renderTable();
+    };
+
+    window.broadcastSelectAll = (select) => {
+        if (select) window.selectedBroadcastUsers = new Set(window.broadcastUsers.map(u => u.id));
+        else window.selectedBroadcastUsers.clear();
+        renderTable();
+        document.getElementById('btnSelCount').innerText = window.selectedBroadcastUsers.size;
+    };
 };
 
 // --- BROADCAST HANDLERS ---
@@ -230,72 +333,78 @@ window.stopBroadcast = () => {
 };
 
 window.startBroadcast = async () => {
+    // 1. Validate Content
     const subject = document.getElementById('broadcastSubject').value;
     const html = document.getElementById('broadcastHtml').value;
-
     if (!subject || !html) return alert("Completa asunto y contenido HTML");
 
-    if (!confirm("⚠️ ¿Estás seguro de enviar este correo a TODOS los usuarios?")) return;
+    // 2. Validate Selection
+    if (!window.broadcastUsers || !window.selectedBroadcastUsers || window.selectedBroadcastUsers.size === 0) {
+        return alert("⚠️ No has seleccionado ningún usuario.");
+    }
 
-    // Load ALL users
-    await store.adminLoadAllUsers();
-    let users = store.getAllUsers().filter(u => u.email && u.email.includes('@')); // Basic validation
+    // 3. Prepare Queue
+    // We only send to SELECTED users who have valid emails
+    const queue = window.broadcastUsers.filter(u => window.selectedBroadcastUsers.has(u.id) && u.email && u.email.includes('@'));
+
+    if (queue.length === 0) return alert("⚠️ Ninguno de los usuarios seleccionados tiene un email válido.");
 
     // Estimate: 25 seconds average per user
-    const totalSeconds = users.length * 25;
+    const totalSeconds = queue.length * 25;
     const totalMinutes = Math.round(totalSeconds / 60);
 
-    if (!confirm(`⚠️ ATENCIÓN: Estás a punto de enviar este correo a ${users.length} usuarios.\n\n⏳ TIEMPO ESTIMADO: ${totalMinutes} minutos (Envío lento para evitar BLOQUEO DE SPAM).\n\n¿CONFIRMAR ENVÍO MASIVO?`)) return;
+    if (!confirm(`⚠️ CONFIRMACIÓN DE ENVÍO\n\n📧 Destinatarios: ${queue.length}\n⏳ Tiempo Est.: ${totalMinutes} min\n\n¿Iniciar envío masivo ahora?`)) return;
 
-    // UI Setup
+    // 4. UI Setup
     document.getElementById('broadcastProgress').style.display = 'block';
-
-    // Reset Log if starting fresh
     const logEl = document.getElementById('progressLog');
-    logEl.innerHTML = '<div style="color:gold">🚀 Iniciando secuencia de envío seguro...</div>';
+    logEl.innerHTML = `<div style="color:gold">🚀 Iniciando envío a ${queue.length} usuarios...</div>`;
 
-    // Show Stop Button (Inject into controls div)
-    const controlsDiv = document.querySelector('#broadcastProgress').previousElementSibling; // The buttons div
-    if (controlsDiv && controlsDiv.style.justifyContent === 'flex-end') {
-        controlsDiv.id = 'broadcastControls'; // Ensure ID
+    // Swap Buttons for Status/Stop
+    const controlsDiv = document.getElementById('broadcastControls');
+    if (controlsDiv) {
         controlsDiv.innerHTML = `
-            <div id="broadcastStatus" style="color:gold; font-weight:bold; margin-right:auto; align-self:center">✅ ENVIANDO... NO CIERRES ESTA PESTAÑA</div>
+            <div id="broadcastStatus" style="color:gold; font-weight:bold; margin-right:auto; align-self:center">✅ ENVIANDO (0/${queue.length})... NO CIERRES.</div>
             <button class="btn" style="background:red; color:white; font-weight:bold" onclick="window.stopBroadcast()">🛑 DETENER ENVÍO</button>
         `;
     }
 
-    const updateProgress = (i, total) => {
+    const updateUI = (i, total) => {
         const pct = Math.round((i / total) * 100);
         document.getElementById('progressText').innerText = `Enviando: ${i}/${total}`;
         document.getElementById('progressPercent').innerText = `${pct}%`;
         document.getElementById('progressBar').style.width = `${pct}%`;
+        const statusEl = document.getElementById('broadcastStatus');
+        if (statusEl) statusEl.innerText = `✅ ENVIANDO (${i}/${total})... NO CIERRES.`;
     };
 
     window.isBroadcasting = true;
     let successCount = 0;
     let failCount = 0;
 
-    for (let i = 0; i < users.length; i++) {
+    // 5. Processing Loop
+    for (let i = 0; i < queue.length; i++) {
         // STOP CHECK
         if (!window.isBroadcasting) {
             logEl.innerHTML += `<div style="color:red; font-weight:bold; margin-top:10px">⛔ ENVÍO DETENIDO POR EL USUARIO</div>`;
-            const statusEl = document.getElementById('broadcastStatus');
-            if (statusEl) statusEl.innerHTML = '<span style="color:red">⛔ ENVÍO DETENIDO</span>';
+            if (document.getElementById('broadcastStatus'))
+                document.getElementById('broadcastStatus').innerHTML = '<span style="color:red">⛔ ENVÍO DETENIDO</span>';
+
             alert(`🛑 Broadcast Detenido.\n\n✅ Enviados: ${successCount}\n❌ Fallos: ${failCount}`);
 
             // Restore Start Button
             if (controlsDiv) {
                 controlsDiv.innerHTML = `
                     <button class="btn-outline" onclick="window.sendTestEmail()">🧪 Enviar Prueba (A mí)</button>
-                    <button class="btn" style="background:gold; color:black; font-weight:bold" onclick="window.startBroadcast()">🚀 CONTINUAR / REINICIAR</button>
+                    <button class="btn" style="background:gold; color:black; font-weight:bold" onclick="window.startBroadcast()">🚀 ENVIAR A SELECCIONADOS (<span id="btnSelCount">${window.selectedBroadcastUsers.size}</span>)</button>
                 `;
             }
             return;
         }
 
-        const user = users[i];
+        const user = queue[i];
 
-        // Only send if we haven't stopped
+        // Send
         try {
             const res = await fetch('/api/broadcast', {
                 method: 'POST',
@@ -322,10 +431,10 @@ window.startBroadcast = async () => {
 
         // Auto-Scroll Log
         logEl.scrollTop = logEl.scrollHeight;
-        updateProgress(i + 1, users.length);
+        updateUI(i + 1, queue.length);
 
         // DELAY: 20-30 Seconds (Randomized)
-        if (i < users.length - 1) {
+        if (i < queue.length - 1) {
             const delay = Math.floor(Math.random() * 10000) + 20000;
             let remaining = Math.round(delay / 1000);
 
@@ -338,11 +447,10 @@ window.startBroadcast = async () => {
             logEl.appendChild(timerDiv);
             logEl.scrollTop = logEl.scrollHeight;
 
-            // Simple countdown
             const interval = setInterval(() => {
                 if (!window.isBroadcasting) { clearInterval(interval); return; }
                 remaining--;
-                if (timerDiv) timerDiv.innerText = `⏳ Esperando sig. envío... ${remaining}s`;
+                if (document.getElementById(timerId)) document.getElementById(timerId).innerText = `⏳ Esperando sig. envío... ${remaining}s`;
                 if (remaining <= 0) clearInterval(interval);
             }, 1000);
 
@@ -358,7 +466,7 @@ window.startBroadcast = async () => {
     if (controlsDiv) {
         controlsDiv.innerHTML = `
             <button class="btn-outline" onclick="window.sendTestEmail()">🧪 Enviar Prueba (A mí)</button>
-            <button class="btn" style="background:gold; color:black; font-weight:bold" onclick="window.startBroadcast()">🚀 ENVIAR NUEVO BROADCAST</button>
+            <button class="btn" style="background:gold; color:black; font-weight:bold" onclick="window.startBroadcast()">🚀 ENVIAR A SELECCIONADOS (<span id="btnSelCount">${window.selectedBroadcastUsers.size}</span>)</button>
         `;
     }
 };
