@@ -75,7 +75,7 @@ Your goal is to generate high-converting, visually stunning HTML emails based on
         }
 
         const completion = await openai.chat.completions.create({
-            model: "google/gemini-2.0-flash-exp:free", // Using a widely available free model
+            model: "meta-llama/llama-3.3-70b-instruct:free", // Valid Free Model from OpenRouter List
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userContent }
