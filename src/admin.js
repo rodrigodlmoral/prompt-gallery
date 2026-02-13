@@ -147,14 +147,14 @@ const renderBroadcastTab = async (container) => {
 
                 <div class="form-group" style="margin-bottom:15px">
                     <label class="form-label">Contenido HTML</label>
-                    <textarea id="broadcastHtml" class="form-textarea" style="height:300px; font-family:monospace; font-size:0.85rem" placeholder="<h1>Hola!</h1><p>Escribe tu HTML aquí...</p>"></textarea>
+                    <textarea id="broadcastHtml" class="form-textarea" style="height:300px; width:100% !important; box-sizing:border-box; font-family:monospace; font-size:0.85rem; resize:vertical" placeholder="<h1>Hola!</h1><p>Escribe tu HTML aquí...</p>"></textarea>
                     <div style="margin-top:5px; display:flex; gap:10px">
                         <button class="btn-outline" onclick="window.previewBroadcast()" style="font-size:0.8rem">👁️ Previsualizar</button>
                         <button class="btn-outline" onclick="window.loadTemplate('welcome')" style="font-size:0.8rem">📂 Cargar Plantilla Bienvenida</button>
                     </div>
                 </div>
 
-                <div id="broadcastPreview" style="background:white; color:black; padding:20px; border-radius:8px; margin-bottom:20px; display:none; max-height:300px; overflow-y:auto; border:2px dashed #444">
+                <div id="broadcastPreview" style="background:white; color:black; padding:20px; border-radius:8px; margin-bottom:20px; display:none; max-height:300px; overflow-y:auto; border:2px dashed #444; width:100%; box-sizing:border-box">
                     <!-- Preview Here -->
                 </div>
 
@@ -221,22 +221,22 @@ window.sendTestEmail = async () => {
 
     if (!subject || !html) return alert("Completa asunto y contenido HTML");
 
-    // Send to current admin user
-    const adminEmail = store.currentUser.email;
-    if (!confirm(`Se enviará una prueba a: ${adminEmail}`)) return;
+    // Send to custom email (defaulting to rodridom.rock@gmail.com)
+    let testEmail = prompt("Ingresa el correo para la prueba:", "rodridom.rock@gmail.com");
+    if (!testEmail) return;
 
     try {
         const res = await fetch('/api/broadcast', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                to: adminEmail,
+                to: testEmail,
                 subject: '[TEST] ' + subject,
                 html: html
             })
         });
         const data = await res.json();
-        if (data.success) alert("✅ Prueba enviada. Revisa tu correo.");
+        if (data.success) alert("✅ Prueba enviada a: " + testEmail);
         else alert("❌ Error: " + data.error);
     } catch (e) {
         alert("❌ Error de conexión: " + e.message);
