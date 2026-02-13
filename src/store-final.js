@@ -1430,7 +1430,7 @@ const store = {
             // 1. CREACIÓN DE CUENTA DIRECTA (Confiamos en las restricciones de PB)
             await pb.collection('users').create({
                 username, email, password, passwordConfirm: password,
-                name: username, tokens: 100, level: 0, xp: 0, role: 'user',
+                name: username, tokens: 50, level: 0, xp: 0, role: 'user',
                 moderation: { suggestive: 'BLUR', nsfw: 'BLUR' }
             });
 

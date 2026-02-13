@@ -102,7 +102,7 @@ window.doRegisterSubmit = async () => {
         document.getElementById('regUser').value = '';
         document.getElementById('regPass').value = '';
 
-        toast("🎉 ¡Cuenta creada! Por seguridad, hemos enviado un link de activación a tu correo. Revísalo (incluso en spam) para poder entrar.", "success");
+        toast("🎉 ¡Felicidades! Acabas de recibir **50 PromptBits** de bienvenida. Revisa tu correo (o spam) para activar tu cuenta.", "success");
 
         window.toggleAuth('log'); // Mandar a login tras registro
     }
