@@ -132,7 +132,7 @@ Return ONLY the HTML code.
         }
 
         const completion = await openai.chat.completions.create({
-            model: "openrouter/free", // Best available free model handled by OpenRouter
+            model: "google/gemma-3-27b-it:free", // Verified Free Multimodal (Vision) Model from OpenRouter list
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userContent }
