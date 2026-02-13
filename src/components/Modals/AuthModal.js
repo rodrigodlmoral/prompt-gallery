@@ -81,11 +81,13 @@ window.toggleAuth = (m) => {
 
 window.doLoginSubmit = async () => {
     const res = await store.login(document.getElementById('logUser').value, document.getElementById('logPass').value);
-    if (!res.success) alert(res.msg);
+    if (!res.success) alert(res.msg); // Login fallido
 };
 
 window.doRegisterSubmit = async () => {
     const email = document.getElementById('regEmail').value.trim().toLowerCase();
+    const user = document.getElementById('regUser').value;
+    const pass = document.getElementById('regPass').value;
     const domain = email.split('@')[1];
 
     if (!ALLOWED_DOMAINS.includes(domain)) {
@@ -93,9 +95,9 @@ window.doRegisterSubmit = async () => {
         return;
     }
 
-    const res = await store.register(email, document.getElementById('regUser').value, document.getElementById('regPass').value);
+    const res = await store.register(email, user, pass);
     if (!res.success) {
-        alert(res.msg);
+        toast(res.msg, "error");
     } else {
         // ÉXITO: Limpiar formulario y avisar
         document.getElementById('regEmail').value = '';
@@ -138,7 +140,7 @@ window.doActivateSubmit = async () => {
     const token = window._authToken || extractToken(new URLSearchParams(window.location.search).get('token')) || extractToken(window.location.hash);
 
     if (!userOrEmail || !pass) { toast("Rellena todos los campos.", "warning"); return; }
-    if (!token || token.length < 10) return alert("Token de activación no encontrado o inválido.");
+    if (!token || token.length < 10) return toast("Token de activación no encontrado o inválido.", "error");
 
     toast("Procesando solicitud...", "info");
 
@@ -148,21 +150,25 @@ window.doActivateSubmit = async () => {
     if (res.success) {
         if (res.warning) {
             // Caso especial: Reset OK, Login Falló
-            alert("⚠️ " + res.warning);
-            window.toggleAuth('log'); // Mandar a login manual
+            toast("⚠️ " + res.warning, "warning");
+            setTimeout(() => window.toggleAuth('log'), 2000);
         } else {
             // Caso ideal: Reset OK, Login OK
             const isPasswordReset = window._authType === 'password-reset';
             const msg = isPasswordReset
                 ? "¡Contraseña actualizada con éxito! Ya puedes entrar."
                 : "¡Cuenta activada con éxito! Bienvenido.";
-            alert(msg);
-            window.location.hash = '';
-            window.location.search = '';
-            window.location.reload();
+            toast(msg, "success");
+
+            // Limpiar URL y recargar despues del toast
+            setTimeout(() => {
+                window.location.hash = '';
+                window.location.search = '';
+                window.location.reload();
+            }, 1500);
         }
     } else {
-        alert(res.msg);
+        toast(res.msg, "error");
     }
 };
 

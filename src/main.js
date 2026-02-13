@@ -1066,25 +1066,31 @@ const processTokens = async () => {
             const res = await store.confirmVerification(token);
             console.log("📡 Respuesta de verificación:", res);
             if (res.success) {
-                alert("✅ ¡Cuenta verificada con éxito! Bienvenido a la comunidad.✨\n\nPor seguridad, por favor inicia sesión ahora para empezar.");
+                toast("✅ ¡Cuenta verificada con éxito! Bienvenido a la comunidad.✨", "success");
+
+                // Limpiar URL
                 window.location.hash = '';
-                // Abrir el modal de login automáticamente
+
+                // Abrir el modal de login automáticamente tras un breve delay para que se lea el toast
                 let loginAttempts = 0;
-                const tryOpenLogin = () => {
-                    const modal = document.getElementById('authModal');
-                    if (modal) {
-                        window.toggleAuth('log');
-                        modal.style.display = 'flex';
-                    } else if (loginAttempts < 10) {
-                        loginAttempts++;
-                        setTimeout(tryOpenLogin, 300);
-                    }
-                };
-                tryOpenLogin();
+                setTimeout(() => {
+                    const tryOpenLogin = () => {
+                        const modal = document.getElementById('authModal');
+                        if (modal) {
+                            window.toggleAuth('log');
+                            modal.style.display = 'flex';
+                        } else if (loginAttempts < 10) {
+                            loginAttempts++;
+                            setTimeout(tryOpenLogin, 300);
+                        }
+                    };
+                    tryOpenLogin();
+                }, 1500);
+
             } else {
-                alert("❌ " + res.msg);
+                toast("❌ " + res.msg, "error");
                 window.location.hash = '';
-                isProcessingTokens = false; // Permitir reintento si falla la lógica
+                isProcessingTokens = false;
             }
         }
         else {

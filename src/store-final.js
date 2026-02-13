@@ -1508,6 +1508,14 @@ const store = {
             await pb.collection('users').confirmPasswordReset(token, password, password);
         } catch (err) {
             console.error("Reset Token Error:", err);
+            // Si es error de validación (contraseña corta, etc.)
+            if (err.data?.data?.password) {
+                return { success: false, msg: err.data.data.password.message };
+            }
+            if (err.data?.data?.passwordConfirm) {
+                return { success: false, msg: err.data.data.passwordConfirm.message };
+            }
+            // Error genérico o de token
             return { success: false, msg: "El link ha expirado o es inválido. Solicita uno nuevo." };
         }
 
