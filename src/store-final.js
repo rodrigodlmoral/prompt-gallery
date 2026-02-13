@@ -1208,8 +1208,20 @@ const store = {
     // --- LEVEL SYSTEM HELPERS ---
 
     /**
+     * Check if current user has a specific badge in unique_badges
+     * @param {string} badgeName 
+     * @returns {boolean}
+     */
+    hasBadge(badgeName) {
+        if (!this.currentUser || !this.currentUser.unique_badges) return false;
+        // The unique_badges field is expected to be an array of strings
+        return Array.isArray(this.currentUser.unique_badges) &&
+            this.currentUser.unique_badges.includes(badgeName);
+    },
+
+    /**
      * Check if current user has access to a level-gated feature
-     * @param {string} feature - Feature name (e.g., 'comment', 'favorite', 'transfer', 'boost')
+     * @param {string} feature - Feature name (e.g., 'comment', 'favorite', 'transfer', 'boost', 'avatar', 'socials')
      * @returns {object} { hasAccess: boolean, requiredLevel: number, message: string }
      */
     checkLevelFeature(feature) {
@@ -1224,8 +1236,15 @@ const store = {
             'transfer': { level: 1, name: 'Novato', message: 'Necesitas ser Nivel 1 (Novato) para transferir PromptBits. ¡Publica 5 prompts!' },
             'boost': { level: 1, name: 'Novato', message: 'Necesitas ser Nivel 1 (Novato) para destacar posts. ¡Publica 5 prompts!' },
             'avatar': { level: 2, name: 'Creador Jr', message: 'Necesitas ser Nivel 2 (Creador Jr) para cambiar tu foto de perfil. ¡Publica 25 prompts!' },
+            'socials': { level: 2, name: 'Creador Jr', message: 'Necesitas ser Nivel 2 (Creador Jr) para añadir tus redes sociales. ¡Publica 25 prompts!' },
             'sequence': { level: 2, name: 'Creador Jr', message: 'Necesitas ser Nivel 2 (Creador Jr) para publicar secuencias. ¡Publica 25 prompts!' }
         };
+
+        // EXCEPCIÓN: Creadores Fundadores se saltan el nivel para AVATAR y SOCIALS
+        const founderBypass = ['avatar', 'socials'];
+        if (founderBypass.includes(feature) && this.hasBadge('CREADOR FUNDADOR')) {
+            return { hasAccess: true, requiredLevel: 0, message: '💎 Beneficio de Creador Fundador activado' };
+        }
 
         const requirement = featureRequirements[feature];
         if (!requirement) {

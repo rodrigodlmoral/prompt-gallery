@@ -795,10 +795,10 @@ const SettingsModal = () => {
                     <div style="display:flex; gap:20px; align-items:center; margin-bottom:15px">
                         <div class="user-avatar-lg" id="previewAvatar" style="width:80px; height:80px; background-image:url('${u.avatar || 'https://robohash.org/' + u.username}')"></div>
                         <div>
-                            ${(u.level && u.level >= 2) ? `
+                            ${(store.checkLevelFeature('avatar').hasAccess) ? `
                     <button class="btn-outline" onclick="document.getElementById('setAvatarFile').click()">Cambiar Foto</button>
                     ` : `
-                    <span style="background:rgba(255,165,0,0.1); color:#ffa500; padding:6px 12px; border-radius:4px; font-size:0.8rem; font-weight:700; border:1px solid rgba(255,165,0,0.3); cursor:not-allowed" title="Necesitas ser Nivel 2 (Principiante) para cambiar tu foto">🔒 Nivel 2 Requerido</span>
+                    <span style="background:rgba(255,165,0,0.1); color:#ffa500; padding:6px 12px; border-radius:4px; font-size:0.8rem; font-weight:700; border:1px solid rgba(255,165,0,0.3); cursor:not-allowed" title="${store.checkLevelFeature('avatar').message}">🔒 LVL 2 Requerido</span>
                     `}
                             <input type="file" id="setAvatarFile" accept="image/*" style="display:none" onchange="window.previewAvatar(this)">
                         </div>
@@ -833,33 +833,33 @@ const SettingsModal = () => {
                 <div class="settings-section" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #333; position:relative">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
                         <h3 style="margin:0">🌐 Redes Sociales</h3>
-                        ${(u.level && u.level >= 2) ? '' : `<span style="background:rgba(255,165,0,0.1); color:#ffa500; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:700; border:1px solid rgba(255,165,0,0.3)">🔒 Nivel 2 Requerido</span>`}
+                        ${(store.checkLevelFeature('socials').hasAccess) ? '' : `<span style="background:rgba(255,165,0,0.1); color:#ffa500; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:700; border:1px solid rgba(255,165,0,0.3)">🔒 LVL 2 Requerido</span>`}
                     </div>
 
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; ${(u.level && u.level >= 2) ? '' : 'opacity:0.3; pointer-events:none; filter:grayscale(1)'}">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; ${(store.checkLevelFeature('socials').hasAccess) ? '' : 'opacity:0.3; pointer-events:none; filter:grayscale(1)'}">
                         <div>
                             <label class="form-label">Instagram</label>
-                            <input type="text" id="setIg" class="form-input" placeholder="@usuario" value="${soc.ig || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                            <input type="text" id="setIg" class="form-input" placeholder="@usuario" value="${soc.ig || ''}" ${(store.checkLevelFeature('socials').hasAccess) ? '' : 'disabled'}>
                         </div>
                         <div>
                             <label class="form-label">Facebook</label>
-                            <input type="text" id="setFb" class="form-input" placeholder="URL o usuario" value="${soc.fb || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                            <input type="text" id="setFb" class="form-input" placeholder="URL o usuario" value="${soc.fb || ''}" ${(store.checkLevelFeature('socials').hasAccess) ? '' : 'disabled'}>
                         </div>
                         <div>
                             <label class="form-label">X / Twitter</label>
-                            <input type="text" id="setX" class="form-input" placeholder="@usuario" value="${soc.x || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                            <input type="text" id="setX" class="form-input" placeholder="@usuario" value="${soc.x || ''}" ${(store.checkLevelFeature('socials').hasAccess) ? '' : 'disabled'}>
                         </div>
                         <div>
                             <label class="form-label">Telegram Channel</label>
-                            <input type="text" id="setTg" class="form-input" placeholder="t.me/canal" value="${soc.tg || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                            <input type="text" id="setTg" class="form-input" placeholder="t.me/canal" value="${soc.tg || ''}" ${(store.checkLevelFeature('socials').hasAccess) ? '' : 'disabled'}>
                         </div>
                         <div>
                             <label class="form-label">Threads</label>
-                            <input type="text" id="setTh" class="form-input" placeholder="@usuario" value="${soc.th || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                            <input type="text" id="setTh" class="form-input" placeholder="@usuario" value="${soc.th || ''}" ${(store.checkLevelFeature('socials').hasAccess) ? '' : 'disabled'}>
                         </div>
                         <div>
                             <label class="form-label">Fanvue</label>
-                            <input type="text" id="setFv" class="form-input" placeholder="URL Completa" value="${soc.fv || ''}" ${(u.level && u.level >= 2) ? '' : 'disabled'}>
+                            <input type="text" id="setFv" class="form-input" placeholder="URL Completa" value="${soc.fv || ''}" ${(store.checkLevelFeature('socials').hasAccess) ? '' : 'disabled'}>
                         </div>
                     </div>
                 </div>
@@ -1574,7 +1574,7 @@ window.addSeqStep = () => {
                         <select class="form-input seqRating" style="margin:0">${RATINGS.map(r => `<option value='${r}'>${r}</option>`).join('')}</select>
                         ${INFO_ICON}
                     </div>
-                    <input type="file" class="form-input seqFile" accept="image/*" style="margin-bottom:10px" onchange="window.previewFile(this, 'seqPreview-${seqStepCount}')">
+                    <input type="file" id="upFile" class="form-input seqFile" accept="image/*" style="margin-bottom:10px" onchange="window.previewFile(this, 'seqPreview-${seqStepCount}')">
                         <div id="seqPreview-${seqStepCount}" style="width:100%; display:none; background:#000; border-radius:8px; margin-bottom:10px; border:1px solid #333; align-items:center; justify-content:center; padding:10px; overflow:hidden">
                             <img src="" style="max-width:100%; max-height:300px; display:block; border-radius:4px">
                         </div>
@@ -2026,8 +2026,7 @@ window.saveSettings = async () => {
     const avatarFile = document.getElementById('setAvatarFile').files[0];
 
     const finishSave = async (avatarData) => {
-        const canEditSocials = store.currentUser && store.currentUser.level >= 2;
-        const socials = canEditSocials ? {
+        const socials = store.checkLevelFeature('socials').hasAccess ? {
             ig: document.getElementById('setIg').value,
             fb: document.getElementById('setFb').value,
             x: document.getElementById('setX').value,
