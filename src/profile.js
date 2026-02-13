@@ -408,20 +408,38 @@ const ProfileHeader = () => {
 
                     <!-- Badges Container -->
                     <div class="badge-container">
-                        ${(user.username === 'rodrigodlmoral' || user.username === 'rodridomrock' || user.name === 'rodrigodlmoral') ? `
-                        <div class="founder-badge">
-                            <span class="badge-text">👑 Administrador - Fundador</span>
+                        <!-- Legacy Admin Hardcheck (For Safety) -->
+                        ${(user.username === 'rodrigodlmoral' || user.username === 'rodridomrock') ? `
+                        <div class="unique-badge badge-red">
+                            <span class="badge-text">👑 Admin</span>
                         </div>
                         ` : ''}
 
-                        ${(user.badges || []).map(b => {
-        if (b.type === 'creator_founder') {
-            return `
-                                <div class="creator-founder-badge">
-                                    <span class="badge-text">✨ CREADOR FUNDADOR</span>
-                                </div>`;
+                        <!-- Dynamic Badges from PocketBase Checkbox -->
+                        ${(user.unique_badges || []).map(badgeText => {
+        let badgeClass = 'badge-blue'; // Default
+        const upper = badgeText.toUpperCase();
+
+        if (upper.includes('FUNDADOR') || upper.includes('VIP') || upper.includes('PREMIUM') || upper.includes('CREADOR')) {
+            badgeClass = 'badge-gold';
+        } else if (upper.includes('ADMIN') || upper.includes('MODERADOR') || upper.includes('STAFF')) {
+            badgeClass = 'badge-red';
+        } else if (upper.includes('VERIFICADO')) {
+            badgeClass = 'badge-verify'; // Azul/Check style
         }
-        return '';
+
+        // Icono según tipo
+        let icon = '🎖️';
+        if (upper.includes('FUNDADOR')) icon = '✨';
+        if (upper.includes('ADMIN')) icon = '🛡️';
+        if (upper.includes('VIP')) icon = '💎';
+        if (upper.includes('VERIFICADO')) icon = '✅';
+
+        return `
+                                <div class="unique-badge ${badgeClass}">
+                                    <span>${icon} ${window.escapeHTML(badgeText)}</span>
+                                </div>
+                            `;
     }).join('')}
                     </div>
 
