@@ -217,6 +217,18 @@ window.sendTestEmail = async () => {
     }
 };
 
+
+window.isBroadcasting = false;
+
+window.stopBroadcast = () => {
+    if (!window.isBroadcasting) return;
+    if (confirm("⚠️ ¿Detener el envío masivo? Se pausará después del envío actual.")) {
+        window.isBroadcasting = false;
+        const statusEl = document.getElementById('broadcastStatus');
+        if (statusEl) statusEl.innerHTML = '<span style="color:red">🛑 DETENIENDO... (Espera a que termine el ciclo actual)</span>';
+    }
+};
+
 window.startBroadcast = async () => {
     const subject = document.getElementById('broadcastSubject').value;
     const html = document.getElementById('broadcastHtml').value;
@@ -229,11 +241,29 @@ window.startBroadcast = async () => {
     await store.adminLoadAllUsers();
     let users = store.getAllUsers().filter(u => u.email && u.email.includes('@')); // Basic validation
 
-    if (!confirm(`⚠️ ATENCIÓN: Estás a punto de enviar este correo a ${users.length} usuarios.\n\nEl proceso tomará aprox ${(users.length * 5) / 60} minutos.\n\n¿CONFIRMAR ENVÍO MASIVO?`)) return;
+    // Estimate: 25 seconds average per user
+    const totalSeconds = users.length * 25;
+    const totalMinutes = Math.round(totalSeconds / 60);
+
+    if (!confirm(`⚠️ ATENCIÓN: Estás a punto de enviar este correo a ${users.length} usuarios.\n\n⏳ TIEMPO ESTIMADO: ${totalMinutes} minutos (Envío lento para evitar BLOQUEO DE SPAM).\n\n¿CONFIRMAR ENVÍO MASIVO?`)) return;
 
     // UI Setup
     document.getElementById('broadcastProgress').style.display = 'block';
+
+    // Reset Log if starting fresh
     const logEl = document.getElementById('progressLog');
+    logEl.innerHTML = '<div style="color:gold">🚀 Iniciando secuencia de envío seguro...</div>';
+
+    // Show Stop Button (Inject into controls div)
+    const controlsDiv = document.querySelector('#broadcastProgress').previousElementSibling; // The buttons div
+    if (controlsDiv && controlsDiv.style.justifyContent === 'flex-end') {
+        controlsDiv.id = 'broadcastControls'; // Ensure ID
+        controlsDiv.innerHTML = `
+            <div id="broadcastStatus" style="color:gold; font-weight:bold; margin-right:auto; align-self:center">✅ ENVIANDO... NO CIERRES ESTA PESTAÑA</div>
+            <button class="btn" style="background:red; color:white; font-weight:bold" onclick="window.stopBroadcast()">🛑 DETENER ENVÍO</button>
+        `;
+    }
+
     const updateProgress = (i, total) => {
         const pct = Math.round((i / total) * 100);
         document.getElementById('progressText').innerText = `Enviando: ${i}/${total}`;
@@ -241,12 +271,31 @@ window.startBroadcast = async () => {
         document.getElementById('progressBar').style.width = `${pct}%`;
     };
 
+    window.isBroadcasting = true;
     let successCount = 0;
     let failCount = 0;
 
     for (let i = 0; i < users.length; i++) {
+        // STOP CHECK
+        if (!window.isBroadcasting) {
+            logEl.innerHTML += `<div style="color:red; font-weight:bold; margin-top:10px">⛔ ENVÍO DETENIDO POR EL USUARIO</div>`;
+            const statusEl = document.getElementById('broadcastStatus');
+            if (statusEl) statusEl.innerHTML = '<span style="color:red">⛔ ENVÍO DETENIDO</span>';
+            alert(`🛑 Broadcast Detenido.\n\n✅ Enviados: ${successCount}\n❌ Fallos: ${failCount}`);
+
+            // Restore Start Button
+            if (controlsDiv) {
+                controlsDiv.innerHTML = `
+                    <button class="btn-outline" onclick="window.sendTestEmail()">🧪 Enviar Prueba (A mí)</button>
+                    <button class="btn" style="background:gold; color:black; font-weight:bold" onclick="window.startBroadcast()">🚀 CONTINUAR / REINICIAR</button>
+                `;
+            }
+            return;
+        }
+
         const user = users[i];
 
+        // Only send if we haven't stopped
         try {
             const res = await fetch('/api/broadcast', {
                 method: 'POST',
@@ -275,13 +324,43 @@ window.startBroadcast = async () => {
         logEl.scrollTop = logEl.scrollHeight;
         updateProgress(i + 1, users.length);
 
-        // 5 Second Delay (Reliability)
+        // DELAY: 20-30 Seconds (Randomized)
         if (i < users.length - 1) {
-            await new Promise(r => setTimeout(r, 5000));
+            const delay = Math.floor(Math.random() * 10000) + 20000;
+            let remaining = Math.round(delay / 1000);
+
+            const timerId = `timer-${Date.now()}`;
+            const timerDiv = document.createElement('div');
+            timerDiv.id = timerId;
+            timerDiv.style.color = '#666';
+            timerDiv.style.fontSize = '0.8rem';
+            timerDiv.innerText = `⏳ Esperando sig. envío... ${remaining}s`;
+            logEl.appendChild(timerDiv);
+            logEl.scrollTop = logEl.scrollHeight;
+
+            // Simple countdown
+            const interval = setInterval(() => {
+                if (!window.isBroadcasting) { clearInterval(interval); return; }
+                remaining--;
+                if (timerDiv) timerDiv.innerText = `⏳ Esperando sig. envío... ${remaining}s`;
+                if (remaining <= 0) clearInterval(interval);
+            }, 1000);
+
+            await new Promise(r => setTimeout(r, delay));
+            clearInterval(interval);
         }
     }
 
     alert(`🏁 Broadcast Finalizado.\n\n✅ Éxitos: ${successCount}\n❌ Fallos: ${failCount}`);
+
+    // Restore UI
+    window.isBroadcasting = false;
+    if (controlsDiv) {
+        controlsDiv.innerHTML = `
+            <button class="btn-outline" onclick="window.sendTestEmail()">🧪 Enviar Prueba (A mí)</button>
+            <button class="btn" style="background:gold; color:black; font-weight:bold" onclick="window.startBroadcast()">🚀 ENVIAR NUEVO BROADCAST</button>
+        `;
+    }
 };
 
 const renderUsersTab = async (container) => {
