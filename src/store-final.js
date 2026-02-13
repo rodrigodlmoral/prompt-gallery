@@ -1145,11 +1145,17 @@ const store = {
 
             // FIX: Convert Base64 to File for PocketBase 'avatar' field
             if (data.avatar && data.avatar.startsWith('data:image')) {
-                // Generate a filename (e.g., avatar_timestamp.png)
-                const ext = data.avatar.split(';')[0].split('/')[1];
-                const filename = `avatar_${Date.now()}.${ext}`;
-                const fileObj = this._dataURLtoFile(data.avatar, filename);
+                // 1. Compress Image (Client-Side) - Reduce size to avoid 413 or slow uploads
+                // Convert to WebP 0.8 quality, max 1400px width
+                console.log("[AVATAR] Compressing image...");
+                const compressedBase64 = await this._compressImage(data.avatar);
+
+                // 2. Generate Filename & Convert to File
+                const filename = `avatar_${Date.now()}.webp`;
+                const fileObj = this._dataURLtoFile(compressedBase64, filename);
                 updateData.avatar = fileObj;
+
+                console.log(`[AVATAR] Uploading as ${filename} size: ${(fileObj.size / 1024).toFixed(2)}KB`);
                 // DO NOT set avatar_url manually, PB handles it
             }
 
@@ -1159,7 +1165,20 @@ const store = {
             await this._loadUserProfile(this.currentUser.id);
 
             return { success: true };
-        } catch (err) { return { success: false, msg: err.message }; }
+        } catch (err) {
+            console.error("Update User Error:", err);
+            let msg = err.message || "Error desconocido";
+
+            // Extract specific validation error from PocketBase
+            if (err.data && err.data.data) {
+                const firstKey = Object.keys(err.data.data)[0];
+                if (firstKey) {
+                    const detail = err.data.data[firstKey];
+                    msg += `: ${detail.message} (${firstKey})`;
+                }
+            }
+            return { success: false, msg: msg };
+        }
     },
 
     async changePassword(oldPass, newPass) {
