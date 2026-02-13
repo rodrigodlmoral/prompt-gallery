@@ -369,7 +369,7 @@ const store = {
             // STRATEGY 1: Direct Filter (Fastest) - Check 'username' (system) and 'name' (custom)
             try {
                 const res = await pb.collection('users').getList(1, 1, {
-                    filter: `username = "${query}" || name = "${query}"`
+                    filter: `username="${query}" || name="${query}"`
                 });
                 if (res.items.length > 0) found = res.items[0];
             } catch (e) {
@@ -380,7 +380,7 @@ const store = {
             if (!found) {
                 console.log("[ST_DEBUG] Engaging DRAGNET search...");
                 try {
-                    const dragnet = await pb.collection('users').getList(1, 100, { sort: '-created' });
+                    const dragnet = await pb.collection('users').getList(1, 100, { $autoCancel: false });
                     found = dragnet.items.find(u =>
                         (u.name && u.name.toLowerCase() === lowerQuery) ||
                         (u.username && u.username.toLowerCase() === lowerQuery)
@@ -405,7 +405,7 @@ const store = {
                 if (this.nuclearCache.items.length > 0 && (Date.now() - this.nuclearCache.lastFetch < CACHE_TTL)) {
                     items = this.nuclearCache.items;
                 } else {
-                    const res = await pb.collection('users').getList(1, 1000, { sort: '-updated' });
+                    const res = await pb.collection('users').getList(1, 1000, { $autoCancel: false });
                     items = res.items;
                     this.nuclearCache.items = items;
                     this.nuclearCache.lastFetch = Date.now();
@@ -629,9 +629,9 @@ const store = {
 
                 // B) Activity Logs (Bonuses)
                 // Simplified client-side filter
+                // Removed 'sort' to prevent 400 Bad Request
                 const logRecords = await pb.collection('activity_logs').getList(1, 40, {
-                    filter: `user = "${uid}" || details.recipientId = "${uid}"`,
-                    sort: '-created',
+                    filter: `user="${uid}" || details.recipientId="${uid}"`,
                     $autoCancel: false
                 });
 
