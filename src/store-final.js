@@ -2031,11 +2031,11 @@ const store = {
     async adminLoadAllUsers() {
         if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return;
         try {
-            // Fetch ALL users (auto-pagination handled by getFullList)
-            const users = await pb.collection('users').getFullList({
-                sort: '-created',
-                requestKey: null // Avoid auto-cancellation
-            });
+            // Fetch ALL users via Backend API to bypass RLS
+            const res = await fetch('/api/admin-users');
+            if (!res.ok) throw new Error('API Error: ' + res.statusText);
+
+            const users = await res.json();
             this.allUsers = users; // Store locally
             return users;
         } catch (e) {
