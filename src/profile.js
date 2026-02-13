@@ -408,31 +408,31 @@ const ProfileHeader = () => {
 
                     <!-- Badges Container -->
                     <div class="badge-container">
-                        <!-- Legacy Admin Hardcheck (For Safety) -->
-                        ${(user.username === 'rodrigodlmoral' || user.username === 'rodridomrock') ? `
-                        <div class="unique-badge badge-red">
-                            <span class="badge-text">👑 Admin</span>
-                        </div>
-                        ` : ''}
-
-                        <!-- Dynamic Badges from PocketBase Checkbox -->
+                        <!-- Dynamic Badges from PocketBase (Self-Managed by User) -->
                         ${(user.unique_badges || []).map(badgeText => {
-        let badgeClass = 'badge-blue'; // Default
+        let badgeClass = 'badge-blue'; // Default Standard
         const upper = badgeText.toUpperCase();
 
-        if (upper.includes('FUNDADOR') || upper.includes('VIP') || upper.includes('PREMIUM') || upper.includes('CREADOR')) {
+        // 1. GOLD / PREMIUM GLASS (Fundador, CEO, Creador)
+        if (upper.includes('FUNDADOR') || upper.includes('C.E.O') || upper.includes('CREADOR')) {
             badgeClass = 'badge-gold';
-        } else if (upper.includes('ADMIN') || upper.includes('MODERADOR') || upper.includes('STAFF')) {
+        }
+        // 2. PURPLE / VIP GLASS
+        else if (upper.includes('V.I.P') || upper.includes('VIP')) {
+            badgeClass = 'badge-purple';
+        }
+        // 3. RED / OFFICIAL
+        else if (upper.includes('MODERADOR') || upper.includes('ADMIN') || upper.includes('STAFF')) {
             badgeClass = 'badge-red';
-        } else if (upper.includes('VERIFICADO')) {
-            badgeClass = 'badge-verify'; // Azul/Check style
         }
 
         // Icono según tipo
         let icon = '🎖️';
+        if (upper.includes('C.E.O') || upper.includes('ADMIN')) icon = '👑';
         if (upper.includes('FUNDADOR')) icon = '✨';
-        if (upper.includes('ADMIN')) icon = '🛡️';
-        if (upper.includes('VIP')) icon = '💎';
+        if (upper.includes('CREADOR')) icon = '🎨';
+        if (upper.includes('V.I.P')) icon = '💎';
+        if (upper.includes('MODERADOR')) icon = '🛡️';
         if (upper.includes('VERIFICADO')) icon = '✅';
 
         return `

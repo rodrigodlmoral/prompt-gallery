@@ -74,56 +74,75 @@
   flex-wrap: wrap;
 }
 
-/* --- DYNAMIC UNIQUE BADGES --- */
+/* --- DYNAMIC UNIQUE BADGES (PREMIUM GLASS) --- */
 .unique-badge {
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 0.7rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-    transition: transform 0.2s;
+  padding: 6px 14px;
+  border-radius: 50px;
+  /* Pill shape */
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .unique-badge:hover {
-    transform: translateY(-2px);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
 }
 
-/* TYPE: GOLD (Founder, VIP, Creador) */
+/* TYPE: GOLD GLASS (CEO, Founder, Creador Fundador) */
 .badge-gold {
-    background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%);
-    color: #000;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(253, 185, 49, 0.4) 100%);
+  border: 1px solid rgba(255, 215, 0, 0.5);
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.2), inset 0 0 10px rgba(255, 215, 0, 0.1);
 }
+
 .badge-gold::after {
-    content: '';
-    position: absolute;
-    top: -50%; left: -60%; width: 20%; height: 200%;
-    background: rgba(255,255,255,0.4);
-    transform: rotate(30deg);
-    animation: shimmer 3s infinite;
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 50%;
+  height: 200%;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.8), transparent);
+  transform: rotate(30deg);
+  animation: shimmer 4s infinite;
 }
 
-/* TYPE: RED (Admin, Mod) */
+/* TYPE: PURPLE GLASS (VIP) */
+.badge-purple {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.2) 0%, rgba(79, 70, 229, 0.4) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.5);
+  color: #d8b4fe;
+  text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+  box-shadow: 0 0 20px rgba(147, 51, 234, 0.2), inset 0 0 10px rgba(147, 51, 234, 0.1);
+}
+
+/* TYPE: RED (Moderator) */
 .badge-red {
-    background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.8) 0%, rgba(153, 27, 27, 0.9) 100%);
+  color: white;
+  border: 1px solid rgba(255, 100, 100, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-/* TYPE: BLUE (Default / Verified / Beta) */
+/* TYPE: BLUE (Standard / Verificado) */
 .badge-blue {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.8) 0%, rgba(29, 78, 216, 0.9) 100%);
+  color: white;
+  border: 1px solid rgba(100, 150, 255, 0.3);
 }
 
 /* Admin Panel Optimization */
