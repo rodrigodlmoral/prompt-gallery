@@ -1142,10 +1142,22 @@ const store = {
                 socials: data.socials,
                 moderation: data.moderation
             };
-            if (data.avatar) updateData.avatar_url = data.avatar;
+
+            // FIX: Convert Base64 to File for PocketBase 'avatar' field
+            if (data.avatar && data.avatar.startsWith('data:image')) {
+                // Generate a filename (e.g., avatar_timestamp.png)
+                const ext = data.avatar.split(';')[0].split('/')[1];
+                const filename = `avatar_${Date.now()}.${ext}`;
+                const fileObj = this._dataURLtoFile(data.avatar, filename);
+                updateData.avatar = fileObj;
+                // DO NOT set avatar_url manually, PB handles it
+            }
 
             const record = await pb.collection('users').update(this.currentUser.id, updateData);
-            this.currentUser = { ...this.currentUser, ...record };
+
+            // Reload full profile to get normalized avatar URL
+            await this._loadUserProfile(this.currentUser.id);
+
             return { success: true };
         } catch (err) { return { success: false, msg: err.message }; }
     },
