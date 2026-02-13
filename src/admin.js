@@ -150,7 +150,8 @@ const renderBroadcastTab = async (container) => {
                     <textarea id="broadcastHtml" class="form-textarea" style="height:300px; width:100% !important; box-sizing:border-box; font-family:monospace; font-size:0.85rem; resize:vertical" placeholder="<h1>Hola!</h1><p>Escribe tu HTML aquí...</p>"></textarea>
                     <div style="margin-top:5px; display:flex; gap:10px">
                         <button class="btn-outline" onclick="window.previewBroadcast()" style="font-size:0.8rem">👁️ Previsualizar</button>
-                        <button class="btn-outline" onclick="window.loadTemplate('welcome')" style="font-size:0.8rem">📂 Cargar Plantilla Bienvenida</button>
+                        <button class="btn-outline" onclick="window.loadTemplate('welcome')" style="font-size:0.8rem">📂 Cargar Bienvenida</button>
+                        <button class="btn-outline" onclick="window.loadTemplate('newsletter')" style="font-size:0.8rem; border-color:gold; color:gold">🔥 Cargar Newsletter</button>
                     </div>
                 </div>
 
@@ -212,6 +213,91 @@ window.loadTemplate = (type) => {
         </div>
     </div>
 </div>`;
+    } else if (type === 'newsletter') {
+        document.getElementById('broadcastHtml').value = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Newsletter Prompt Gallery</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #000000; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #000000;">
+        <tr>
+            <td align="center" style="padding: 40px 10px;">
+                <!-- Container -->
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #111111; border: 1px solid #333333; border-radius: 16px; overflow: hidden;">
+                    
+                    <!-- Header -->
+                    <tr>
+                        <td align="center" style="padding: 30px; background-color: #0d0d0d; border-bottom: 1px solid #222222;">
+                            <h1 style="color: #ffd700; margin: 0; font-size: 28px; letter-spacing: 1px; text-transform: uppercase;">Prompt Gallery</h1>
+                            <p style="color: #666666; margin: 5px 0 0; font-size: 12px; letter-spacing: 2px;">CREATIVIDAD ILIMITADA</p>
+                        </td>
+                    </tr>
+
+                    <!-- Hero Image Area (Placeholder) -->
+                    <tr>
+                        <td style="padding: 0; background-color: #1a1a1a; text-align: center;">
+                            <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop" alt="Abstract AI Art" style="width: 100%; max-width: 600px; height: auto; display: block; border-bottom: 1px solid #333;">
+                        </td>
+                    </tr>
+
+                    <!-- Body Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #ffffff; margin-top: 0; font-size: 24px;">¡Lo Mejor de la Semana! 🚀</h2>
+                            <p style="color: #cccccc; font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                                Hemos actualizado nuestra colección con prompts increíbles para Midjourney y Stable Diffusion. 
+                                Descubre nuevas técnicas para generar estilos hiperrealistas y de fantasía oscura.
+                            </p>
+                            
+                            <!-- Feature Highlights -->
+                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="padding: 15px; background-color: #1a1a1a; border-radius: 8px; border: 1px solid #333; margin-bottom: 10px;">
+                                        <strong style="color: #ffd700; display: block; margin-bottom: 5px;">🔥 Tendencia: Cyberpunk Noir</strong>
+                                        <span style="color: #999; font-size: 14px;">Los usuarios están creando increíbles escenas nocturnas. ¡Únete al reto!</span>
+                                    </td>
+                                </tr>
+                                <tr><td height="15"></td></tr>
+                                <tr>
+                                    <td style="padding: 15px; background-color: #1a1a1a; border-radius: 8px; border: 1px solid #333;">
+                                        <strong style="color: #a29bfe; display: block; margin-bottom: 5px;">💎 Nuevas Recompensas</strong>
+                                        <span style="color: #999; font-size: 14px;">Gana PromptBits interactuando con la comunidad y desbloquea contenido premium.</span>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- CTA Button -->
+                            <div style="margin-top: 35px; text-align: center;">
+                                <a href="https://www.prompt-gallery.app" style="background-color: #ffd700; color: #000000; padding: 14px 28px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);">
+                                    Explorar Galería
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #0d0d0d; padding: 30px; text-align: center; border-top: 1px solid #222222;">
+                            <p style="color: #666666; font-size: 12px; line-height: 1.5; margin: 0;">
+                                Prompt Gallery Inc.<br>
+                                Este correo fue enviado a todos los miembros registrados.<br>
+                                <a href="#" style="color: #444444; text-decoration: underline;">Darme de baja</a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                
+                <!-- Spacer -->
+                <div style="height: 40px; font-size: 40px; line-height: 40px;">&nbsp;</div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`;
     }
 };
 
