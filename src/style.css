@@ -11,6 +11,27 @@
   --radius: 12px;
 }
 
+html {
+  background-color: var(--bg-main);
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-color);
+  line-height: 1.5;
+  zoom: 0.8;
+  /* Global 20% reduction */
+  -moz-transform: scale(0.8);
+  /* Firefox fallback */
+  -moz-transform-origin: top center;
+  width: 100%;
+  overflow-x: hidden;
+}
+
 .profile-header {
   background: #080808;
   border-bottom: 1px solid #1a1a1a;
@@ -724,6 +745,203 @@ header nav {
 
   100% {
     transform: translateX(-50%);
+  }
+}
+
+/* --- PAID PROMPTS GRID (Side by Side) --- */
+.paid-prompts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+@media (max-width: 900px) {
+  .paid-prompts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.section-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%);
+  margin: 20px 0;
+  border: none;
+  position: relative;
+}
+
+.section-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 1px;
+  background: var(--accent, #3b82f6);
+  opacity: 0.3;
+  filter: blur(2px);
+}
+
+/* --- PREMIUM SPOTLIGHT (Semanal & Diario) --- */
+.premium-spotlight-card {
+  position: relative;
+  width: 100%;
+  padding: 25px;
+  /* Increased padding */
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(25px);
+  /* Stronger blur */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: row;
+  /* Horizontal layout to fill space */
+  align-items: center;
+  gap: 30px;
+  /* Increased gap */
+  min-height: 220px;
+  /* +10% height roughly */
+  overflow: hidden;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+  perspective: 1000px;
+}
+
+.premium-spotlight-card:hover {
+  transform: translateY(-8px) rotateX(1.5deg) rotateY(-1.5deg);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.spotlight-glow {
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(circle at center, var(--glow-color, rgba(37, 99, 235, 0.3)) 0%, transparent 65%);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.premium-spotlight-card::after {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
+  background: linear-gradient(45deg,
+      transparent 45%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 55%);
+  animation: sweep 6s infinite;
+  pointer-events: none;
+}
+
+@keyframes sweep {
+  0% {
+    transform: translate(-20%, -20%) rotate(-45deg);
+  }
+
+  20% {
+    transform: translate(20%, 20%) rotate(-45deg);
+  }
+
+  100% {
+    transform: translate(20%, 20%) rotate(-45deg);
+  }
+}
+
+.spotlight-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  z-index: 2;
+  gap: 8px;
+}
+
+.spotlight-badge {
+  font-size: 0.65rem;
+  font-weight: 1000;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--badge-color, #fff);
+  margin-bottom: 5px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.spotlight-media {
+  width: 140px;
+  /* +5% roughly */
+  height: 190px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  z-index: 2;
+  transition: transform 0.5s ease;
+  flex-shrink: 0;
+  background: #000;
+  /* Placeholder while loading */
+}
+
+.spotlight-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.premium-spotlight-card:hover .spotlight-media {
+  transform: scale(1.06) rotateZ(1deg);
+}
+
+/* Metadata chips for spotlight */
+.spotlight-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.spotlight-chip {
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.spotlight-chip.tool {
+  border-color: #3498db;
+  color: #3498db;
+}
+
+.spotlight-chip.ref {
+  border-color: #e67e22;
+  color: #e67e22;
+}
+
+@media (max-width: 1200px) {
+  .premium-spotlight-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 30px;
+    gap: 20px;
+  }
+
+  .spotlight-info {
+    align-items: center;
   }
 }
 

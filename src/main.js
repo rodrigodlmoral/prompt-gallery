@@ -4,8 +4,10 @@ import './admin_fix.css' // Emergency CSS Fix for Admin Panel
 import { pb } from './pocketbase.js';
 import { store, TOOLS, RATINGS, RATING_INFO, INFO_ICON, LEVEL_REQS } from './store-final.js';
 import { renderCollage } from './components/Collage.js';
-import { TopBar, Header, ProfileHeader } from './components/Layout.js';
+import { TopBar, Header, ProfileHeader, FilterBar } from './components/Layout.js';
 import { HeroCarousel } from './components/HeroCarousel.js';
+import { PromptsSemanal } from './components/PromptsSemanal.js';
+import { PromptsDiario } from './components/PromptsDiario.js';
 import { Gallery } from './components/Gallery.js';
 import { AuthModal } from './components/Modals/AuthModal.js';
 import { CreateModal } from './components/Modals/CreateModal.js';
@@ -377,6 +379,13 @@ const render = () => {
             <div id="topbar-mount"></div>
             <div id="header-mount"></div>
             <div id="hero-mount"></div>
+            <div class="paid-prompts-grid container" style="margin-top: 20px; margin-bottom: 20px;">
+                <div id="semanal-mount"></div>
+                <div id="diario-mount"></div>
+            </div>
+            <div class="container"><div class="section-divider"></div></div>
+            <div id="filters-mount"></div>
+            <div class="container" style="margin-top:20px"><div class="section-divider"></div></div>
             <div id="profile-mount" style="display:none"></div>
             <div id="main-gallery-container"></div>
             <div id="modals-mount"></div>
@@ -396,8 +405,18 @@ const render = () => {
 
     const headerMount = document.getElementById('header-mount');
     if (headerMount) headerMount.innerHTML = Header({ currentUser: store.currentUser, filters, searchQuery });
+
+    const filtersMount = document.getElementById('filters-mount');
+    if (filtersMount) filtersMount.innerHTML = (currentView === 'home') ? FilterBar({ currentUser: store.currentUser, filters }) : '';
+
     const heroMount = document.getElementById('hero-mount');
     if (heroMount) heroMount.innerHTML = (currentView === 'home' && !searchQuery) ? HeroCarousel({ currentView, prompts: store.prompts }) : '';
+
+    const semanalMount = document.getElementById('semanal-mount');
+    if (semanalMount) semanalMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsSemanal({ currentView, prompts: store.prompts }) : '';
+
+    const diarioMount = document.getElementById('diario-mount');
+    if (diarioMount) diarioMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsDiario({ currentView, prompts: store.prompts }) : '';
 
     const profileMount = document.getElementById('profile-mount');
     if (profileMount) {

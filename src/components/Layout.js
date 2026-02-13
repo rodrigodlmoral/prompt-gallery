@@ -48,8 +48,12 @@ export const Header = ({ currentUser, filters, searchQuery }) => `
             <div id="search-mobile-suggestions-mount" style="flex:1; overflow-y:auto; margin-top:10px"></div>
         </div>
     </div>
-    ${currentUser ? `
-    <div class="container filters-bar" style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; background:rgba(0,0,0,0.3); align-items:center; justify-content: flex-end">
+</header> `;
+
+export const FilterBar = ({ currentUser, filters }) => {
+    if (!currentUser) return '';
+    return `
+    <div class="container filters-bar" style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; background:rgba(0,0,0,0.3); align-items:center; justify-content: flex-end; border-radius:12px; margin-top:10px">
         <select id="sourceFilter" onchange="window.setFilter('source', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
             <option value="community" ${filters.source === 'community' ? 'selected' : ''}>👥 Comunidad</option>
             <option value="following" ${filters.source === 'following' ? 'selected' : ''}>⭐ Siguiendo</option>
@@ -71,9 +75,8 @@ export const Header = ({ currentUser, filters, searchQuery }) => `
         <button class="btn-outline" onclick="window.toggleAdvancedFilters()" style="padding: 6px 12px; font-size: 0.85rem; display: flex; align-items:center; gap:8px; white-space:nowrap; border-radius:8px">
             🔍 Filtros Avanzados ${(filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)) > 0 ? `<span style="background:#0070ba; color:white; border-radius:10px; padding:0 6px; font-size:0.7rem">${filters.tools.length + filters.ratings.length + filters.tags.length + (filters.refFilter !== 'all' ? 1 : 0)}</span>` : ''}
         </button>
-    </div>
-    ` : ''}
-</header> `;
+    </div>`;
+};
 
 export const ProfileHeader = ({ currentView, profileUser, currentUser, profileTab }) => {
     if (currentView !== 'profile' || !profileUser) return '';
