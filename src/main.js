@@ -1031,14 +1031,26 @@ const processTokens = async () => {
         }
     }
 
+    // Helper robusto para extraer token
+    const extractToken = (str) => {
+        if (!str) return '';
+        // Quitar slash final si existe
+        let clean = str.endsWith('/') ? str.slice(0, -1) : str;
+        // Obtener último segmento
+        let token = clean.split('/').pop();
+        // Limpiar query params si se colaron (ej: token?track=1)
+        token = token.split('?')[0].split('#')[0];
+        return token;
+    };
+
     // NEW: Path-based detection (for history mode / non-hash routing)
     if (!token) {
         const path = window.location.pathname;
         if (path.includes('confirm-verification')) {
-            token = path.split('/').pop();
+            token = extractToken(path);
             type = 'verify';
         } else if (path.includes('confirm-password-reset')) {
-            token = path.split('/').pop();
+            token = extractToken(path);
             type = 'password-reset';
         }
     }

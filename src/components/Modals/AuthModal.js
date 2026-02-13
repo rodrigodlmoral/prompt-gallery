@@ -125,8 +125,17 @@ window.doActivateSubmit = async () => {
     const userOrEmail = document.getElementById('actUser').value;
     const pass = document.getElementById('actPass').value;
 
+    // Helper robusto para extraer token (Sincronizado con main.js)
+    const extractToken = (str) => {
+        if (!str) return '';
+        let clean = str.endsWith('/') ? str.slice(0, -1) : str;
+        let token = clean.split('/').pop();
+        token = token.split('?')[0].split('#')[0];
+        return token;
+    };
+
     // Buscar token en la variable global, en query params, o en el hash fragment
-    const token = window._authToken || new URLSearchParams(window.location.search).get('token') || (window.location.hash.split('/').pop());
+    const token = window._authToken || extractToken(new URLSearchParams(window.location.search).get('token')) || extractToken(window.location.hash);
 
     if (!userOrEmail || !pass) { toast("Rellena todos los campos.", "warning"); return; }
     if (!token || token.length < 10) return alert("Token de activación no encontrado o inválido.");
