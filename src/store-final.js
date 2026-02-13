@@ -1421,6 +1421,13 @@ const store = {
                 return { success: true };
             }
         } catch (error) {
+            // Check for "User is not verified" error (400 or 403)
+            if (error.status === 400 || error.data?.message?.includes('verified')) {
+                return {
+                    success: false,
+                    msg: "🔒 Debes verificar tu correo para entrar. Revisa tu bandeja de entrada (o spam)."
+                };
+            }
             return { success: false, msg: "Credenciales inválidas o error de conexión" };
         }
     },

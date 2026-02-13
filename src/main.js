@@ -1031,6 +1031,18 @@ const processTokens = async () => {
         }
     }
 
+    // NEW: Path-based detection (for history mode / non-hash routing)
+    if (!token) {
+        const path = window.location.pathname;
+        if (path.includes('confirm-verification')) {
+            token = path.split('/').pop();
+            type = 'verify';
+        } else if (path.includes('confirm-password-reset')) {
+            token = path.split('/').pop();
+            type = 'password-reset';
+        }
+    }
+
     if (token) {
         window._authToken = token; // Guardar para el submit posterior
         window._authType = type;
