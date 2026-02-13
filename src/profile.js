@@ -389,27 +389,30 @@ const ProfileHeader = () => {
     const lvlInfo = getLevelInfo(user.level || 0);
 
     return `
-    <div class="profile-header" >
-        <div class="container" style="padding: 40px 0 0 0;">
-            <div style="display:flex; gap:30px; align-items:center; margin-bottom:30px">
-                <div class="user-avatar-lg" style="background-image:url('${user.avatar || 'https://robohash.org/' + user.username}')"></div>
-                <div>
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px">
-                        <h1 style="font-size:2.5rem; margin:0">${window.escapeHTML(user.username)}</h1>
+    <div class="profile-header-redesign">
+        <div class="container profile-content">
+            <!-- Left: Avatar -->
+            <div class="profile-avatar-xl" style="background-image:url('${user.avatar || 'https://robohash.org/' + user.username}')"></div>
+            
+            <!-- Right: Info -->
+            <div class="profile-info">
+                
+                <!-- Row 1: Name + Level -->
+                <div class="profile-name-row">
+                    <h1 class="profile-username">${window.escapeHTML(user.username)}</h1>
+                    
+                    <!-- Level Badge -->
+                    <span class="level-badge tier-${user.level || 0}"
+                        title="${isMe ? 'Haz clic para ver tu progreso' : 'Nivel ' + (user.level || 0)}"
+                        style="${isMe ? 'cursor:pointer' : ''}"
+                        ${isMe ? 'onclick="window.openLevelProgress()"' : ''}>
+                        ${lvlInfo.icon} NIVEL ${user.level || 0}
+                    </span>
+                </div>
 
-                        <!-- Level Badge -->
-                        <span class="level-badge tier-${user.level || 0}"
-                            title="${isMe ? 'Haz clic para ver tu progreso' : 'Nivel ' + (user.level || 0)}"
-                            style="${isMe ? 'cursor:pointer' : ''}"
-                            ${isMe ? 'onclick="window.openLevelProgress()"' : ''}>
-                            ${lvlInfo.icon} NIVEL ${user.level || 0} - ${lvlInfo.name}
-                        </span>
-                    </div>
-
-                    <!-- Badges Container -->
-                    <div class="badge-container">
-                        <!-- Dynamic Badges from PocketBase (Self-Managed by User) -->
-                        ${(user.unique_badges || []).map(badgeText => {
+                <!-- Row 2: Unique Badges -->
+                <div class="badge-container">
+                    ${(user.unique_badges || []).map(badgeText => {
         let badgeClass = 'badge-blue'; // Default Standard
         const upper = badgeText.toUpperCase();
 
@@ -436,50 +439,67 @@ const ProfileHeader = () => {
         if (upper.includes('VERIFICADO')) icon = '✅';
 
         return `
-                                <div class="unique-badge ${badgeClass}">
-                                    <span>${icon} ${window.escapeHTML(badgeText)}</span>
-                                </div>
-                            `;
+                            <div class="unique-badge ${badgeClass}">
+                                <span>${icon} ${window.escapeHTML(badgeText)}</span>
+                            </div>
+                        `;
     }).join('')}
-                    </div>
-
-                    <div style="display:flex; gap:20px; color:#888; font-size:0.9rem; align-items:center">
-                        <div class="token-display"
-                            ${!isMe ? `onclick="window.openDirectTip('${user.id}', '${user.username}')" style="cursor:pointer" title="Regalar PromptBits a @${user.username}"` : ''}>
-                            💎 ${user.tokens || 0} PromptBits
-                        </div>
-                        <span>|</span>
-                        <span>${user.followers?.length || 0} Seguidores</span>
-                        <span>${user.following?.length || 0} Siguiendo</span>
-                    </div>
-
-                    ${user.socials ? `
-                    <div style="display:flex; gap:15px; margin-top:10px; align-items:center">
-                        ${user.socials.ig ? `<a href="${user.socials.ig.startsWith('http') ? user.socials.ig : 'https://instagram.com/' + user.socials.ig.replace('@', '')}" target="_blank" title="Instagram" style="text-decoration:none; width:24px; height:24px">
-                            <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-                        </a>` : ''}
-                        ${user.socials.fb ? `<a href="${user.socials.fb.startsWith('http') ? user.socials.fb : 'https://facebook.com/' + user.socials.fb}" target="_blank" title="Facebook" style="text-decoration:none; width:24px; height:24px">
-                            <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                        </a>` : ''}
-                        ${user.socials.x ? `<a href="${user.socials.x.startsWith('http') ? user.socials.x : 'https://x.com/' + user.socials.x.replace('@', '')}" target="_blank" title="X / Twitter" style="text-decoration:none; width:22px; height:22px">
-                            <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                        </a>` : ''}
-                    </div>` : ''}
-
-                    ${!isMe ? `<button class="btn" style="margin-top:15px" onclick="window.doFollow('${user.username}')">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
-            : `
-            <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap">
-                <button class="btn-outline" onclick="window.openActivity()">📜 Actividad</button>
-                <button class="btn-outline" onclick="window.openSettings()">⚙️ Configurar</button>
-                ${(isMe && isAdmin) ? `<button class="btn-sm" id="btnAdminPanel" onclick="window.open('/admin.html', '_blank')" style="background:gold; color:black; font-weight:bold; box-shadow:0 0 10px gold; border:none">👑 PANEL ADMIN</button>` : ''}
-            </div>
-            `}
                 </div>
+
+                <!-- Row 3: Stats -->
+                <div class="profile-stats-row">
+                    <div class="profile-stat-item" title="PromptBits (Moneda oficial)" ${!isMe ? `onclick="window.openDirectTip('${user.id}', '${user.username}')" style="cursor:pointer"` : ''}>
+                        <span>💎</span> <span class="profile-stat-value">${user.tokens || 0}</span> PromptBits
+                    </div>
+                    ${store.currentUser?.username === 'rodrigodlmoral' ? `<span style="opacity:0.3">|</span>` : ''} 
+                    <div class="profile-stat-item">
+                        <span class="profile-stat-value">${user.followers?.length || 0}</span> Seguidores
+                    </div>
+                    <span style="opacity:0.3">|</span>
+                    <div class="profile-stat-item">
+                        <span class="profile-stat-value">${user.following?.length || 0}</span> Siguiendo
+                    </div>
+                </div>
+
+                <!-- Row 4: Socials + Actions -->
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; width:100%; flex-wrap:wrap; gap:20px margin-top:10px">
+                    
+                    <!-- Socials -->
+                    <div style="display:flex; gap:15px; align-items:center;">
+                         ${user.socials ? `
+                            ${user.socials.ig ? `<a href="${user.socials.ig.startsWith('http') ? user.socials.ig : 'https://instagram.com/' + user.socials.ig.replace('@', '')}" target="_blank" title="Instagram" style="text-decoration:none; width:22px; height:22px; opacity:0.8; transition:0.2s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">
+                                <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                            </a>` : ''}
+                            ${user.socials.x ? `<a href="${user.socials.x.startsWith('http') ? user.socials.x : 'https://x.com/' + user.socials.x.replace('@', '')}" target="_blank" title="X / Twitter" style="text-decoration:none; width:20px; height:20px; opacity:0.8; transition:0.2s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">
+                                <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            </a>` : ''}
+                            ${user.socials.fb ? `<a href="${user.socials.fb.startsWith('http') ? user.socials.fb : 'https://facebook.com/' + user.socials.fb}" target="_blank" title="Facebook" style="text-decoration:none; width:22px; height:22px; opacity:0.8; transition:0.2s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">
+                                <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                            </a>` : ''}
+                        ` : ''}
+                    </div>
+
+                    <!-- Actions Buttons -->
+                    <div class="profile-actions">
+                        ${!isMe ?
+            `<button class="btn" onclick="window.doFollow('${user.username}')" style="min-width:120px">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
+            :
+            `
+                            <button class="btn-glass" onclick="window.openSettings()">⚙️ Editar Perfil</button>
+                            ${(isMe && isAdmin) ? `<button class="btn-glass" id="btnAdminPanel" onclick="window.open('/admin.html', '_blank')" style="border-color:gold; color:gold;">👑 Admin</button>` : ''}
+                            `
+        }
+                    </div>
+
+                </div>
+
             </div>
-            <div style="display:flex; gap:20px; border-bottom:1px solid #333">
-                <button class="profile-tab ${profileTab === 'creations' ? 'active' : ''}" onclick="window.setProfileTab('creations')">Creaciones</button>
-                ${isMe ? `<button class="profile-tab ${profileTab === 'saved' ? 'active' : ''}" onclick="window.setProfileTab('saved')">Guardados</button>` : ''}
-            </div>
+        </div>
+
+        <!-- Tabs Navigation inside Header -->
+        <div class="container" style="margin-top:20px; display:flex; gap:25px; border-bottom:1px solid #333">
+            <button class="profile-tab ${profileTab === 'creations' ? 'active' : ''}" onclick="window.setProfileTab('creations')">CREACIONES</button>
+            ${isMe ? `<button class="profile-tab ${profileTab === 'saved' ? 'active' : ''}" onclick="window.setProfileTab('saved')">GUARDADOS</button>` : ''}
         </div>
     </div> `;
 };
