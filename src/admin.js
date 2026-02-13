@@ -145,44 +145,13 @@ const renderBroadcastTab = async (container) => {
                     <input type="text" id="broadcastSubject" class="form-input" placeholder="Ej: ¡Nuevas funciones en Prompt Gallery!">
                 </div>
 
-                <!-- MAGIC AI PANEL -->
-                <div style="background: linear-gradient(135deg, #222 0%, #111 100%); border: 1px solid #444; border-radius: 8px; padding: 15px; margin-bottom: 20px; position: relative; overflow: hidden;">
-                    <div style="position: absolute; top: -10px; right: -10px; font-size: 80px; opacity: 0.05; pointer-events: none;">✨</div>
-                    <h3 style="margin-top: 0; color: #ffd700; display: flex; align-items: center; gap: 8px; font-size: 1rem;">
-                        <span>✨</span> Generador Mágico IA
-                        <span style="font-size: 0.7rem; background: #333; color: #aaa; padding: 2px 6px; border-radius: 4px; font-weight: normal;">Beta</span>
-                    </h3>
-                    
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <textarea id="aiPrompt" class="form-textarea" style="flex: 1; min-width: 300px; height: 80px; font-size: 0.9rem;" placeholder="Ej: Escribe un newsletter invitando a ver los 5 prompts más populares de la semana..."></textarea>
-                        
-                        <div style="display: flex; flex-direction: column; gap: 5px; min-width: 150px;">
-                             <!-- Image Upload Button (Hidden Input) -->
-                            <input type="file" id="aiImageUpload" accept="image/*" style="display: none;" onchange="window.handleAiImageSelect(this)">
-                            
-                            <button id="btnSelectImage" class="btn-outline" onclick="document.getElementById('aiImageUpload').click()" style="flex: 1; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 5px;">
-                                <span>📷</span> <span id="txtImageStatus">Subir Imagen</span>
-                            </button>
-                            
-                            <button id="btnGenerateAi" class="btn" onclick="window.generateAiEmail()" style="flex: 1; background: linear-gradient(90deg, #ffd700, #ffaa00); color: black; font-weight: bold; border: none; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 5px;">
-                                <span>✨</span> Generar HTML
-                            </button>
-                        </div>
-                    </div>
-                    <div id="aiPreviewImage" style="display: none; margin-top: 10px; max-width: 100px; border-radius: 4px; border: 1px solid #444;">
-                        <img id="imgAiPreview" src="" style="width: 100%; height: auto; display: block;">
-                        <button onclick="window.clearAiImage()" style="background: red; color: white; border: none; width: 100%; font-size: 0.7rem; cursor: pointer;">Quitar</button>
-                    </div>
-                </div>
-                <!-- END MAGIC AI PANEL -->
+
 
                 <div class="form-group" style="margin-bottom:15px">
                     <label class="form-label">Contenido HTML</label>
                     <textarea id="broadcastHtml" class="form-textarea" style="height:300px; width:100% !important; box-sizing:border-box; font-family:monospace; font-size:0.85rem; resize:vertical" placeholder="<h1>Hola!</h1><p>Escribe tu HTML aquí...</p>"></textarea>
                     <div style="margin-top:5px; display:flex; gap:10px">
                         <button class="btn-outline" onclick="window.previewBroadcast()" style="font-size:0.8rem">👁️ Previsualizar</button>
-                        <button class="btn-outline" onclick="window.loadTemplate('welcome')" style="font-size:0.8rem">📂 Cargar Bienvenida</button>
-                        <button class="btn-outline" onclick="window.loadTemplate('newsletter')" style="font-size:0.8rem; border-color:gold; color:gold">🔥 Cargar Newsletter</button>
                     </div>
                 </div>
 
@@ -218,119 +187,7 @@ window.previewBroadcast = () => {
     preview.style.display = 'block';
 };
 
-window.loadTemplate = (type) => {
-    if (type === 'welcome') {
-        document.getElementById('broadcastHtml').value = `
-<div style="font-family: 'Arial', sans-serif; background-color: #000000; color: #ffffff; padding: 40px; text-align: center;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: #111111; border: 1px solid #333333; border-radius: 12px; overflow: hidden;">
-        <!-- Header -->
-        <div style="background-color: #000000; padding: 20px; border-bottom: 1px solid #222222;">
-            <h1 style="color: #ffd700; margin: 0; font-size: 24px;">Prompt Gallery</h1>
-        </div>
-        
-        <!-- Body -->
-        <div style="padding: 30px; text-align: left;">
-            <h2 style="color: #ffffff; margin-top: 0;">¡Hola Creativo!</h2>
-            <p style="color: #cccccc; line-height: 1.6;">
-                Estamos emocionados de anunciarte las nuevas actualizaciones de la plataforma.
-                Ahora puedes disfrutar de un perfil rediseñado, sistema de medallas y mucho más.
-            </p>
-            <div style="text-align: center; margin: 30px 0;">
-                <a href="https://www.prompt-gallery.app" style="background-color: #ffd700; color: #000000; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Ir a la Galería</a>
-            </div>
-            <p style="color: #888888; font-size: 12px; margin-top: 30px; text-align: center;">
-                Has recibido este correo porque eres miembro de Prompt Gallery.
-            </p>
-        </div>
-    </div>
-</div>`;
-    } else if (type === 'newsletter') {
-        document.getElementById('broadcastHtml').value = `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Newsletter Prompt Gallery</title>
-</head>
-<body style="margin: 0; padding: 0; background-color: #000000; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
-    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #000000;">
-        <tr>
-            <td align="center" style="padding: 40px 10px;">
-                <!-- Container -->
-                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #111111; border: 1px solid #333333; border-radius: 16px; overflow: hidden;">
-                    
-                    <!-- Header -->
-                    <tr>
-                        <td align="center" style="padding: 30px; background-color: #0d0d0d; border-bottom: 1px solid #222222;">
-                            <h1 style="color: #ffd700; margin: 0; font-size: 28px; letter-spacing: 1px; text-transform: uppercase;">Prompt Gallery</h1>
-                            <p style="color: #666666; margin: 5px 0 0; font-size: 12px; letter-spacing: 2px;">CREATIVIDAD ILIMITADA</p>
-                        </td>
-                    </tr>
 
-                    <!-- Hero Image Area (Placeholder) -->
-                    <tr>
-                        <td style="padding: 0; background-color: #1a1a1a; text-align: center;">
-                            <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop" alt="Abstract AI Art" style="width: 100%; max-width: 600px; height: auto; display: block; border-bottom: 1px solid #333;">
-                        </td>
-                    </tr>
-
-                    <!-- Body Content -->
-                    <tr>
-                        <td style="padding: 40px 30px;">
-                            <h2 style="color: #ffffff; margin-top: 0; font-size: 24px;">¡Lo Mejor de la Semana! 🚀</h2>
-                            <p style="color: #cccccc; font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
-                                Hemos actualizado nuestra colección con prompts increíbles para Midjourney y Stable Diffusion. 
-                                Descubre nuevas técnicas para generar estilos hiperrealistas y de fantasía oscura.
-                            </p>
-                            
-                            <!-- Feature Highlights -->
-                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
-                                <tr>
-                                    <td style="padding: 15px; background-color: #1a1a1a; border-radius: 8px; border: 1px solid #333; margin-bottom: 10px;">
-                                        <strong style="color: #ffd700; display: block; margin-bottom: 5px;">🔥 Tendencia: Cyberpunk Noir</strong>
-                                        <span style="color: #999; font-size: 14px;">Los usuarios están creando increíbles escenas nocturnas. ¡Únete al reto!</span>
-                                    </td>
-                                </tr>
-                                <tr><td height="15"></td></tr>
-                                <tr>
-                                    <td style="padding: 15px; background-color: #1a1a1a; border-radius: 8px; border: 1px solid #333;">
-                                        <strong style="color: #a29bfe; display: block; margin-bottom: 5px;">💎 Nuevas Recompensas</strong>
-                                        <span style="color: #999; font-size: 14px;">Gana PromptBits interactuando con la comunidad y desbloquea contenido premium.</span>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- CTA Button -->
-                            <div style="margin-top: 35px; text-align: center;">
-                                <a href="https://www.prompt-gallery.app" style="background-color: #ffd700; color: #000000; padding: 14px 28px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);">
-                                    Explorar Galería
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <!-- Footer -->
-                    <tr>
-                        <td style="background-color: #0d0d0d; padding: 30px; text-align: center; border-top: 1px solid #222222;">
-                            <p style="color: #666666; font-size: 12px; line-height: 1.5; margin: 0;">
-                                Prompt Gallery Inc.<br>
-                                Este correo fue enviado a todos los miembros registrados.<br>
-                                <a href="#" style="color: #444444; text-decoration: underline;">Darme de baja</a>
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-                
-                <!-- Spacer -->
-                <div style="height: 40px; font-size: 40px; line-height: 40px;">&nbsp;</div>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>`;
-    }
-};
 
 window.sendTestEmail = async () => {
     const subject = document.getElementById('broadcastSubject').value;
@@ -427,101 +284,6 @@ window.startBroadcast = async () => {
     alert(`🏁 Broadcast Finalizado.\n\n✅ Éxitos: ${successCount}\n❌ Fallos: ${failCount}`);
 };
 
-// --- AI MAGIC PANEL HANDLERS ---
-
-let aiSelectedImageUrl = '';
-
-window.handleAiImageSelect = async (input) => {
-    const file = input.files[0];
-    if (!file) return;
-
-    const btn = document.getElementById('btnSelectImage');
-    const txt = document.getElementById('txtImageStatus');
-
-    txt.textContent = "Subiendo...";
-    btn.disabled = true;
-
-    try {
-        // Cloudinary Upload Logic (Embedded to avoid module issues)
-        const CLOUD_NAME = 'du0oasfjl';
-        const UPLOAD_PRESET = 'prompt_gallery';
-
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', UPLOAD_PRESET);
-
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!res.ok) throw new Error("Error subiendo imagen");
-        const data = await res.json();
-
-        aiSelectedImageUrl = data.secure_url; // Public URL
-
-        // Show Preview
-        document.getElementById('imgAiPreview').src = aiSelectedImageUrl;
-        document.getElementById('aiPreviewImage').style.display = 'block';
-
-        txt.textContent = "Imagen Lista";
-
-    } catch (e) {
-        console.error(e);
-        alert("Error subiendo imagen: " + e.message);
-        txt.textContent = "Subir Imagen";
-    } finally {
-        btn.disabled = false;
-    }
-};
-
-window.clearAiImage = () => {
-    aiSelectedImageUrl = '';
-    document.getElementById('aiImageUpload').value = '';
-    document.getElementById('aiPreviewImage').style.display = 'none';
-    document.getElementById('txtImageStatus').textContent = "Subir Imagen";
-};
-
-window.generateAiEmail = async () => {
-    const promptText = document.getElementById('aiPrompt').value;
-    if (!promptText) return alert("Por favor escribe una instrucción para la IA.");
-
-    const btn = document.getElementById('btnGenerateAi');
-    const originalText = btn.innerHTML;
-
-    btn.innerHTML = '<span>✨</span> Generando...';
-    btn.disabled = true;
-    btn.style.opacity = "0.7";
-
-    try {
-        const res = await fetch('/api/ai-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prompt: promptText,
-                imageUrl: aiSelectedImageUrl
-            })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-            document.getElementById('broadcastHtml').value = data.html;
-            window.previewBroadcast(); // Auto-preview
-            // Scroll to preview
-            document.getElementById('broadcastHtml').scrollIntoView({ behavior: 'smooth' });
-        } else {
-            alert("Error IA: " + data.error);
-        }
-
-    } catch (e) {
-        alert("Error de conexión: " + e.message);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        btn.style.opacity = "1";
-    }
-};
 const renderUsersTab = async (container) => {
     await store.adminLoadAllUsers();
     let users = [...(store.getAllUsers() || [])];
