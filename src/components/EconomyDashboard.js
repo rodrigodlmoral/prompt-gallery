@@ -9,18 +9,23 @@
 import { store } from '../store-final.js';
 import { getNextMilestone, COPY_MILESTONES } from '../lib/CopyBonusSystem.js';
 
-// Format relative time
+// Format relative time with safety check
 function timeAgo(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'fecha desconocida'; // Fallback for invalid dates
+
     const now = Date.now();
-    const diff = now - new Date(dateStr).getTime();
+    const diff = now - date.getTime();
     const mins = Math.floor(diff / 60000);
+
     if (mins < 1) return 'ahora';
     if (mins < 60) return `hace ${mins}m`;
     const hours = Math.floor(mins / 60);
     if (hours < 24) return `hace ${hours}h`;
     const days = Math.floor(hours / 24);
     if (days < 7) return `hace ${days}d`;
-    return new Date(dateStr).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
 }
 
 /**

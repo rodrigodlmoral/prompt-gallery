@@ -605,9 +605,10 @@ const store = {
             try {
                 // A) Ledger (Native Fallback)
                 // Removed 'expand' to avoid 400 Bad Request if relation data is inconsistent
+                // Removed 'sort' as it caused 400 Bad Request in backfill logs previously
+                // Sorting is handled client-side anyway.
                 const ledgerRecords = await pb.collection('ledger').getList(1, 20, {
-                    filter: `from_user = "${uid}" || to_user = "${uid}"`,
-                    sort: '-created',
+                    filter: `from_user="${uid}" || to_user="${uid}"`,
                     $autoCancel: false
                 });
 
