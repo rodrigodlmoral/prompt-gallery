@@ -123,23 +123,203 @@ const renderAdmin = async () => {
         await renderContentTab(container);
     } else if (currentTab === 'logs') {
         await renderLogsTab(container);
+    } else if (currentTab === 'broadcast') {
+        await renderBroadcastTab(container);
     }
 };
 
-// --- TABS RENDERING ---
+// --- BROADCAST TAB ---
+const renderBroadcastTab = async (container) => {
+    container.innerHTML = `
+        <div style="max-width: 800px; margin: 0 auto;">
+            <div style="background:#1a1a1a; padding:20px; border-radius:12px; border:1px solid #333">
+                <h2 style="color:gold; margin-top:0">📢 Enviar Broadcast (Newsletter)</h2>
+                <p style="color:#888; font-size:0.9rem; margin-bottom:20px">
+                    Envía correos masivos a todos los usuarios registrados. 
+                    El sistema enviará <b>1 correo cada 5 segundos</b> para evitar ser marcado como SPAM.
+                </p>
+
+                <div class="form-group" style="margin-bottom:15px">
+                    <label class="form-label">Asunto del Correo</label>
+                    <input type="text" id="broadcastSubject" class="form-input" placeholder="Ej: ¡Nuevas funciones en Prompt Gallery!">
+                </div>
+
+                <div class="form-group" style="margin-bottom:15px">
+                    <label class="form-label">Contenido HTML</label>
+                    <textarea id="broadcastHtml" class="form-textarea" style="height:300px; font-family:monospace; font-size:0.85rem" placeholder="<h1>Hola!</h1><p>Escribe tu HTML aquí...</p>"></textarea>
+                    <div style="margin-top:5px; display:flex; gap:10px">
+                        <button class="btn-outline" onclick="window.previewBroadcast()" style="font-size:0.8rem">👁️ Previsualizar</button>
+                        <button class="btn-outline" onclick="window.loadTemplate('welcome')" style="font-size:0.8rem">📂 Cargar Plantilla Bienvenida</button>
+                    </div>
+                </div>
+
+                <div id="broadcastPreview" style="background:white; color:black; padding:20px; border-radius:8px; margin-bottom:20px; display:none; max-height:300px; overflow-y:auto; border:2px dashed #444">
+                    <!-- Preview Here -->
+                </div>
+
+                <div id="broadcastProgress" style="display:none; margin-top:20px; background:#111; padding:15px; border-radius:8px; border:1px solid #333">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.9rem">
+                        <span id="progressText">Enviando: 0/0</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div style="width:100%; height:10px; background:#333; border-radius:5px; overflow:hidden">
+                        <div id="progressBar" style="width:0%; height:100%; background:gold; transition:width 0.3s"></div>
+                    </div>
+                    <div id="progressLog" style="margin-top:10px; height:100px; overflow-y:auto; font-family:monospace; font-size:0.75rem; color:#888; background:#000; padding:5px"></div>
+                </div>
+
+                <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:15px">
+                    <button class="btn-outline" onclick="window.sendTestEmail()">🧪 Enviar Prueba (A mí)</button>
+                    <button class="btn" style="background:gold; color:black; font-weight:bold" onclick="window.startBroadcast()">🚀 ENVIAR A TODOS</button>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+// --- BROADCAST HANDLERS ---
+window.previewBroadcast = () => {
+    const html = document.getElementById('broadcastHtml').value;
+    const preview = document.getElementById('broadcastPreview');
+    preview.innerHTML = html;
+    preview.style.display = 'block';
+};
+
+window.loadTemplate = (type) => {
+    if (type === 'welcome') {
+        document.getElementById('broadcastHtml').value = `
+<div style="font-family: 'Arial', sans-serif; background-color: #000000; color: #ffffff; padding: 40px; text-align: center;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #111111; border: 1px solid #333333; border-radius: 12px; overflow: hidden;">
+        <!-- Header -->
+        <div style="background-color: #000000; padding: 20px; border-bottom: 1px solid #222222;">
+            <h1 style="color: #ffd700; margin: 0; font-size: 24px;">Prompt Gallery</h1>
+        </div>
+        
+        <!-- Body -->
+        <div style="padding: 30px; text-align: left;">
+            <h2 style="color: #ffffff; margin-top: 0;">¡Hola Creativo!</h2>
+            <p style="color: #cccccc; line-height: 1.6;">
+                Estamos emocionados de anunciarte las nuevas actualizaciones de la plataforma.
+                Ahora puedes disfrutar de un perfil rediseñado, sistema de medallas y mucho más.
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="https://www.prompt-gallery.app" style="background-color: #ffd700; color: #000000; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Ir a la Galería</a>
+            </div>
+            <p style="color: #888888; font-size: 12px; margin-top: 30px; text-align: center;">
+                Has recibido este correo porque eres miembro de Prompt Gallery.
+            </p>
+        </div>
+    </div>
+</div>`;
+    }
+};
+
+window.sendTestEmail = async () => {
+    const subject = document.getElementById('broadcastSubject').value;
+    const html = document.getElementById('broadcastHtml').value;
+
+    if (!subject || !html) return alert("Completa asunto y contenido HTML");
+
+    // Send to current admin user
+    const adminEmail = store.currentUser.email;
+    if (!confirm(`Se enviará una prueba a: ${adminEmail}`)) return;
+
+    try {
+        const res = await fetch('/api/broadcast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                to: adminEmail,
+                subject: '[TEST] ' + subject,
+                html: html
+            })
+        });
+        const data = await res.json();
+        if (data.success) alert("✅ Prueba enviada. Revisa tu correo.");
+        else alert("❌ Error: " + data.error);
+    } catch (e) {
+        alert("❌ Error de conexión: " + e.message);
+    }
+};
+
+window.startBroadcast = async () => {
+    const subject = document.getElementById('broadcastSubject').value;
+    const html = document.getElementById('broadcastHtml').value;
+
+    if (!subject || !html) return alert("Completa asunto y contenido HTML");
+
+    // Load ALL users
+    await store.adminLoadAllUsers();
+    let users = store.getAllUsers().filter(u => u.email && u.email.includes('@')); // Basic validation
+
+    if (!confirm(`⚠️ ATENCIÓN: Estás a punto de enviar este correo a ${users.length} usuarios.\n\nEl proceso tomará aprox ${(users.length * 5) / 60} minutos.\n\n¿CONFIRMAR ENVÍO MASIVO?`)) return;
+
+    // UI Setup
+    document.getElementById('broadcastProgress').style.display = 'block';
+    const logEl = document.getElementById('progressLog');
+    const updateProgress = (i, total) => {
+        const pct = Math.round((i / total) * 100);
+        document.getElementById('progressText').innerText = `Enviando: ${i}/${total}`;
+        document.getElementById('progressPercent').innerText = `${pct}%`;
+        document.getElementById('progressBar').style.width = `${pct}%`;
+    };
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < users.length; i++) {
+        const user = users[i];
+
+        try {
+            const res = await fetch('/api/broadcast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to: user.email,
+                    subject: subject,
+                    html: html
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                successCount++;
+                logEl.innerHTML += `<div>✅ ${user.email} (Enviado)</div>`;
+            } else {
+                failCount++;
+                logEl.innerHTML += `<div style="color:red">❌ ${user.email}: ${data.error}</div>`;
+            }
+        } catch (e) {
+            failCount++;
+            logEl.innerHTML += `<div style="color:red">❌ ${user.email}: Error de red</div>`;
+        }
+
+        // Auto-Scroll Log
+        logEl.scrollTop = logEl.scrollHeight;
+        updateProgress(i + 1, users.length);
+
+        // 5 Second Delay (Reliability)
+        if (i < users.length - 1) {
+            await new Promise(r => setTimeout(r, 5000));
+        }
+    }
+
+    alert(`🏁 Broadcast Finalizado.\n\n✅ Éxitos: ${successCount}\n❌ Fallos: ${failCount}`);
+};
 const renderUsersTab = async (container) => {
     await store.adminLoadAllUsers();
     let users = [...(store.getAllUsers() || [])];
 
     // Alphabet Filter
     const filterHtml = `
-        <div id="adminAlphabetFilter" style="margin-bottom:15px; display:flex; gap:4px; flex-wrap:wrap; justify-content:center">
-            <button class="btn-sm ${!window.adminFilterChar ? 'active' : ''}" onclick="window.setAdminFilter('')" style="padding:2px 8px">ALL</button>
+        < div id = "adminAlphabetFilter" style = "margin-bottom:15px; display:flex; gap:4px; flex-wrap:wrap; justify-content:center" >
+        <button class="btn-sm ${!window.adminFilterChar ? 'active' : ''}" onclick="window.setAdminFilter('')" style="padding:2px 8px">ALL</button>
             ${"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(char => `
                 <button class="btn-sm ${window.adminFilterChar === char ? 'active' : ''}" onclick="window.setAdminFilter('${char}')" style="padding:2px 8px">${char}</button>
-            `).join('')}
-        </div>
-    `;
+            `).join('')
+        }
+        </div >
+        `;
 
     if (window.adminFilterChar) {
         users = users.filter(u => (u.username || '').toUpperCase().startsWith(window.adminFilterChar));
@@ -163,20 +343,20 @@ const renderUsersTab = async (container) => {
 
     container.innerHTML = `
         ${filterHtml}
-        <div class="admin-table-container">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th onclick="window.toggleAdminSort('username')">Usuario ${col === 'username' ? (dir === 'asc' ? '↑' : '↓') : ''}</th>
-                        <th onclick="window.toggleAdminSort('email')">Email ${col === 'email' ? (dir === 'asc' ? '↑' : '↓') : ''}</th>
-                        <th onclick="window.toggleAdminSort('role')">Rol ${col === 'role' ? (dir === 'asc' ? '↑' : '↓') : ''}</th>
-                        <th onclick="window.toggleAdminSort('level')">Nivel ${col === 'level' ? (dir === 'asc' ? '↑' : '↓') : ''}</th>
-                        <th onclick="window.toggleAdminSort('tokens')">Bits ${col === 'tokens' ? (dir === 'asc' ? '↑' : '↓') : ''}</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${users.map(u => `
+    < div class= "admin-table-container" >
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th onclick="window.toggleAdminSort('username')">Usuario ${col === 'username' ? (dir === 'asc' ? '↑' : '↓') : ''}</th>
+                <th onclick="window.toggleAdminSort('email')">Email ${col === 'email' ? (dir === 'asc' ? '↑' : '↓') : ''}</th>
+                <th onclick="window.toggleAdminSort('role')">Rol ${col === 'role' ? (dir === 'asc' ? '↑' : '↓') : ''}</th>
+                <th onclick="window.toggleAdminSort('level')">Nivel ${col === 'level' ? (dir === 'asc' ? '↑' : '↓') : ''}</th>
+                <th onclick="window.toggleAdminSort('tokens')">Bits ${col === 'tokens' ? (dir === 'asc' ? '↑' : '↓') : ''}</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${users.map(u => `
                         <tr>
                             <td style="display:flex; align-items:center; gap:8px">
                                 <div class="user-avatar-sm" style="background-image:url('${u.avatar || 'https://robohash.org/' + u.username}')"></div>
@@ -194,27 +374,27 @@ const renderUsersTab = async (container) => {
                             </td>
                         </tr>
                     `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
+        </tbody>
+    </table>
+        </div >
+        `;
 };
 
 const renderContentTab = async (container) => {
     const prompts = [...store.prompts].sort((a, b) => b.createdAt - a.createdAt);
     container.innerHTML = `
-        <div class="admin-table-container">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Vista</th>
-                        <th>Título / Autor</th>
-                        <th>Rating</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${prompts.map(p => `
+        < div class= "admin-table-container" >
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Vista</th>
+                    <th>Título / Autor</th>
+                    <th>Rating</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${prompts.map(p => `
                         <tr>
                             <td style="padding:10px">
                                 <img src="${p.type === 'sequence' ? p.content[0].image : p.image}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">
@@ -233,22 +413,22 @@ const renderContentTab = async (container) => {
                             </td>
                         </tr>
                     `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
+            </tbody>
+        </table>
+        </div >
+        `;
 };
 
 
 const renderLogsTab = async (container) => {
-    container.innerHTML = `<div style="text-align:center; padding:50px; color:#aaa"><div class="loading-spinner" style="margin-bottom:15px"></div>Cargando actividad reciente...</div>`;
+    container.innerHTML = `< div style = "text-align:center; padding:50px; color:#aaa" > <div class="loading-spinner" style="margin-bottom:15px"></div>Cargando actividad reciente...</div > `;
 
     let logs = [];
     try {
         logs = await store.getActivityLogs();
     } catch (e) {
         console.error("Error loading logs tab:", e);
-        container.innerHTML = `<div style="color:#ff4444; padding:20px; border:1px solid #ff4444; border-radius:8px">❌ Error cargando logs: ${e.message}</div>`;
+        container.innerHTML = `< div style = "color:#ff4444; padding:20px; border:1px solid #ff4444; border-radius:8px" >❌ Error cargando logs: ${e.message}</div > `;
         return;
     }
 
@@ -257,8 +437,8 @@ const renderLogsTab = async (container) => {
         let detailsStr = "";
         try {
             const d = l.details || {};
-            if (l.action === 'tip') detailsStr = `Envió ${d.amount} 💎 a @${d.recipient} (${d.postId})`;
-            else if (l.action === 'publish') detailsStr = `Publicó: ${d.postId} (${d.type})`;
+            if (l.action === 'tip') detailsStr = `Envió ${d.amount} 💎 a @${d.recipient}(${d.postId})`;
+            else if (l.action === 'publish') detailsStr = `Publicó: ${d.postId}(${d.type})`;
             else if (l.action === 'levelup') detailsStr = `Subió de nivel: Lvl ${d.old} ➔ ${d.new}`;
             else if (l.action === 'reaction') detailsStr = `Reaccionó con ${d.type} en ${d.postId}`;
             else if (l.action === 'comment') detailsStr = `Comentó en ${d.postId}`;
@@ -272,20 +452,20 @@ const renderLogsTab = async (container) => {
         if (l.action === 'reaction') badgeColor = "#f87171";
 
         return `
-            <tr style="border-bottom:1px solid #222;">
+    < tr style = "border-bottom:1px solid #222;" >
                 <td style="font-size:0.75rem; color:#888; white-space:nowrap">${date}</td>
                 <td style="font-weight:600">@${l.username}</td>
                 <td><span class="badge" style="background:${badgeColor}; color:#000; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold">${l.action.toUpperCase()}</span></td>
                 <td style="font-size:0.8rem; color:#aaa">${detailsStr}</td>
-            </tr>
+            </tr >
         `;
     };
 
     container.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
+        < div style = "display:flex; justify-content:space-between; align-items:center; margin-bottom:15px" >
              <h3 style="color: gold; margin:0">📜 Log de Actividad Reciente</h3>
              <button class="btn-sm" onclick="window.switchAdminTab('logs')" style="font-size:0.75rem; padding:6px 12px;">🔄 Refrescar</button>
-        </div>
+        </div >
         <div class="admin-table-container">
             <table>
                 <thead>
@@ -358,7 +538,7 @@ window.adminSubmitUserUpdate = async () => {
 window.adminSubmitGift = async () => {
     const amount = parseInt(document.getElementById('giftBitsAmount').value);
     if (!amount || amount < 1) return alert("Monto inválido");
-    if (!confirm(`¿Regalar ${amount} Bits a este usuario desde tu saldo?`)) return;
+    if (!confirm(`¿Regalar ${amount} Bits a este usuario desde tu saldo ? `)) return;
 
     const res = await store.giftTokens(window.editingUserId, amount);
     if (res.success) {
