@@ -1435,10 +1435,12 @@ const store = {
     async register(email, username, password) {
         try {
             // 1. CREACIÓN DE CUENTA DIRECTA (Confiamos en las restricciones de PB)
+            // HACK: Auto-follow Admin (rodrigodlmoral) ID: rkmrhmgh067x7un
             await pb.collection('users').create({
                 username, email, password, passwordConfirm: password,
                 name: username, tokens: 50, level: 0, xp: 0, role: 'user',
-                moderation: { suggestive: 'BLUR', nsfw: 'BLUR' }
+                moderation: { suggestive: 'BLUR', nsfw: 'BLUR' },
+                following: ['rkmrhmgh067x7un']
             });
 
             // 2. SOLICITAR VERIFICACIÓN AUTOMÁTICAMENTE
