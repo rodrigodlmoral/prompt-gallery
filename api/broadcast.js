@@ -42,19 +42,22 @@ export default async function handler(req, res) {
 
     try {
         // 3. Configure Transporter (Zoho)
+        const user = (process.env.ZOHO_USER || 'admin@prompt-gallery.app').trim();
+        const pass = (process.env.ZOHO_PASS || '').trim();
+
         const transporter = nodemailer.createTransport({
             host: 'smtp.zoho.com',
             port: 465,
             secure: true, // SSL
             auth: {
-                user: process.env.ZOHO_USER || 'admin@prompt-gallery.app',
-                pass: process.env.ZOHO_PASS
+                user: user,
+                pass: pass
             }
         });
 
         // 4. Send Email
         const info = await transporter.sendMail({
-            from: `"Prompt Gallery" <${process.env.ZOHO_USER || 'admin@prompt-gallery.app'}>`,
+            from: `"Prompt Gallery" <${user}>`,
             to: to,
             subject: subject,
             html: html
