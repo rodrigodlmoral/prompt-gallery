@@ -145,6 +145,37 @@ const renderBroadcastTab = async (container) => {
                     <input type="text" id="broadcastSubject" class="form-input" placeholder="Ej: ¡Nuevas funciones en Prompt Gallery!">
                 </div>
 
+                <!-- MAGIC AI PANEL -->
+                <div style="background: linear-gradient(135deg, #222 0%, #111 100%); border: 1px solid #444; border-radius: 8px; padding: 15px; margin-bottom: 20px; position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: -10px; right: -10px; font-size: 80px; opacity: 0.05; pointer-events: none;">✨</div>
+                    <h3 style="margin-top: 0; color: #ffd700; display: flex; align-items: center; gap: 8px; font-size: 1rem;">
+                        <span>✨</span> Generador Mágico IA
+                        <span style="font-size: 0.7rem; background: #333; color: #aaa; padding: 2px 6px; border-radius: 4px; font-weight: normal;">Beta</span>
+                    </h3>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <textarea id="aiPrompt" class="form-textarea" style="flex: 1; min-width: 300px; height: 80px; font-size: 0.9rem;" placeholder="Ej: Escribe un newsletter invitando a ver los 5 prompts más populares de la semana..."></textarea>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 5px; min-width: 150px;">
+                             <!-- Image Upload Button (Hidden Input) -->
+                            <input type="file" id="aiImageUpload" accept="image/*" style="display: none;" onchange="window.handleAiImageSelect(this)">
+                            
+                            <button id="btnSelectImage" class="btn-outline" onclick="document.getElementById('aiImageUpload').click()" style="flex: 1; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                                <span>📷</span> <span id="txtImageStatus">Subir Imagen</span>
+                            </button>
+                            
+                            <button id="btnGenerateAi" class="btn" onclick="window.generateAiEmail()" style="flex: 1; background: linear-gradient(90deg, #ffd700, #ffaa00); color: black; font-weight: bold; border: none; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                                <span>✨</span> Generar HTML
+                            </button>
+                        </div>
+                    </div>
+                    <div id="aiPreviewImage" style="display: none; margin-top: 10px; max-width: 100px; border-radius: 4px; border: 1px solid #444;">
+                        <img id="imgAiPreview" src="" style="width: 100%; height: auto; display: block;">
+                        <button onclick="window.clearAiImage()" style="background: red; color: white; border: none; width: 100%; font-size: 0.7rem; cursor: pointer;">Quitar</button>
+                    </div>
+                </div>
+                <!-- END MAGIC AI PANEL -->
+
                 <div class="form-group" style="margin-bottom:15px">
                     <label class="form-label">Contenido HTML</label>
                     <textarea id="broadcastHtml" class="form-textarea" style="height:300px; width:100% !important; box-sizing:border-box; font-family:monospace; font-size:0.85rem; resize:vertical" placeholder="<h1>Hola!</h1><p>Escribe tu HTML aquí...</p>"></textarea>
@@ -335,6 +366,8 @@ window.startBroadcast = async () => {
 
     if (!subject || !html) return alert("Completa asunto y contenido HTML");
 
+    if (!confirm("⚠️ ¿Estás seguro de enviar este correo a TODOS los usuarios?")) return;
+
     // Load ALL users
     await store.adminLoadAllUsers();
     let users = store.getAllUsers().filter(u => u.email && u.email.includes('@')); // Basic validation
@@ -392,6 +425,102 @@ window.startBroadcast = async () => {
     }
 
     alert(`🏁 Broadcast Finalizado.\n\n✅ Éxitos: ${successCount}\n❌ Fallos: ${failCount}`);
+};
+
+// --- AI MAGIC PANEL HANDLERS ---
+
+let aiSelectedImageUrl = '';
+
+window.handleAiImageSelect = async (input) => {
+    const file = input.files[0];
+    if (!file) return;
+
+    const btn = document.getElementById('btnSelectImage');
+    const txt = document.getElementById('txtImageStatus');
+
+    txt.textContent = "Subiendo...";
+    btn.disabled = true;
+
+    try {
+        // Cloudinary Upload Logic (Embedded to avoid module issues)
+        const CLOUD_NAME = 'du0oasfjl';
+        const UPLOAD_PRESET = 'prompt_gallery';
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', UPLOAD_PRESET);
+
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!res.ok) throw new Error("Error subiendo imagen");
+        const data = await res.json();
+
+        aiSelectedImageUrl = data.secure_url; // Public URL
+
+        // Show Preview
+        document.getElementById('imgAiPreview').src = aiSelectedImageUrl;
+        document.getElementById('aiPreviewImage').style.display = 'block';
+
+        txt.textContent = "Imagen Lista";
+
+    } catch (e) {
+        console.error(e);
+        alert("Error subiendo imagen: " + e.message);
+        txt.textContent = "Subir Imagen";
+    } finally {
+        btn.disabled = false;
+    }
+};
+
+window.clearAiImage = () => {
+    aiSelectedImageUrl = '';
+    document.getElementById('aiImageUpload').value = '';
+    document.getElementById('aiPreviewImage').style.display = 'none';
+    document.getElementById('txtImageStatus').textContent = "Subir Imagen";
+};
+
+window.generateAiEmail = async () => {
+    const promptText = document.getElementById('aiPrompt').value;
+    if (!promptText) return alert("Por favor escribe una instrucción para la IA.");
+
+    const btn = document.getElementById('btnGenerateAi');
+    const originalText = btn.innerHTML;
+
+    btn.innerHTML = '<span>✨</span> Generando...';
+    btn.disabled = true;
+    btn.style.opacity = "0.7";
+
+    try {
+        const res = await fetch('/api/ai-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: promptText,
+                imageUrl: aiSelectedImageUrl
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            document.getElementById('broadcastHtml').value = data.html;
+            window.previewBroadcast(); // Auto-preview
+            // Scroll to preview
+            document.getElementById('broadcastHtml').scrollIntoView({ behavior: 'smooth' });
+        } else {
+            alert("Error IA: " + data.error);
+        }
+
+    } catch (e) {
+        alert("Error de conexión: " + e.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        btn.style.opacity = "1";
+    }
 };
 const renderUsersTab = async (container) => {
     await store.adminLoadAllUsers();
