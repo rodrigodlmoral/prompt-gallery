@@ -154,24 +154,30 @@ const renderBroadcastTab = async (container) => {
         tbody.innerHTML = window.broadcastUsers.map(u => {
             const isSelected = window.selectedBroadcastUsers.has(u.id);
             const date = new Date(u.created).toLocaleDateString();
+
+            // Fix "undefined" username
+            let displayName = u.username;
+            if (!displayName || displayName === 'undefined') displayName = u.name;
+            if (!displayName || displayName === 'undefined') displayName = u.email ? u.email.split('@')[0] : 'Usuario';
+
             return `
                 <tr style="border-bottom:1px solid #333; ${isSelected ? 'background:rgba(0,255,0,0.05)' : ''}">
                     <td style="text-align:center">
                         <input type="checkbox" onchange="window.toggleBroadcastUser('${u.id}', this.checked)" ${isSelected ? 'checked' : ''}>
                     </td>
-                    <td style="color:${isSelected ? '#fff' : '#888'}">
-                        <div style="font-weight:bold">${u.username}</div>
-                        <div style="font-size:0.75rem; color:#666">${u.email}</div>
+                    <td style="color:${isSelected ? '#fff' : '#888'}; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="${u.email}">
+                        <div style="font-weight:bold; overflow:hidden; text-overflow:ellipsis">${displayName}</div>
+                        <div style="font-size:0.7rem; color:#666; overflow:hidden; text-overflow:ellipsis">${u.email}</div>
                     </td>
-                    <td style="font-size:0.8rem; color:#aaa">${date}</td>
-                    <td style="font-size:0.8rem; text-align:center">Lvl ${u.level || 0}</td>
+                    <td style="font-size:0.75rem; color:#aaa; white-space:nowrap; text-align:right; padding-right:10px">${date}</td>
+                    <td style="font-size:0.75rem; text-align:center">Lvl ${u.level || 0}</td>
                 </tr>
             `;
         }).join('');
     };
 
     container.innerHTML = `
-        <div style="max-width: 1000px; margin: 0 auto; display:grid; grid-template-columns: 1fr 350px; gap:20px;">
+        <div style="max-width: 1100px; margin: 0 auto; display:grid; grid-template-columns: 1fr 400px; gap:20px;">
             
             <!-- LEFT: EMAIL COMPOSER -->
             <div style="background:#1a1a1a; padding:20px; border-radius:12px; border:1px solid #333">
@@ -231,13 +237,13 @@ const renderBroadcastTab = async (container) => {
                 </div>
 
                 <div style="flex:1; overflow-y:auto; border:1px solid #333; border-radius:8px; background:#111">
-                    <table style="width:100%; border-collapse:collapse; font-size:0.8rem">
-                        <thead style="background:#222; position:sticky; top:0">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.8rem; table-layout:fixed">
+                        <thead style="background:#222; position:sticky; top:0; z-index:10">
                             <tr>
                                 <th style="padding:8px; width:30px">✅</th>
                                 <th style="padding:8px; text-align:left">Usuario</th>
-                                <th style="padding:8px; text-align:left">Fecha</th>
-                                <th style="padding:8px; text-align:center">Lvl</th>
+                                <th style="padding:8px; width:70px; text-align:right">Fecha</th>
+                                <th style="padding:8px; width:40px; text-align:center">Lvl</th>
                             </tr>
                         </thead>
                         <tbody id="broadcastUserTableBody">
