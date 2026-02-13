@@ -2025,6 +2025,90 @@ const store = {
         } else {
             if (window.toast) window.toast(result.msg || "Error al comentar", "error");
         }
+    },
+
+    // --- ADMIN METHODS (Restored) ---
+    async adminLoadAllUsers() {
+        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return;
+        try {
+            // Fetch ALL users (auto-pagination handled by getFullList)
+            const users = await pb.collection('users').getFullList({
+                sort: '-created',
+                requestKey: null // Avoid auto-cancellation
+            });
+            this.allUsers = users; // Store locally
+            return users;
+        } catch (e) {
+            console.error("Admin Load Users Error:", e);
+            if (window.toast) window.toast("Error cargando usuarios: " + e.message, "error");
+            return [];
+        }
+    },
+
+    getAllUsers() {
+        return this.allUsers || [];
+    },
+
+    async adminUpdateUser(id, data) {
+        try {
+            await pb.collection('users').update(id, data);
+            return { success: true };
+        } catch (e) {
+            return { success: false, msg: e.message };
+        }
+    },
+
+    async adminDeleteUser(id) {
+        try {
+            await pb.collection('users').delete(id);
+            return { success: true };
+        } catch (e) {
+            return { success: false, msg: e.message };
+        }
+    },
+
+    async adminUpdatePrompt(id, data) {
+        try {
+            await pb.collection('prompts').update(id, data);
+            return { success: true };
+        } catch (e) {
+            return { success: false, msg: e.message };
+        }
+    },
+
+    async removePrompt(id) {
+        try {
+            await pb.collection('prompts').delete(id);
+            return { success: true };
+        } catch (e) {
+            return { success: false, msg: e.message };
+        }
+    },
+
+    async giftTokens(userId, amount) {
+        // Simple client-side check, real security is on server/RLS
+        if (this.currentUser.tokens < amount) return { success: false, msg: "Saldo insuficiente" };
+
+        try {
+            // 1. Deduct from Admin
+            await pb.collection('users').update(this.currentUser.id, {
+                tokens: this.currentUser.tokens - amount
+            });
+            this.currentUser.tokens -= amount; // Local update
+
+            // 2. Add to User
+            const u = await pb.collection('users').getOne(userId);
+            await pb.collection('users').update(userId, {
+                tokens: (u.tokens || 0) + amount
+            });
+
+            // 3. Log
+            await this.logActivity('tip', { recipient: u.username, amount: amount, postId: 'ADMIN_GIFT' });
+
+            return { success: true };
+        } catch (e) {
+            return { success: false, msg: e.message };
+        }
     }
 };
 

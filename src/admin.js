@@ -54,6 +54,7 @@ const AdminLayout = () => `
             <button class="profile-tab ${currentTab === 'users' ? 'active' : ''}" onclick="window.switchAdminTab('users')">👥 Usuarios</button>
             <button class="profile-tab ${currentTab === 'content' ? 'active' : ''}" onclick="window.switchAdminTab('content')">Moderación</button>
             <button class="profile-tab ${currentTab === 'logs' ? 'active' : ''}" onclick="window.switchAdminTab('logs')">📜 Actividad</button>
+            <button class="profile-tab ${currentTab === 'broadcast' ? 'active' : ''}" onclick="window.switchAdminTab('broadcast')">📢 Broadcast</button>
         </div>
 
         <!-- Sub-modal de Gestión de Usuario (Compacto) -->
