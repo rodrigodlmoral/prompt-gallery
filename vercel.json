@@ -9,6 +9,10 @@
         {
             "source": "/profile",
             "destination": "/profile.html"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
         }
     ]
 }
