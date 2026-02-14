@@ -767,9 +767,9 @@ const store = {
 
     async getTopCreators() {
         try {
-            // Sort by impact (total_copies) first, then by volume (prompts_count)
+            // Unico criterio: Cantidad de prompts creados (DESC)
             const records = await pb.collection('users').getList(1, 10, {
-                sort: '-total_copies,-prompts_count'
+                sort: '-prompts_count'
             });
             return records.items.map(p => window.normalizeProfile ? window.normalizeProfile(p) : p);
         } catch (err) {
