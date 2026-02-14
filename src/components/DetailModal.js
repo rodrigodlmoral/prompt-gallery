@@ -91,17 +91,7 @@ export const DetailModalTemplate = () => `
 
 // --- LOGIC ---
 
-window.openDetail = (id) => {
-    const p = store.prompts.find(x => x.id === id);
-    if (!p) return;
-    const { applyBlur } = store.getModeration(p);
-    if (!store.currentUser && applyBlur) {
-        if (toast) toast("⚠️ Regístrate para visualizar contenido +18", "error");
-        else alert("Regístrate para visualizar contenido +18");
-        return;
-    }
-    store.openDetail(id);
-};
+// La lógica de apertura (renderizado) vive en main.js via DetailModalTemplate
 
 window.toggleOptionsMenu = () => {
     const menu = document.getElementById('optionsMenu');
@@ -111,7 +101,7 @@ window.toggleOptionsMenu = () => {
     if (optAdmin) {
         optAdmin.style.display = isAdmin ? 'block' : 'none';
         if (isAdmin) {
-            const p = store.prompts.find(x => String(x.id) === String(store.activePostId || currentId)); // Handle global currentId if needed
+            const p = store.findPrompt(store.activePostId);
             // NOTE: currentId might be undefined here if strictly modular, but store.activePostId is reliable
             if (p) optAdmin.innerText = p.is_featured ? '⭐ Quitar Destacado' : '🌟 Marcar Destacado';
         }
@@ -135,7 +125,7 @@ window.doAdminFeaturePrompt = async () => {
 };
 
 window.doCopyPrompt = async (type = 'main') => {
-    const p = store.prompts.find(x => String(x.id) === String(store.activePostId));
+    const p = store.findPrompt(store.activePostId);
     if (!p) return;
 
     let text = '';
@@ -210,7 +200,7 @@ window.doUnsavePrompt = (id) => {
 
 window.doReportPrompt = () => {
     if (!store.currentUser) return alert("Inicia sesión para reportar");
-    const p = store.prompts.find(x => x.id === store.activePostId);
+    const p = store.findPrompt(store.activePostId);
     if (p && p.author === store.currentUser.username) return alert("No puedes reportar tu propio post.");
 
     const reason = prompt("¿Por qué reportas este contenido?\n1. Contenido ilegal\n2. Spam\n3. Acoso\n4. Otro");
@@ -231,7 +221,7 @@ window.doHidePrompt = () => {
 
 window.doBlockUser = () => {
     if (!store.currentUser) return alert("Inicia sesión");
-    const p = store.prompts.find(x => x.id === store.activePostId);
+    const p = store.findPrompt(store.activePostId);
     if (!p) return;
     if (p.author === store.currentUser.username) return alert("No puedes bloquearte a ti mismo.");
 

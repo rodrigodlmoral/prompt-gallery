@@ -4,18 +4,8 @@ import { getModeration } from '../utils/security.js';
 export const PromptsDiario = ({ currentView, prompts }) => {
     if (currentView !== 'home') return '';
 
-    // Filter prompts for Daily boost
-    let featuredList = prompts.filter(p => {
-        if (p.is_private) return false;
-        return false; // placeholder for real logic
-    });
-
-    // MOCK DATA FOR TESTING: Pick 1 for visual tests as requested
-    if (featuredList.length === 0 && prompts.length > 0) {
-        const publicPrompts = prompts.filter(p => !p.is_private);
-        // Reverse or different random to differentiate from Weekly
-        featuredList = publicPrompts.sort(() => 0.5 - Math.random()).slice(0, 1);
-    }
+    // Use provided prompts directly (already filtered and ranked by CEREBRO in the store)
+    let featuredList = prompts;
 
     if (featuredList.length === 0) return '';
 

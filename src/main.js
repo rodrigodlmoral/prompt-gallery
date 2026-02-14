@@ -8,7 +8,7 @@ import { TopBar, Header, ProfileHeader, FilterBar } from './components/Layout.js
 import { HeroCarousel } from './components/HeroCarousel.js';
 import { PromptsSemanal } from './components/PromptsSemanal.js';
 import { PromptsDiario } from './components/PromptsDiario.js';
-import { Gallery } from './components/Gallery.js';
+import { Gallery, PromptCard } from './components/Gallery.js';
 import { AuthModal } from './components/Modals/AuthModal.js';
 import { CreateModal } from './components/Modals/CreateModal.js';
 import { SettingsModal } from './components/Modals/SettingsModal.js';
@@ -147,10 +147,13 @@ const renderMaintenance = () => {
                 0%, 100% { transform: rotateX(10deg) rotateY(-10deg) translateY(0px); }
                 50% { transform: rotateX(15deg) rotateY(5deg) translateY(-25px); }
             }
-            @keyframes progress {
-                0% { transform: translateX(-100%); }
-                50% { transform: translateX(0%); }
-                100% { transform: translateX(100%); }
+            @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            @keyframes fadeInUp {
+                from { opacity: 0; transform: translateY(30px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .fade-in-up {
+                animation: fadeInUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
             }
             body { 
                 margin: 0; 
@@ -163,6 +166,119 @@ const renderMaintenance = () => {
     `;
 
     document.body.appendChild(overlay);
+};
+
+// --- REPRODUCTOR DE CARGA MANUAL (BOTÓN) ---
+// Eliminado IntersectionObserver y Legacy Scroll por política de "No Alucinaciones"
+// La carga ahora es 100% controlada por el usuario.
+
+// Centralizamos la lógica de carga para re-uso
+const triggerLoadMore = async () => {
+    if (store.isLoadingMore || !store.hasMore) return;
+
+    // Feedback visual en el botón manual si existe
+    const btn = document.getElementById('manual-load-btn');
+    const spinner = document.getElementById('loading-spinner-sentinel');
+    const visual = document.getElementById('sentinel-visual');
+    if (btn) btn.style.opacity = '0.5', btn.style.pointerEvents = 'none';
+    if (spinner) spinner.style.display = 'block';
+    if (visual) visual.innerText = "⏳ Trayendo más contenido...";
+
+    // Eliminados Skeletons bruscos por solicitud del usuario para una entrada más sutil
+
+    try {
+        const newItems = await store.loadPrompts();
+
+        if (newItems && newItems.length > 0) {
+            const filteredNewItems = filterPrompts({
+                prompts: newItems,
+                currentUser: store.currentUser,
+                currentView,
+                profileUser,
+                profileTab,
+                filters,
+                searchQuery
+            });
+
+            if (filteredNewItems && filteredNewItems.length > 0) {
+                console.log(`[SCROLL] 💉 Inyectando ${filteredNewItems.length} items de forma quirúrgica.`);
+                appendSurgicalPrompts(filteredNewItems);
+            } else {
+                console.warn("[SCROLL] ℹ️ Batch cargado pero todos los items fueron filtrados.");
+            }
+        }
+    } catch (err) {
+        console.error("[SCROLL] ❌ Fallo crítico en triggerLoadMore:", err);
+        if (visual) visual.innerText = "❌ Error al cargar";
+    } finally {
+        // Restaurar UI del botón
+        if (btn) btn.style.opacity = '1', btn.style.pointerEvents = 'auto';
+        if (spinner) spinner.style.display = 'none';
+
+        const hasMore = store.hasMore;
+        if (visual) visual.innerText = hasMore ? "SIGUIENTES 60 POSTS" : "🏁 Fin de la galería";
+
+        if (!store.hasMore) {
+            if (btn) btn.style.display = 'none';
+            if (visual) visual.innerHTML = `<div style="padding:40px 20px; background:rgba(255,255,255,0.05); border-radius:20px; border:1px dashed rgba(255,255,255,0.2); max-width:400px; margin:0 auto;">
+                <div style="font-size:2.5rem; margin-bottom:15px">🏁</div>
+                <div style="font-weight:800; font-size:1.2rem; color:#fff; margin-bottom:10px">¡Has llegado al final!</div>
+                <div style="color:#888; font-size:0.9rem; line-height:1.5">
+                    Estás viendo los <b>${store.prompts.length} prompts públicos</b> de la comunidad.<br><br>
+                    Si tienes más prompts que no ves aquí, recuerda que los <b>posts privados</b> solo son visibles desde tu <a href="/profile.html" style="color:var(--accent); text-decoration:none; font-weight:bold">Perfil Personal</a>.
+                </div>
+            </div>`;
+        }
+    }
+};
+
+window.forceLoadMore = () => {
+    console.log("🛡️ Carga Manual Solicitada");
+    triggerLoadMore();
+};
+
+const appendSurgicalPrompts = (newItems) => {
+    const grids = document.querySelectorAll('.gallery-grid');
+    let galleryRoot = grids.length > 0 ? grids[grids.length - 1] : document.getElementById('gallery-root');
+    const sentinel = document.getElementById('scroll-sentinel');
+    const parentContainer = galleryRoot?.parentElement || document.getElementById('main-gallery-container');
+
+    if (!galleryRoot) {
+        console.error("[SCROLL] No se encontró contenedor para inyección quirúrgica.");
+        return;
+    }
+
+    console.log(`[SCROLL] 🎯 Inyectando en el grid #${grids.length || 1}`);
+
+    // El índice real para la lógica de banners debe basarse en lo que ya hay en el DOM
+    let currentIdx = document.querySelectorAll('.card').length;
+
+    newItems.forEach((p) => {
+        // En Gallery.js, el adBanner se dispara en (idx > 11 && (idx + 1) % 12 === 0)
+        // Solo partimos si el grid actual ya tiene contenido, para evitar doble split
+        if (currentIdx > 0 && currentIdx % 12 === 0 && galleryRoot.children.length > 0) {
+            console.log(`[SCROLL] 🏗️ Lote de 12 completado. Creando nuevo grid.`);
+
+            const banner = document.createElement('div');
+            banner.className = 'ad-banner';
+            if (sentinel) parentContainer.insertBefore(banner, sentinel);
+            else parentContainer.appendChild(banner);
+
+            const newGrid = document.createElement('div');
+            newGrid.className = 'gallery-grid';
+            if (sentinel) parentContainer.insertBefore(newGrid, sentinel);
+            else parentContainer.appendChild(newGrid);
+
+            galleryRoot = newGrid;
+        }
+
+        const temp = document.createElement('div');
+        temp.innerHTML = PromptCard(p, store.currentUser, currentView, profileUser, profileTab, getModeration, true);
+        const cardNode = temp.firstElementChild;
+        if (cardNode) galleryRoot.appendChild(cardNode);
+
+        currentIdx++;
+    });
 };
 
 
@@ -187,6 +303,157 @@ let filters = {
 
 // --- ADMIN SORT STATE ---
 window.adminSort = { col: 'username', dir: 'asc' };
+
+// --- INTERACTIVE CAROUSEL LOGIC ---
+let carouselSpeed = 0.5; // Pixels per frame
+let isCarouselPaused = false;
+let isDragging = false;
+let startX, scrollLeftAtStart;
+
+window.initHeroCarousel = () => {
+    const container = document.getElementById('hero-carousel-container');
+    const track = document.getElementById('hero-carousel-track');
+    if (!container || !track) return;
+
+    let rafId;
+
+    const animate = () => {
+        if (!isCarouselPaused && !isDragging) {
+            container.scrollLeft += carouselSpeed;
+
+            // Infinite loop logic
+            const maxScroll = track.offsetWidth / 3; // We added 3 copies
+            if (container.scrollLeft >= maxScroll * 2) {
+                container.scrollLeft = maxScroll;
+            } else if (container.scrollLeft <= 0) {
+                container.scrollLeft = maxScroll;
+            }
+        }
+        rafId = requestAnimationFrame(animate);
+    };
+
+    // Initial position in the middle set of items
+    setTimeout(() => {
+        const maxScroll = track.offsetWidth / 3;
+        container.scrollLeft = maxScroll;
+        animate();
+    }, 100);
+
+    // Pause on hover
+    container.addEventListener('mouseenter', () => isCarouselPaused = true);
+    container.addEventListener('mouseleave', () => {
+        if (!isDragging) isCarouselPaused = false;
+    });
+
+    // Drag to scroll
+    container.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        isCarouselPaused = true;
+        startX = e.pageX - container.offsetLeft;
+        scrollLeftAtStart = container.scrollLeft;
+        container.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            isCarouselPaused = false;
+            container.style.cursor = 'grab';
+        }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const x = e.pageX - container.offsetLeft;
+        const walk = (x - startX) * 2; // Scroll speed multiplier
+        container.scrollLeft = scrollLeftAtStart - walk;
+    });
+
+    // Touch support (mobile)
+    container.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        startX = e.touches[0].pageX - container.offsetLeft;
+        scrollLeftAtStart = container.scrollLeft;
+    }, { passive: true });
+
+    container.addEventListener('touchend', () => {
+        isDragging = false;
+    }, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const x = e.touches[0].pageX - container.offsetLeft;
+        const walk = (x - startX);
+        container.scrollLeft = scrollLeftAtStart - walk;
+    }, { passive: true });
+};
+
+window.initDragScroll = (containerId) => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    container.addEventListener('mousedown', (e) => {
+        isDown = true;
+        container.classList.add('active'); // CSS hook if needed
+        startX = e.pageX - container.offsetLeft;
+        scrollLeft = container.scrollLeft;
+    });
+
+    container.addEventListener('mouseleave', () => {
+        isDown = false;
+    });
+
+    container.addEventListener('mouseup', () => {
+        isDown = false;
+    });
+
+    container.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - container.offsetLeft;
+        const walk = (x - startX) * 2;
+        container.scrollLeft = scrollLeft - walk;
+    });
+
+    // Touch support (passive for performance)
+    container.addEventListener('touchstart', (e) => {
+        isDown = true;
+        startX = e.touches[0].pageX - container.offsetLeft;
+        scrollLeft = container.scrollLeft;
+    }, { passive: true });
+
+    container.addEventListener('touchend', () => isDown = false, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+        if (!isDown) return;
+        const x = e.touches[0].pageX - container.offsetLeft;
+        const walk = (x - startX);
+        container.scrollLeft = scrollLeft - walk;
+    }, { passive: true });
+};
+
+window.navHeroCarousel = (dir) => {
+    const container = document.getElementById('hero-carousel-container');
+    if (!container) return;
+
+    isCarouselPaused = true;
+    const moveAmount = 400 * dir;
+    container.scroll({
+        left: container.scrollLeft + moveAmount,
+        behavior: 'smooth'
+    });
+
+    // Resume auto-scroll after a delay
+    clearTimeout(window._heroNavTimeout);
+    window._heroNavTimeout = setTimeout(() => {
+        isCarouselPaused = false;
+    }, 3000);
+};
 
 // --- TOP CREATORS STATE ---
 let topCreatorsList = [];
@@ -345,6 +612,7 @@ window.clearAllFilters = () => {
 
 
 const getFilteredPrompts = () => {
+    // La galería usa store.prompts (los 60 cargados actualmente)
     return filterPrompts({
         prompts: store.prompts,
         currentUser: store.currentUser,
@@ -410,13 +678,13 @@ const render = () => {
     if (filtersMount) filtersMount.innerHTML = (currentView === 'home') ? FilterBar({ currentUser: store.currentUser, filters }) : '';
 
     const heroMount = document.getElementById('hero-mount');
-    if (heroMount) heroMount.innerHTML = (currentView === 'home' && !searchQuery) ? HeroCarousel({ currentView, prompts: store.prompts }) : '';
+    if (heroMount) heroMount.innerHTML = (currentView === 'home' && !searchQuery) ? HeroCarousel({ currentView, prompts: store.getTopWeeklyPrompts().slice(0, 20) }) : '';
 
     const semanalMount = document.getElementById('semanal-mount');
-    if (semanalMount) semanalMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsSemanal({ currentView, prompts: store.prompts }) : '';
+    if (semanalMount) semanalMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsSemanal({ currentView, prompts: store.getTopWeeklyPrompts().slice(0, 3) }) : '';
 
     const diarioMount = document.getElementById('diario-mount');
-    if (diarioMount) diarioMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsDiario({ currentView, prompts: store.prompts }) : '';
+    if (diarioMount) diarioMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsDiario({ currentView, prompts: store.getTopDailyPrompts().slice(0, 1) }) : '';
 
     const profileMount = document.getElementById('profile-mount');
     if (profileMount) {
@@ -438,13 +706,19 @@ const render = () => {
             profileTab,
             filters,
             getModeration: getModeration, // Passed from utils import
-            topCreatorsList
+            topCreatorsList,
+            searchQuery
         });
     }
 
     attachEvents();
+    // Start interactive carousels
+    if (currentView === 'home' && !searchQuery) {
+        window.initHeroCarousel();
+        window.initDragScroll('tc-grid-container');
+    }
 
-    // Solo scrollear arriba si no es un render incremental por reaccion
+    // Solo scrollear arriba si es una carga inicial o reset de filtros (No incremental)
     if (!window._isIncrementalRender) {
         window.scrollTo(0, 0);
     }
@@ -630,10 +904,13 @@ window.openCreate = () => {
 };
 
 window.openDetail = (id) => {
-    // Check if DetailModal is loaded logic or if we need to manually trigger it.
-    // In previous main.js, openDetail was often defined to fetch prompt and open modal.
-    const p = store.prompts.find(x => x.id === id);
-    if (!p) return;
+    // Usar el helper centralizado del store (Busca en Lista Maestra y Batches)
+    const p = store.findPrompt(id);
+
+    if (!p) {
+        console.warn("[UI] Prompt not found in local memory:", id);
+        return;
+    }
 
     // Update URL
     const newUrl = new URL(window.location);

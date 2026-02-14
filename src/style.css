@@ -876,7 +876,6 @@ header nav {
 
 .spotlight-media {
   width: 140px;
-  /* +5% roughly */
   height: 190px;
   border-radius: 12px;
   overflow: hidden;
@@ -886,7 +885,8 @@ header nav {
   transition: transform 0.5s ease;
   flex-shrink: 0;
   background: #000;
-  /* Placeholder while loading */
+  position: relative;
+  /* Fixed: Contain the blur-overlay */
 }
 
 .spotlight-media img {
@@ -1206,6 +1206,37 @@ header nav {
   content: "•";
   margin-left: 8px;
   opacity: 0.3;
+}
+
+/* --- SKELETON LOADING --- */
+.skeleton-card {
+  background: linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s infinite linear;
+  border: 1px solid #333;
+}
+
+@keyframes skeleton-pulse {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.fade-in-up {
+  opacity: 0;
+  transform: translateY(15px);
+  animation: fadeInUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* --- AD BANNER --- */

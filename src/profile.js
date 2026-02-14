@@ -553,12 +553,13 @@ const Gallery = () => {
     });
 
     const isVisitor = !store.currentUser;
+    // La galería ahora usa store.prompts (los cargados incrementalmente)
     const itemsToShow = isVisitor ? list.slice(0, 12) : list;
 
     if (list.length === 0) return `<div class="container" style="padding:100px; text-align:center; color:#666">No hay prompts que coincidan con los filtros.</div>`;
 
     return `
-    <div class="container gallery-grid" style="margin-top:20px">
+    <div class="container gallery-grid" id="gallery-root" style="margin-top:20px">
         ${itemsToShow.map(p => {
         const { applyBlur, warningLabel } = getModeration(p);
         const reactions = p.reactions || { like: 0 };
@@ -581,7 +582,6 @@ const Gallery = () => {
                         <span title="PromptBits" onclick="event.stopPropagation(); window.openTip('${p.id}')" style="color:#a29bfe; cursor:pointer">💎 ${p.tokens_received || 0}</span>
                     </div>
                 </div>
-
                 ${(store.currentUser?.username === profileUser && p.author === store.currentUser?.username) ? `
                 <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px; z-index:10;">
                     ${(store.currentUser?.level >= 4 && !p.is_featured) ? `<button class="btn-icon" style="background:rgba(241,196,15,0.8); padding:5px; width:auto; height:30px; font-size:0.75rem; color:black; font-weight:700" onclick="event.stopPropagation(); window.doPromotePrompt('${p.id}')" title="Destacar por 1 semana (50 PromptBits)">💎 50 PromptBits</button>` : ''}
@@ -591,6 +591,50 @@ const Gallery = () => {
             </div>`;
     }).join('')}
     </div> 
+    
+    <!-- BOTÓN DE CARGA MANUAL (MISMO SISTEMA QUE DASHBOARD) -->
+    ${(!isVisitor && store.hasMore) ? `
+        <div id="scroll-sentinel" class="manual-load-container" style="margin: 40px 0; display: flex; flex-direction: column; align-items: center; gap: 20px;">
+            <div id="sentinel-visual" style="color: var(--accent); opacity: 0.8; font-size: 0.9rem; letter-spacing: 2px; text-transform: uppercase; font-weight: 900; background: rgba(59, 130, 246, 0.1); padding: 5px 15px; border-radius: 4px;">
+                MOSTRAR SIGUIENTES 60 POSTS
+            </div>
+            
+            <button class="btn-primary" onclick="window.forceLoadMore()" id="manual-load-btn" style="
+                background: linear-gradient(135deg, var(--accent) 0%, #1e40af 100%);
+                color: white;
+                border: none;
+                padding: 18px 45px;
+                font-size: 1.1rem;
+                font-weight: 800;
+                border-radius: 50px;
+                cursor: pointer;
+                box-shadow: 0 10px 25px var(--accent-alpha);
+                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            ">
+                <span id="loading-spinner-sentinel" style="display:none; width: 22px; height: 22px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
+                <span>Cargar más contenido</span>
+            </button>
+        </div>
+    ` : ''}
+
+    ${(!isVisitor && !store.hasMore && list.length > 30) ? `
+        <div class="end-of-gallery" style="text-align:center; padding: 60px 0;">
+            <div id="sentinel-visual" style="color:#666">
+                <div style="padding:40px 20px; background:rgba(255,255,255,0.05); border-radius:20px; border:1px dashed rgba(255,255,255,0.2); max-width:400px; margin:0 auto;">
+                    <div style="font-size:2.5rem; margin-bottom:15px">🏁</div>
+                    <div style="font-weight:800; font-size:1.2rem; color:#fff; margin-bottom:10px">¡Has llegado al final!</div>
+                    <div style="color:#888; font-size:0.9rem; line-height:1.5">
+                        Estás viendo todos los posts de @${profileUser}.
+                    </div>
+                </div>
+            </div>
+        </div>
+    ` : ''}
     
     ${isVisitor ? `
     <div class="container" style="margin-top: 40px; padding: 40px 20px;">
@@ -1504,6 +1548,123 @@ window.openCreate = () => {
     }
 };
 
+// --- REPRODUCTOR DE CARGA MANUAL (BOTÓN) ---
+const triggerLoadMore = async () => {
+    if (store.isLoadingMore || !store.hasMore) return;
+
+    const btn = document.getElementById('manual-load-btn');
+    const visual = document.getElementById('sentinel-visual');
+    if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
+    if (visual) visual.innerText = "⏳ Trayendo más contenido...";
+
+    try {
+        const target = profileUser.toLowerCase();
+        const user = (store.currentUser && (store.currentUser.username?.toLowerCase() === target || store.currentUser.name?.toLowerCase() === target))
+            ? store.currentUser
+            : (store.users.find(u => u.username?.toLowerCase() === target || u.name?.toLowerCase() === target) || store.usersCache[target]);
+
+        if (!user) return;
+
+        // Filtro específico para el autor que estamos viendo
+        const filter = `author = "${user.id}"`;
+        const newItems = await store.loadPrompts(false, filter);
+
+        if (newItems && newItems.length > 0) {
+            console.log(`[PROFILE SCROLL] 💉 Inyectando ${newItems.length} items de forma quirúrgica.`);
+            appendSurgicalPrompts(newItems);
+        }
+    } catch (err) {
+        console.error("[PROFILE SCROLL] ❌ Fallo crítico:", err);
+        if (visual) visual.innerText = "❌ Error al cargar";
+    } finally {
+        if (btn) { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; }
+
+        const hasMore = store.hasMore;
+        if (visual) visual.innerText = hasMore ? "MOSTRAR SIGUIENTES 60 POSTS" : "🏁 Fin de la galería";
+
+        if (!hasMore && btn) {
+            btn.style.display = 'none';
+        }
+    }
+};
+
+window.forceLoadMore = () => {
+    console.log("🛡️ Carga Manual Perfil Solicitada");
+    triggerLoadMore();
+};
+
+const appendSurgicalPrompts = (newItems) => {
+    const grids = document.querySelectorAll('.gallery-grid');
+    let galleryRoot = grids.length > 0 ? grids[grids.length - 1] : document.getElementById('gallery-root');
+    const sentinel = document.getElementById('scroll-sentinel');
+    const parentContainer = galleryRoot?.parentElement || document.getElementById('profile-gallery-container');
+
+    if (!galleryRoot) {
+        console.error("[PROFILE SCROLL] No se encontró contenedor para inyección.");
+        return;
+    }
+
+    // Usamos el conteo real de cards en el DOM para sincronizar
+    let globalIdx = document.querySelectorAll('.card').length;
+
+    console.log(`[PROFILE SCROLL] 🎯 Iniciando inyección quirúrgica desde índice global ${globalIdx}`);
+
+    newItems.forEach((p) => {
+        // Partimos el grid cada 12 (mismo sistema que main.js para consistencia)
+        // Solo partimos si el grid actual ya tiene contenido, para evitar doble split
+        if (globalIdx > 0 && globalIdx % 12 === 0 && galleryRoot.children.length > 0) {
+            console.log(`[PROFILE SCROLL] 🏗️ Lote de 12 completado. Creando nuevo grid.`);
+
+            const newGrid = document.createElement('div');
+            newGrid.className = 'gallery-grid';
+            newGrid.style.marginTop = '20px';
+
+            if (sentinel) {
+                parentContainer.insertBefore(newGrid, sentinel);
+            } else {
+                parentContainer.appendChild(newGrid);
+            }
+            galleryRoot = newGrid;
+        }
+
+        const temp = document.createElement('div');
+        const { applyBlur, warningLabel } = getModeration(p);
+        const reactions = p.reactions || { like: 0 };
+
+        temp.innerHTML = `
+            <div class="card">
+                <div class="card-img-wrap ${applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" data-warning="${applyBlur ? warningLabel : ''}" style="height:100%; cursor:pointer">
+                    ${renderCollage(p)}
+                </div>
+                <div class="card-overlay" data-post-id="${p.id}" style="cursor:pointer">
+                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:5px">${window.escapeHTML(p.title)}</div>
+                    <div style="font-size:0.8rem; opacity:0.8; margin-bottom:10px">por @${window.escapeHTML(p.author)}</div>
+                    <div class="card-stats">
+                        ${reactions.like > 0 ? `<span title="Me gusta">👍 ${reactions.like}</span>` : ''}
+                        ${reactions.love > 0 ? `<span title="Me encanta">❤️ ${reactions.love}</span>` : ''}
+                        ${reactions.fire > 0 ? `<span title="Fuego">🔥 ${reactions.fire}</span>` : ''}
+                        ${reactions.funny > 0 ? `<span title="Divertido">😂 ${reactions.funny}</span>` : ''}
+                        ${reactions.dislike > 0 ? `<span title="No me gusta">👎 ${reactions.dislike}</span>` : ''}
+                        ${reactions.sad > 0 ? `<span title="Triste">😢 ${reactions.sad}</span>` : ''}
+                        <span title="Copiado" style="color:var(--accent)">📋 ${p.copy_count || 0}</span>
+                        <span title="PromptBits" onclick="event.stopPropagation(); window.openTip('${p.id}')" style="color:#a29bfe; cursor:pointer">💎 ${p.tokens_received || 0}</span>
+                    </div>
+                </div>
+                ${(store.currentUser?.username === profileUser && p.author === store.currentUser?.username) ? `
+                <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px; z-index:10;">
+                    ${(store.currentUser?.level >= 4 && !p.is_featured) ? `<button class="btn-icon" style="background:rgba(241,196,15,0.8); padding:5px; width:auto; height:30px; font-size:0.75rem; color:black; font-weight:700" onclick="event.stopPropagation(); window.doPromotePrompt('${p.id}')" title="Destacar por 1 semana (50 PromptBits)">💎 50 PromptBits</button>` : ''}
+                    <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doEditPrompt('${p.id}')" title="Editar">✏️</button>
+                    <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doDeletePrompt('${p.id}')" title="Eliminar Post">🗑️</button>
+                </div>` : ''}
+            </div>`;
+
+        const cardNode = temp.firstElementChild;
+        if (cardNode) galleryRoot.appendChild(cardNode);
+
+        globalIdx++;
+    });
+};
+
 window.togglePostType = (type) => {
     if (type === 'sequence' && (!store.currentUser || (store.currentUser.level || 0) < 1)) {
         alert("⚠️ Función Bloquedada: Necesitas ser Nivel 1 o superior para subir secuencias (aporta al menos 10 prompts sencillos).");
@@ -2369,16 +2530,19 @@ window.doSendDirectTip = async (recipientId, amount) => {
 
 const init = async () => {
     console.log("[PROFILE] init starting...");
-    // Normal initialization
     await store.init();
-    console.log("[PROFILE] store.init done.");
+
     if (profileUser) {
         console.log(`[PROFILE] fetching profile for: ${profileUser}`);
         const user = await store.fetchUserProfileByUsername(profileUser);
         if (user) {
-            await store.loadUserPrompts(user.id);
+            // 1. CARGA MAESTRA PARA ANÁLISIS (Todos los del usuario para stats/prompts_count)
+            await store.loadUserPromptsForAnalysis(user.id);
+
+            // 2. CARGA INICIAL PARA GALERÍA (Primeros 60)
+            const filter = `author = "${user.id}"`;
+            await store.loadPrompts(true, filter);
         }
-        console.log("[PROFILE] fetch done.");
     }
     window.initDone = true;
     render();

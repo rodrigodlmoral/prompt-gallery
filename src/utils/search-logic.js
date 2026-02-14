@@ -7,7 +7,7 @@ const getAvatarUrl = (user) => {
     if (user.avatar) return user.avatar; // already full url?
     // If it's a PB record
     if (user.collectionId && user.id && user.avatar) {
-        return pb.files.getUrl(user, user.avatar);
+        return pb.files.getURL(user, user.avatar);
     }
     return null;
 };
@@ -16,7 +16,7 @@ const getAvatarUrl = (user) => {
 const getSearchableUsers = (store) => {
     const promptAuthors = store.prompts.map(p => ({
         username: p.author,
-        avatar: p.profiles?.avatar_url || (p.expand?.author?.avatar ? pb.files.getUrl(p.expand.author, p.expand.author.avatar) : null)
+        avatar: p.profiles?.avatar_url || (p.expand?.author?.avatar ? pb.files.getURL(p.expand.author, p.expand.author.avatar) : null)
     }));
 
     // Normalize Profile fallback (if window.normalizeProfile exists, we assume the caller handles it or we do our best)

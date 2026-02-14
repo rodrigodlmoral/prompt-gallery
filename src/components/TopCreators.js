@@ -14,7 +14,7 @@ export const renderTopCreators = (details, currentUser) => {
                 <div class="tc-subtitle">CUADRO DE HONOR • LOS 10 MEJORES</div>
             </div>
         </div>
-        <div class="tc-grid">
+        <div class="tc-grid" id="tc-grid-container">
             ${details.map((u, idx) => {
         const username = u.username || u.name || 'Usuario';
 
@@ -22,7 +22,7 @@ export const renderTopCreators = (details, currentUser) => {
         // Fix: Ensure we have a full URL
         if (avatar && !avatar.startsWith('http') && !avatar.startsWith('data:')) {
             // It's a filename, assume we need to generate URL
-            avatar = pb.files.getUrl(u, avatar);
+            avatar = pb.files.getURL(u, avatar);
         }
         if (!avatar) {
             avatar = `https://robohash.org/${encodeURIComponent(username)}?set=set4`;
@@ -83,9 +83,6 @@ export const renderTopCreators = (details, currentUser) => {
                         <span>Nv ${userLevel}</span>
                     </div>
                 </div>`;
-    }).join('')}
-        </div>
-    </div>
     }).join('')}
         </div>
     </div>

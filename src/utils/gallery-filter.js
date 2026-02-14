@@ -67,8 +67,8 @@ export const filterPrompts = ({
     }
 
     if (filters.refFilter !== 'all') {
-        if (filters.refFilter === 'withRef') list = list.filter(p => p.needsReference);
-        if (filters.refFilter === 'noRef') list = list.filter(p => !p.needsReference);
+        if (filters.refFilter === 'withRef') list = list.filter(p => p.needs_reference);
+        if (filters.refFilter === 'noRef') list = list.filter(p => !p.needs_reference);
     }
 
     if (filters.ratings.length > 0) {

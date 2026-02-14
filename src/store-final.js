@@ -18,7 +18,7 @@ window.normalizeProfile = (p) => {
     let avatarUrl = p.avatar_url;
     if (!avatarUrl && p.avatar) {
         // PocketBase standard file URL
-        avatarUrl = pb.files.getUrl(p, p.avatar);
+        avatarUrl = pb.files.getURL(p, p.avatar);
     }
 
     if (!avatarUrl) {
@@ -133,19 +133,49 @@ export const INFO_ICON = `<span title='${RATING_INFO}' style="text-decoration:no
 // STORE (Estado global simple)
 const store = {
     prompts: [],
+    allPrompts: [], // LISTA MAESTRA GLOBAL (Calculando tops, semanales, diarios)
+    userAllPrompts: [], // LISTA MAESTRA DEL PERFIL (Para stats del usuario que se está viendo)
     currentUser: null,
     usersCache: {}, // { username: { ...profileData } }
     users: [],      // Admin list
-    nuclearCache: { items: [], lastFetch: 0 }, // Cache for mass user search
+    nuclearCache: { items: [], lastFetch: 0 },
     stats: { users: 0, prompts: 0, visits: 0 },
+
+    // --- INFINITE SCROLL STATE (PAGINACIÓN MANUAL) ---
+    currentPage: 1,
+    hasMore: true,
+    isLoadingMore: false,
+    batchSize: 60,
 
     async init() {
         if (pb.authStore.isValid && pb.authStore.model) {
             await this._loadUserProfile(pb.authStore.model.id);
         }
-        await this.loadPrompts();
+
+        // 1. CARGA MAESTRA PARA ANÁLISIS (Todos los posts para que los Tops calculen bien)
+        await this.loadAllPromptsForAnalysis();
+
+        // 2. CARGA INICIAL PARA GALERÍA (Primeros 60)
+        await this.loadPrompts(true);
+
         await this.getPublicStats();
         this.trackVisit();
+    },
+
+    async loadAllPromptsForAnalysis() {
+        try {
+            console.log("[STORE] 🧠 Cargando Lista Maestra para Análisis (Calculando Tops...)");
+            const all = await pb.collection('prompts').getFullList({
+                sort: '-created_at_custom',
+                expand: 'author',
+                $autoCancel: false
+            });
+            this.allPrompts = this._mapPrompts(all);
+            console.log(`[STORE] ✅ Lista Maestra cargada: ${this.allPrompts.length} items detectados.`);
+        } catch (err) {
+            console.error("[STORE] Error cargando lista de análisis:", err);
+            this.allPrompts = [];
+        }
     },
 
     async _loadUserProfile(userId) {
@@ -212,57 +242,96 @@ const store = {
         }
     },
 
-    async loadPrompts() {
+    async loadPrompts(reset = false, customFilter = '') {
+        if (this.isLoadingMore || (!this.hasMore && !reset)) return [];
+
         try {
-            const stats = await pb.collection('prompts').getList(1, 1);
-            const total = stats.totalItems;
-
-            let records = { items: [] };
-            if (total > 0) {
-                const limit = 200;
-                const lastPage = Math.ceil(total / limit);
-                // Obtenemos los más recientes con expand del autor para evitar 'Exploradores'
-                const batch1 = await pb.collection('prompts').getList(lastPage, limit, { expand: 'author' });
-                records.items = batch1.items;
-
-                if (records.items.length < limit && lastPage > 1) {
-                    const batch2 = await pb.collection('prompts').getList(lastPage - 1, limit, { expand: 'author' });
-                    records.items = [...batch2.items, ...records.items].slice(-limit);
-                }
+            this.isLoadingMore = true;
+            if (reset) {
+                this.currentPage = 1;
+                this.hasMore = true;
+                this.prompts = [];
             }
-            this.prompts = this._mapPrompts(records.items);
-            if (window.render) window.render();
+
+            console.log(`[STORE] 📦 Loading Batch (Filter: ${customFilter || 'none'}): Page ${this.currentPage} (Size ${this.batchSize})`);
+
+            let records;
+            try {
+                // EL ÚNICO MAESTRO ES created_at_custom
+                records = await pb.collection('prompts').getList(this.currentPage, this.batchSize, {
+                    sort: '-created_at_custom',
+                    filter: customFilter || '',
+                    expand: 'author',
+                    $autoCancel: false
+                });
+            } catch (sortErr) {
+                console.error("[STORE] ❌ Error crítico: created_at_custom falló.", sortErr);
+                records = { items: [], totalItems: 0 };
+            }
+
+            const newPrompts = this._mapPrompts(records.items);
+
+            let result = [];
+            let filteredNew = [];
+            if (reset) {
+                this.prompts = newPrompts;
+                window._isIncrementalRender = false;
+                result = newPrompts;
+            } else {
+                // Evitar duplicados por ID de forma estricta
+                const existingIds = new Set(this.prompts.map(p => p.id));
+                filteredNew = newPrompts.filter(p => !existingIds.has(p.id));
+                this.prompts = [...this.prompts, ...filteredNew];
+                window._isIncrementalRender = true; // Prevenir scroll a arriba
+                result = filteredNew;
+            }
+
+            console.log(`[STORE] ✅ Batch Loaded (Page ${this.currentPage}): ${records.items.length} items. New: ${result.length}. Total In-Memory: ${this.prompts.length}`);
+
+            this.hasMore = records.items.length === this.batchSize;
+            if (this.hasMore) this.currentPage++;
+
+            if (window.render && reset) window.render();
+            return result;
         } catch (error) {
-            console.error("Error loading prompts:", error);
-            this.prompts = [];
+            console.error("Error loading prompts batch:", error);
+            if (reset) this.prompts = [];
+            this.hasMore = false;
+            return [];
+        } finally {
+            this.isLoadingMore = false;
         }
-        return this.prompts;
     },
 
-    async loadUserPrompts(userId) {
+    async loadUserPromptsForAnalysis(userId) {
         try {
-            console.log(`[STORE] 🔍 Cargando galería completa del servidor para ID: ${userId}`);
-            // Quitamos 'sort' que causa 400 en PocketHost con filtros complejos
+            console.log(`[STORE] 🧠 Cargando Lista Maestra del Perfil (ID: ${userId}) para Análisis...`);
             const records = await pb.collection('prompts').getFullList({
                 filter: `author = "${userId}"`,
-                expand: 'author'
+                expand: 'author',
+                $autoCancel: false
             });
 
-            const mapped = this._mapPrompts(records);
-            // Ordenamos en cliente por seguridad
-            mapped.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            this.userAllPrompts = this._mapPrompts(records);
+            // Ordenamos en cliente para asegurar el maestro
+            this.userAllPrompts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-            // Fusionar con los prompts globales para evitar duplicados en memoria
-            const existingIds = new Set(this.prompts.map(p => p.id));
-            const newOnes = mapped.filter(p => !existingIds.has(p.id));
-            this.prompts = [...this.prompts, ...newOnes];
-
-            if (window.render) window.render();
-            return mapped;
+            console.log(`[STORE] ✅ Lista Maestra de Perfil cargada: ${this.userAllPrompts.length} items.`);
+            return this.userAllPrompts;
         } catch (error) {
-            console.error("Error loading user prompts:", error);
+            console.error("[STORE] Error cargando lista de perfil:", error);
+            this.userAllPrompts = [];
             return [];
         }
+    },
+
+    // Helper centralizado para buscar un prompt en cualquier lista de memoria
+    findPrompt(id) {
+        if (!id) return null;
+        const targetId = String(id);
+        return (this.prompts || []).find(p => String(p.id) === targetId) ||
+            (this.allPrompts || []).find(p => String(p.id) === targetId) ||
+            (this.userAllPrompts || []).find(p => String(p.id) === targetId);
     },
 
     // Helper para no repetir el mapeo
@@ -272,7 +341,8 @@ const store = {
             title: p.title,
             prompt: p.prompt,
             negative_prompt: p.negative_prompt,
-            image: p.image_url || p.image,
+            image: this.getThumbnail(p.image_url || p.image),
+            image_raw: p.image_url || p.image, // URL original para detalle
             author: p.author_name || p.expand?.author?.username || p.expand?.author?.name || 'Explorador',
             author_id: p.author,
             createdAt: (() => {
@@ -287,7 +357,11 @@ const store = {
             savedBy: p.saved_by || [],
             saved_by: p.saved_by || [],
             type: p.type || 'single',
-            content: p.content || [],
+            content: (p.content || []).map(step => ({
+                ...step,
+                image: this.getThumbnail(step.image),
+                image_raw: step.image
+            })),
             tokens_received: p.tokens_received || 0,
             rating: p.rating || 'SFW / Apto',
             is_private: p.is_private === true || p.isPrivate === true,
@@ -302,10 +376,20 @@ const store = {
             tags: p.tags || [],
             profiles: p.expand?.author ? {
                 username: p.expand.author.username,
-                avatar_url: p.expand.author.avatar ? pb.files.getUrl(p.expand.author, p.expand.author.avatar) : null,
+                avatar_url: p.expand.author.avatar ? pb.files.getURL(p.expand.author, p.expand.author.avatar) : null,
                 level: p.expand.author.level
             } : null
         }));
+    },
+
+    // --- CLOUDINARY THUMBNAIL HELPER ---
+    getThumbnail(url) {
+        if (!url || typeof url !== 'string' || !url.includes('cloudinary.com')) return url;
+        // Transform: w_400,c_scale,q_auto,f_auto
+        if (url.includes('/upload/')) {
+            return url.replace('/upload/', '/upload/w_500,c_fill,g_auto,q_auto,f_auto/');
+        }
+        return url;
     },
 
     async getPublicStats() {
@@ -683,13 +767,82 @@ const store = {
 
     async getTopCreators() {
         try {
+            // Sort by impact (total_copies) first, then by volume (prompts_count)
             const records = await pb.collection('users').getList(1, 10, {
-                sort: '-prompts_count'
+                sort: '-total_copies,-prompts_count'
             });
             return records.items.map(p => window.normalizeProfile ? window.normalizeProfile(p) : p);
         } catch (err) {
             return [];
         }
+    },
+
+    // --- ANALYTICAL RANKING (CEREBRO) ---
+
+    _getPopularityScore(p) {
+        // Simple but effective score: copies are worth 2, reactions are worth 1
+        const reactions = p.reactions || {};
+        const reactionCount = Object.keys(reactions)
+            .filter(k => k !== '_u')
+            .reduce((sum, key) => sum + (reactions[key] || 0), 0);
+
+        return (p.copy_count * 2) + reactionCount;
+    },
+
+    getTopWeeklyPrompts() {
+        if (!this.allPrompts || this.allPrompts.length === 0) return [];
+
+        const now = Date.now();
+        const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
+
+        // 1. Prioritize explicitly "featured" prompts that haven't expired
+        const featured = this.allPrompts.filter(p =>
+            !p.is_private &&
+            p.is_featured &&
+            p.featured_until &&
+            new Date(p.featured_until) > now
+        );
+
+        // 2. Take recent prompts (last 7 days) and sort by score
+        const recent = this.allPrompts.filter(p =>
+            !p.is_private &&
+            !p.is_featured &&
+            p.createdAt >= weekAgo
+        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
+
+        // 3. Fallback: If not enough recent, take the all-time best
+        const fallbacks = this.allPrompts.filter(p =>
+            !p.is_private &&
+            !p.is_featured &&
+            p.createdAt < weekAgo
+        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
+
+        const result = [...featured, ...recent, ...fallbacks].slice(0, 20);
+        console.log(`[CEREBRO] 🧠 Top Semanal calculado: ${result.length} items.`);
+        return result;
+    },
+
+    getTopDailyPrompts() {
+        if (!this.allPrompts || this.allPrompts.length === 0) return [];
+
+        const now = Date.now();
+        const dayAgo = now - (24 * 60 * 60 * 1000);
+
+        // 1. Take prompts from last 24h sorted by score
+        const recent = this.allPrompts.filter(p =>
+            !p.is_private &&
+            p.createdAt >= dayAgo
+        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
+
+        // 2. Fallback: If very few recent, use the top from the week
+        if (recent.length < 3) {
+            const weekly = this.getTopWeeklyPrompts();
+            return [...recent, ...weekly].slice(0, 5);
+        }
+
+        const result = recent.slice(0, 5);
+        console.log(`[CEREBRO] 🔥 Top Diario calculado: ${result.length} items.`);
+        return result;
     },
 
     // --- CONTENT ACTIONS ---
@@ -1766,7 +1919,7 @@ const store = {
     },
 
     openDetail(id) {
-        const p = this.prompts.find(x => String(x.id) === String(id));
+        const p = this.findPrompt(id);
         if (!p) return;
         this.activePostId = id;
         this.currentSeqStep = 0;
@@ -1915,14 +2068,14 @@ const store = {
     },
 
     prevSeqStep() {
-        const p = this.prompts.find(x => String(x.id) === String(this.activePostId));
+        const p = this.findPrompt(this.activePostId);
         if (!p || p.type !== 'sequence') return;
         this.currentSeqStep = (this.currentSeqStep - 1 + p.content.length) % p.content.length;
         this.updateSeqDisplay(p);
     },
 
     nextSeqStep() {
-        const p = this.prompts.find(x => String(x.id) === String(this.activePostId));
+        const p = this.findPrompt(this.activePostId);
         if (!p || p.type !== 'sequence') return;
         this.currentSeqStep = (this.currentSeqStep + 1) % p.content.length;
         this.updateSeqDisplay(p);
@@ -1934,7 +2087,7 @@ const store = {
             else { const am = document.getElementById('authModal'); if (am) am.style.display = 'flex'; }
             return;
         }
-        const p = this.prompts.find(x => String(x.id) === String(this.activePostId));
+        const p = this.findPrompt(this.activePostId);
         if (!p) return;
 
         const myOldReaction = (p.userReactions) ? p.userReactions[this.currentUser.username] : null;
@@ -2158,6 +2311,50 @@ const store = {
             return { success: true };
         } catch (e) {
             return { success: false, msg: e.message };
+        }
+    },
+
+    // --- MIGRATION UTILITY (Restored) ---
+    async migrateOldImages(onProgress, ignoredIds = []) {
+        try {
+            // Buscamos posts con imágenes de Firebase (storage.googleapis.com)
+            const records = await pb.collection('prompts').getFullList({
+                filter: 'image ~ "storage.googleapis.com"',
+                $autoCancel: false
+            });
+
+            const pending = records.filter(r => !ignoredIds.includes(r.id));
+            if (pending.length === 0) return { done: true, totalPending: 0 };
+
+            let count = 0;
+            const batch = pending.slice(0, 5); // Procesar de 5 en 5 para no saturar
+
+            for (const r of batch) {
+                if (onProgress) onProgress(count, batch.length, r.title, pending.length - count);
+
+                try {
+                    // 1. Descargar imagen de Firebase
+                    const imgRes = await fetch(r.image);
+                    const blob = await imgRes.blob();
+                    const file = new File([blob], `migrated_${r.id}.webp`, { type: 'image/webp' });
+
+                    // 2. Subir a Cloudinary
+                    const cloudUrl = await window.uploadToCloudinary(file);
+
+                    // 3. Actualizar en PocketBase
+                    await pb.collection('prompts').update(r.id, {
+                        image: cloudUrl
+                    });
+                    count++;
+                } catch (err) {
+                    console.error(`Error migrando post ${r.id}:`, err);
+                    ignoredIds.push(r.id);
+                }
+            }
+
+            return { done: false, count, totalPending: pending.length - count, failedIds: ignoredIds };
+        } catch (e) {
+            return { fatal: e.message };
         }
     }
 };
