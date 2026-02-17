@@ -625,12 +625,15 @@ const store = {
                 if (this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.username === 'rodrigodlmoral')) {
                     if (window.toast) window.toast(`📱 Facebook Auto-Post: ¡Éxito! (ID: ${result.id})`, "success");
                 }
+            } else if (result.skipped) {
+                console.log(`[FB_SYNC] ℹ️ Publicación omitida: ${result.message} (${result.debugRating})`);
             } else {
-                console.error('[FB_SYNC] ❌ Fallo en la sincronización:', result.error || 'Error desconocido');
+                console.error('[FB_SYNC] ❌ Fallo en la sincronización:', result.details || result.error || result);
                 // Alerta crítica para el admin si falla por permisos o token
                 if (this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.username === 'rodrigodlmoral')) {
                     const errorMsg = result.details || result.error || "Revisa las credenciales en Vercel.";
-                    if (window.toast) window.toast(`⚠️ Facebook Error: ${errorMsg}`, "error");
+                    const code = result.fb_code ? ` (Cod ${result.fb_code})` : "";
+                    if (window.toast) window.toast(`⚠️ Facebook Error: ${errorMsg}${code}`, "error");
                 }
             }
         } catch (error) {

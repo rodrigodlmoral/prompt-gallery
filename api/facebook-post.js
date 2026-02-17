@@ -48,7 +48,8 @@ export default async function handler(req, res) {
         if (!allowedRatings.includes(currentRating)) {
             console.log(`[FB_SYNC] Aborting: Rating "${currentRating}" is not allowed.`);
             return res.status(200).json({
-                success: true,
+                success: false,
+                skipped: true,
                 message: 'Rating ignored for safety reasons',
                 debugRating: currentRating
             });
