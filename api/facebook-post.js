@@ -73,29 +73,39 @@ export default async function handler(req, res) {
             targetImg = prompt.content[0].image;
         }
 
-        console.log(`[FB_SYNC] Enviando a Facebook URL: ${targetImg}`);
+        console.log(`[FB_SYNC] Debug Payload: URL=${targetImg}`);
+
+        // Verificación básica de URL para evitar fallos tontos
+        if (!targetImg || !targetImg.startsWith('http')) {
+            console.error('[FB_SYNC] Error: URL de imagen inválida o local.');
+            return res.status(400).json({ error: 'Valid public image URL required', url: targetImg });
+        }
+
         fbResponse = await postToFacebook(PAGE_ID, ACCESS_TOKEN, targetImg, message);
 
-        console.log('[FB_SYNC] Graph API Response:', JSON.stringify(fbResponse));
+        console.log(`[FB_SYNC] Graph API raw response status: ${fbResponse.id ? 'Success' : 'Error'}`);
 
         if (fbResponse.error) {
-            console.error('[FB_SYNC] Facebook Graph API Error Detail:', fbResponse.error);
-            // Cambiamos 502 por 400 para que Vercel no lo intercepte como un error del servidor
+            console.error('[FB_SYNC] Facebook Graph API REJECTED:', JSON.stringify(fbResponse.error));
             return res.status(400).json({
                 error: 'Facebook API rejected the post',
                 details: fbResponse.error.message,
-                fb_code: fbResponse.error.code
+                fb_code: fbResponse.error.code,
+                fb_subcode: fbResponse.error.error_subcode
             });
         }
+
+        const finalId = fbResponse.id || fbResponse.post_id;
+        console.log(`[FB_SYNC] SUCCESS! Final ID: ${finalId}`);
 
         return res.status(200).json({
             success: true,
             message: 'Posted successfully',
-            id: fbResponse.id || fbResponse.post_id
+            id: finalId
         });
 
     } catch (error) {
-        console.error('[FB_SYNC] Critical Error:', error);
+        console.error('[FB_SYNC] CRITICAL SERVER ERROR:', error.message);
         return res.status(500).json({ error: 'Internal server error', message: error.message });
     }
 }
@@ -104,19 +114,26 @@ async function postToFacebook(pageId, token, imageUrl, message) {
     const url = `https://graph.facebook.com/v19.0/${pageId}/photos`;
 
     const params = new URLSearchParams();
-    params.append('url', imageUrl);
-    params.append('caption', message);
-    params.append('access_token', token);
+    params.set('url', imageUrl);
+    params.set('caption', message);
+    params.set('access_token', token);
 
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
         const response = await fetch(url, {
             method: 'POST',
-            body: params
+            body: params,
+            signal: controller.signal
         });
 
+        clearTimeout(timeoutId);
+
         const data = await response.json();
-        return data; // Contiene { id, post_id } o { error }
+        return data;
     } catch (e) {
-        return { error: { message: e.message } };
+        console.error('[FB_SYNC] Network/Fetch Error:', e.message);
+        return { error: { message: `Network or Timeout: ${e.message}`, code: -1 } };
     }
 }
