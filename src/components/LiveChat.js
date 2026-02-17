@@ -163,11 +163,16 @@ export const initLiveChat = () => {
             renderHistory(records.items, true);
         } catch (err) {
             try {
-                const records = await pb.collection('global_chat').getList(1, 100, { sort: '-created' });
+                const records = await pb.collection('global_chat').getList(1, 100, {
+                    sort: '-created',
+                    expand: 'user'
+                });
                 renderHistory(records.items, true);
             } catch (err2) {
                 try {
-                    const records = await pb.collection('global_chat').getList(1, 100);
+                    const records = await pb.collection('global_chat').getList(1, 100, {
+                        expand: 'user'
+                    });
                     const needsReverse = records.items.length > 1 &&
                         new Date(records.items[0].created) > new Date(records.items[records.items.length - 1].created);
                     renderHistory(records.items, needsReverse);
@@ -247,31 +252,24 @@ export const initLiveChat = () => {
         if (messageCache.has(record.id)) return;
         messageCache.add(record.id);
 
-        // --- IDENTIDAD INFALIBLE ---
+        // --- IDENTIDAD BLINDADA (v1.1) ---
         const myId = pb.authStore.model?.id;
         const msgUserId = record.user?.id || record.user;
         const isMe = myId && String(msgUserId) === String(myId);
 
-        let username = record.expand?.user?.username || 'Explorador';
+        // Datos del Remitente Real
+        const userRecord = record.expand?.user;
+        let username = userRecord?.username || userRecord?.name || (isMe ? 'Yo' : 'Explorador');
         let avatar = `https://robohash.org/${encodeURIComponent(username)}?set=set4`;
 
-        // Resolver Avatar Real (expand)
-        const userRecord = record.expand?.user;
         if (userRecord && userRecord.avatar) {
             avatar = pb.files.getURL(userRecord, userRecord.avatar);
+        } else if (isMe && pb.authStore.model?.avatar) {
+            avatar = pb.files.getURL(pb.authStore.model, pb.authStore.model.avatar);
         }
 
-        // Fallback desde sesión local para MI mensaje
-        const localUser = pb.authStore.model;
-        if (isMe && localUser) {
-            username = localUser.username || localUser.name || username;
-            if (localUser.avatar) {
-                avatar = pb.files.getURL(localUser, localUser.avatar);
-            }
-        }
-
-        // Resolver Badges (unique_badges)
-        const badgesHtml = renderUserBadges(userRecord || localUser);
+        // Badges: ÚNICAMENTE del remitente real (userRecord para otros, authStore para mí si expand falla)
+        const badgesHtml = renderUserBadges(userRecord || (isMe ? pb.authStore.model : null));
 
         const msgDiv = document.createElement('div');
         msgDiv.className = `chat-msg ${isMe ? 'me' : ''} ${record.type === 'SYSTEM' ? 'system' : ''} ${record.type === 'PROMPT_SHARE' ? 'share' : ''}`;
