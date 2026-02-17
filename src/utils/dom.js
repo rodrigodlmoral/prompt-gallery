@@ -6,7 +6,10 @@ export const isImageFile = (file) => {
 };
 
 export const previewFile = (file, imgId, containerId) => {
-    if (!file) return;
+    if (!file || !(file instanceof Blob)) {
+        console.warn("[DOM] Invalid file for preview:", file);
+        return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
         const img = document.getElementById(imgId);
@@ -14,7 +17,11 @@ export const previewFile = (file, imgId, containerId) => {
         if (img) img.src = e.target.result;
         if (cont) cont.style.display = 'block';
     };
-    reader.readAsDataURL(file);
+    try {
+        reader.readAsDataURL(file);
+    } catch (err) {
+        console.error("[DOM] FileReader Error:", err);
+    }
 };
 
 export const togglePass = (fieldId, btn) => {

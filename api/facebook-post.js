@@ -39,6 +39,22 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'System not configured for Facebook Auto-Post' });
         }
 
+        // Diagnóstico de formato (sin exponer credenciales completas)
+        console.log(`[FB_SYNC] PAGE_ID: ${PAGE_ID.substring(0, 4)}... | Token: ${ACCESS_TOKEN.substring(0, 7)}...`);
+
+        // --- DIAGNÓSTICO DE TOKEN ---
+        try {
+            const meRes = await fetch(`https://graph.facebook.com/me?access_token=${ACCESS_TOKEN}`);
+            const meData = await meRes.json();
+            console.log(`[FB_SYNC] Token Identity: ${meData.name || 'Unknown'} (ID: ${meData.id})`);
+
+            if (meData.id !== PAGE_ID) {
+                console.warn(`[FB_SYNC] WARNING: Token identity (${meData.id}) does not match PAGE_ID (${PAGE_ID}). You might be using a User Token instead of a Page Token.`);
+            }
+        } catch (e) {
+            console.warn('[FB_SYNC] Could not verify token identity:', e.message);
+        }
+
         // 3. Filtrado de Seguridad (SFW y Sugestivo solamente)
         const allowedRatings = ['SFW / Apto', 'Sugestivo'];
 

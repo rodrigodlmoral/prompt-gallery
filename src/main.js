@@ -1082,6 +1082,10 @@ window.doAutoTag = async () => {
         // Convertir todas las imágenes a Base64
         const base64Promises = files.map(file => {
             return new Promise((resolve) => {
+                if (!(file instanceof Blob)) {
+                    console.warn("[IA] Invalid file object:", file);
+                    return resolve(null);
+                }
                 const reader = new FileReader();
                 reader.onload = () => resolve({
                     type: file.type,
