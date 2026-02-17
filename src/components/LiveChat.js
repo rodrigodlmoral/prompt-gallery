@@ -116,15 +116,28 @@ export const initLiveChat = () => {
                 last_seen: new Date().toISOString()
             };
 
+            // Intentar recuperar ID si no lo tenemos (ej. tras recarga)
+            if (!presenceRecordId) {
+                const existing = await pb.collection('chat_presence').getList(1, 1, {
+                    filter: `user = "${store.currentUser.id}"`,
+                    requestKey: null
+                });
+                if (existing.items.length > 0) {
+                    presenceRecordId = existing.items[0].id;
+                }
+            }
+
             if (presenceRecordId) {
                 await pb.collection('chat_presence').update(presenceRecordId, data);
             } else {
-                // Buscar si ya existe un registro para este usuario en esta sesión (o crear nuevo)
                 const record = await pb.collection('chat_presence').create(data);
                 presenceRecordId = record.id;
             }
         } catch (err) {
-            console.warn('⚠️ Error en heartbeat de presencia:', err);
+            // Silenciamos logs de error 404/403 si la sesión expiró o similar
+            if (err.status !== 404 && err.status !== 403) {
+                console.warn('⚠️ Error en heartbeat de presencia:', err);
+            }
         }
     }
 
