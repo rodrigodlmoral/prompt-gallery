@@ -608,7 +608,7 @@ const store = {
         const allowed = ['SFW / Apto', 'Sugestivo'];
         if (!allowed.includes(promptRecord.rating)) return;
 
-        console.log(`[FB_SYNC] 🤖 Preparando auto-post para: ${promptRecord.title}`);
+        console.log('[FB_SYNC] Intentando sincronizar con Facebook...');
 
         try {
             const response = await fetch('/api/facebook-post', {
@@ -616,14 +616,25 @@ const store = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt: promptRecord })
             });
+
             const result = await response.json();
-            if (result.success) {
-                console.log(`[FB_SYNC] ✅ Publicado con éxito en Facebook (ID: ${result.postId})`);
+
+            if (response.ok && result.success) {
+                console.log(`[FB_SYNC] ✅ Publicado con éxito. ID: ${result.id}`);
+                // Opcional: Toast sutil para el admin
+                if (this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.username === 'rodrigodlmoral')) {
+                    if (window.toast) window.toast(`📱 Facebook Auto-Post: ¡Éxito! (ID: ${result.id})`, "success");
+                }
             } else {
-                console.warn(`[FB_SYNC] ⚠️ Facebook rechazó el post: ${result.message || 'Error desconocido'}`);
+                console.error('[FB_SYNC] ❌ Fallo en la sincronización:', result.error || 'Error desconocido');
+                // Alerta crítica para el admin si falla por permisos o token
+                if (this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.username === 'rodrigodlmoral')) {
+                    const errorMsg = result.details || result.error || "Revisa las credenciales en Vercel.";
+                    if (window.toast) window.toast(`⚠️ Facebook Error: ${errorMsg}`, "error");
+                }
             }
-        } catch (err) {
-            console.error('[FB_SYNC] ❌ Error al conectar con el puente de Facebook:', err);
+        } catch (error) {
+            console.error('[FB_SYNC] ❌ Error de red o servidor:', error);
         }
     },
 
