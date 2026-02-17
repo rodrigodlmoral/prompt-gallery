@@ -80,7 +80,8 @@ export default async function handler(req, res) {
 
         if (fbResponse.error) {
             console.error('[FB_SYNC] Facebook Graph API Error Detail:', fbResponse.error);
-            return res.status(502).json({
+            // Cambiamos 502 por 400 para que Vercel no lo intercepte como un error del servidor
+            return res.status(400).json({
                 error: 'Facebook API rejected the post',
                 details: fbResponse.error.message,
                 fb_code: fbResponse.error.code
