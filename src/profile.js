@@ -16,7 +16,6 @@ import './utils/LevelDebug.js'; // Load Debug Tools
 
 // Initialize Modals
 setupLevelModals();
-initLiveChat();
 
 const app = document.getElementById('app');
 
@@ -2605,6 +2604,11 @@ window.doSendDirectTip = async (recipientId, amount) => {
 const init = async () => {
     console.log("[PROFILE] init starting...");
     await store.init();
+
+    // Iniciar Chat solo cuando el store (usuario) esté listo
+    if (typeof initLiveChat === 'function') {
+        initLiveChat();
+    }
 
     if (profileUser) {
         console.log(`[PROFILE] fetching profile for: ${profileUser}`);
