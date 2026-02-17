@@ -41,7 +41,7 @@ const MAINTENANCE_MODE = false;
 console.log("🚀 Prompt Gallery Initialized");
 window.toast = toast; // Globalize for all components
 setupLevelModals();
-initLiveChat();
+// initLiveChat() movido al final de store.init() para asegurar que el usuario esté cargado
 
 
 const renderMaintenance = () => {
@@ -1250,6 +1250,9 @@ try {
 
             // --- TOKEN DETECTION (Password Reset & Email Verification) ---
             processTokens();
+
+            // --- INIT LIVE CHAT (Después de que el store tiene al usuario) ---
+            initLiveChat();
         })
         .catch(err => {
             console.error("❌ FATAL STORE INIT ERROR:", err);
