@@ -137,6 +137,10 @@ export const initLiveChat = () => {
             // Silenciamos logs de error 404/403 si la sesión expiró o similar
             if (err.status !== 404 && err.status !== 403) {
                 console.warn('⚠️ Error en heartbeat de presencia:', err);
+                if (err.data) {
+                    console.error('--- DETALLE ERROR PRESENCIA ---');
+                    console.error(JSON.stringify(err.data, null, 2));
+                }
             }
         }
     }
