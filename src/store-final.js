@@ -598,6 +598,35 @@ const store = {
         }
     },
 
+    /**
+     * Puente para automatizar publicaciones en Facebook Page (Auto-Post)
+     */
+    async _bridgeToFacebook(promptRecord) {
+        if (!promptRecord) return;
+
+        // Solo intentar si es SFW o Sugestivo
+        const allowed = ['SFW / Apto', 'Sugestivo'];
+        if (!allowed.includes(promptRecord.rating)) return;
+
+        console.log(`[FB_SYNC] 🤖 Preparando auto-post para: ${promptRecord.title}`);
+
+        try {
+            const response = await fetch('/api/facebook-post', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: promptRecord })
+            });
+            const result = await response.json();
+            if (result.success) {
+                console.log(`[FB_SYNC] ✅ Publicado con éxito en Facebook (ID: ${result.postId})`);
+            } else {
+                console.warn(`[FB_SYNC] ⚠️ Facebook rechazó el post: ${result.message || 'Error desconocido'}`);
+            }
+        } catch (err) {
+            console.error('[FB_SYNC] ❌ Error al conectar con el puente de Facebook:', err);
+        }
+    },
+
     userLogSubscription: null,
     subscribeToUserLogs(callback) {
         if (!this.currentUser) return;
@@ -1066,6 +1095,10 @@ const store = {
             await this._loadUserProfile(this.currentUser.id);
             await this.loadPrompts();
             this.logActivity('publish', { postId: data.title, type: data.type });
+
+            // --- AUTO-POST TO FACEBOOK ---
+            // Lo hacemos de forma asíncrona para no bloquear el UI del usuario
+            this._bridgeToFacebook(record);
 
             return {
                 success: true,
