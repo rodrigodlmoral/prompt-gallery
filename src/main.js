@@ -32,13 +32,16 @@ import { DetailModalTemplate as DetailModal } from './components/DetailModal.js'
 import { SearchSuggestions } from './components/SearchSuggestions.js';
 import { filterPrompts } from './utils/gallery-filter.js';
 import { getSearchSuggestions } from './utils/search-logic.js';
+import { initLiveChat } from './components/LiveChat.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;
 
 // Script Initialization
 console.log("🚀 Prompt Gallery Initialized");
+window.toast = toast; // Globalize for all components
 setupLevelModals();
+initLiveChat();
 
 
 const renderMaintenance = () => {
@@ -233,6 +236,10 @@ const triggerLoadMore = async () => {
 };
 
 window.forceLoadMore = () => {
+    if (!store.currentUser) {
+        toast("Inicia sesión para ver más contenido", "info");
+        return;
+    }
     console.log("🛡️ Carga Manual Solicitada");
     triggerLoadMore();
 };
@@ -641,6 +648,13 @@ const Modals = () => AuthModal() + CreateModal() + InfoModal() + ConfirmModal() 
 
 // --- LOGIC ---
 const render = () => {
+    // Si el store no está inicializado (carga inicial en progreso), no hacemos nada.
+    // Esto evita que render() sobrescriba el loading de index.html prematuramente.
+    if (!store.isInitialized) {
+        console.log("[RENDER] ⏳ Saltando renderizado: Store no inicializado aún.");
+        return;
+    }
+
     // Estrategia No-Destructiva: No sobrescribir todo el app.innerHTML si ya existe la estructura
     if (!document.getElementById('main-gallery-container')) {
         app.innerHTML = `
@@ -731,9 +745,7 @@ const attachEvents = () => {
         if (window.handleSearchTyping) window.handleSearchTyping(e.target.value);
     });
     document.getElementById('addBtn')?.addEventListener('click', () => {
-        window.selectedTags.clear();
-        window.renderTagSelector();
-        document.getElementById('createModal').style.display = 'flex';
+        window.openCreate();
     });
     document.getElementById('loginBtn')?.addEventListener('click', () => { document.getElementById('authModal').style.display = 'flex'; });
 
@@ -899,6 +911,9 @@ window.togglePass = togglePass;
 
 // Modals
 window.openCreate = () => {
+    if (typeof window.resetCreateModal === 'function') {
+        window.resetCreateModal();
+    }
     const modal = document.getElementById('createModal');
     if (modal) modal.style.display = 'flex';
 };
@@ -1040,35 +1055,64 @@ window.toggleSearchUI = () => {
 window.doAutoTag = async () => {
     const btn = document.getElementById('autoTagBtn');
     const isSequence = document.querySelector('input[name="postType"]:checked')?.value === 'sequence';
-    let file;
+    let files = [];
 
     if (isSequence) {
-        file = document.querySelector('.seq-card input[type="file"]')?.files[0];
+        // En secuencias, recolectamos TODAS las imágenes disponibles de los pasos
+        const steps = Array.from(document.querySelectorAll('.seq-step'));
+        steps.forEach(step => {
+            const stepFile = step.querySelector('input[type="file"]')?.files[0];
+            if (stepFile) files.push(stepFile);
+        });
     } else {
-        file = document.getElementById('upFile')?.files[0];
+        const file = document.getElementById('upFile')?.files[0];
+        if (file) files.push(file);
     }
 
-    if (!file) {
-        window.toast('Por favor, selecciona una imagen primero', 'warning');
+    if (files.length === 0) {
+        window.toast('Por favor, selecciona al menos una imagen primero', 'warning');
         return;
     }
 
     try {
         btn.disabled = true;
         btn.innerHTML = '🪄 Analizando...';
-        window.toast('IA analizando imagen...', 'info');
+        window.toast(files.length > 1 ? `IA analizando ${files.length} imágenes...` : 'IA analizando imagen...', 'info');
 
-        const reader = new FileReader();
-        const base64Promise = new Promise((resolve) => {
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.readAsDataURL(file);
+        // Convertir todas las imágenes a Base64
+        const base64Promises = files.map(file => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve({
+                    type: file.type,
+                    base64: reader.result.split(',')[1]
+                });
+                reader.readAsDataURL(file);
+            });
         });
 
-        const base64Image = await base64Promise;
+        const imagesData = await Promise.all(base64Promises);
         const ALL_TAGS = Object.values(TAG_CATEGORIES).flat();
 
         // Use injected key or hardcoded as fallback for local dev
         const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+
+        // Construir contenido multimodal
+        const content = [
+            {
+                type: "text",
+                text: isSequence
+                    ? `Analiza esta SECUENCIA de ${files.length} imágenes. De la siguiente lista de etiquetas, elige las 3-5 más adecuadas que describan el CONTEXTO GLOBAL de toda la obra. Devuelve ÚNICAMENTE un array JSON de strings: ${ALL_TAGS.join(', ')}`
+                    : `De la siguiente lista de etiquetas, elige las 3-5 más adecuadas para describir esta imagen. Devuelve ÚNICAMENTE un array JSON de strings: ${ALL_TAGS.join(', ')}`
+            }
+        ];
+
+        imagesData.forEach(img => {
+            content.push({
+                type: "image_url",
+                image_url: { "url": `data:${img.type};base64,${img.base64}` }
+            });
+        });
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
@@ -1081,16 +1125,7 @@ window.doAutoTag = async () => {
                 "messages": [
                     {
                         "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": `De la siguiente lista de etiquetas, elige las 3-5 más adecuadas para describir esta imagen. Devuelve ÚNICAMENTE un array JSON de strings: ${ALL_TAGS.join(', ')}`
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": { "url": `data:${file.type};base64,${base64Image}` }
-                            }
-                        ]
+                        "content": content
                     }
                 ]
             })
@@ -1177,6 +1212,23 @@ window.filterTags = (query) => {
 
     container.innerHTML = resultsHTML || '<div style="color:#666; font-size:0.8rem; padding:10px">No se encontraron etiquetas.</div>';
 };
+
+// --- MOBILE NAVIGATION LOGIC ---
+window.toggleMobileNav = () => {
+    const nav = document.getElementById('mobileNavOverlay');
+    if (nav) nav.classList.toggle('active');
+};
+
+// Close mobile nav when clicking outside
+document.addEventListener('click', (e) => {
+    const nav = document.getElementById('mobileNavOverlay');
+    const btn = document.querySelector('.mobile-menu-btn');
+    if (nav && nav.classList.contains('active')) {
+        if (!nav.contains(e.target) && !btn.contains(e.target)) {
+            nav.classList.remove('active');
+        }
+    }
+});
 
 // --- GLOBAL HELPER DEFINITIONS ---
 // window.openInfo already assigned

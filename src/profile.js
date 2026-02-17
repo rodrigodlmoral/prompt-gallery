@@ -9,7 +9,14 @@ import { DetailModalTemplate } from './components/DetailModal.js';
 import { SearchSuggestions } from './components/SearchSuggestions.js';
 import { getSearchSuggestions } from './utils/search-logic.js';
 import { initEconomyDashboard } from './components/EconomyDashboard.js';
+import { initLiveChat } from './components/LiveChat.js';
+import { setupLevelModals } from './components/Modals/LevelModals.js';
+import { toast } from './utils/ui-helpers.js';
 import './utils/LevelDebug.js'; // Load Debug Tools
+
+// Initialize Modals
+setupLevelModals();
+initLiveChat();
 
 const app = document.getElementById('app');
 
@@ -482,7 +489,7 @@ const ProfileHeader = () => {
                     <!-- Actions Buttons -->
                     <div class="profile-actions">
                         ${!isMe ?
-            `<button class="btn" onclick="window.doFollow('${user.username}')" style="min-width:120px">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
+            `<button class="btn" onclick="window.doFollow('${user.name || user.id}')" style="min-width:120px">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
             :
             `
                             <button class="btn-glass" onclick="window.openSettings()">⚙️ Editar Perfil</button>
@@ -500,6 +507,7 @@ const ProfileHeader = () => {
         <div class="container" style="margin-top:20px; display:flex; gap:25px; border-bottom:1px solid #333">
             <button class="profile-tab ${profileTab === 'creations' ? 'active' : ''}" onclick="window.setProfileTab('creations')">CREACIONES</button>
             ${isMe ? `<button class="profile-tab ${profileTab === 'saved' ? 'active' : ''}" onclick="window.setProfileTab('saved')">GUARDADOS</button>` : ''}
+            ${isMe ? `<button class="profile-tab ${profileTab === 'economy' ? 'active' : ''}" onclick="window.setProfileTab('economy')">ECONOMÍA</button>` : ''}
         </div>
     </div> `;
 };
@@ -754,8 +762,22 @@ window.doUpdate = async () => {
             isPrivate: document.getElementById('upPrivate').checked,
             needsReference: document.getElementById('upReference').checked,
             type: p.type,
-            tags: Array.from(window.selectedTags) // NUEVO
+            tags: Array.from(window.selectedTags), // NUEVO
+            content: p.content || []
         };
+
+        // Si es secuencia, recolectar datos de los pasos (v16)
+        if (p.type === 'sequence') {
+            const steps = [];
+            document.querySelectorAll('#seqContainer .seq-card').forEach((card, idx) => {
+                steps.push({
+                    prompt: card.querySelector('.seqPrompt').value,
+                    rating: card.querySelector('.seqRating').value,
+                    image: p.content[idx]?.image || '' // Mantenemos la imagen actual si no se sube una nueva (la lógica de subida se maneja en el reader si aplica, pero para edición simple de texto esto basta)
+                });
+            });
+            data.content = steps;
+        }
 
         const btn = document.getElementById('pubBtn');
         if (btn) btn.innerText = "Guardando...";
@@ -778,8 +800,12 @@ window.doUpdate = async () => {
                 else if (window.toast) window.toast("Error: " + (res.msg || "Error desconocido"), "error");
             }
         } else {
-            if (window.toast) window.toast("Edición de secuencias en mantenimiento en perfil. Por favor borra y crea de nuevo.", "error");
-            if (btn) { btn.innerText = "Actualizar"; }
+            // EDICIÓN DE SECUENCIAS HABILITADA (v16.1)
+            // Nota: Por ahora solo permite editar el texto de los pasos. 
+            // Para cambiar imágenes de pasos, se requiere lógica iterativa de FileReader (futuro).
+            const res = await store.updatePrompt(editingId, data);
+            if (res.success) finishUpdate();
+            else if (window.toast) window.toast("Error: " + (res.msg || "Error en secuencia"), "error");
         }
     } catch (e) { console.error(e); }
 };
@@ -956,7 +982,7 @@ const CreateModal = () => `
                     </label>
                     <label class="chk-wrap">
                         <input type="radio" name="postType" value="sequence" onchange="window.togglePostType('sequence')">
-                            <span>Secuencia (Múltiples) <small style="color:var(--accent); font-weight:bold">[Nivel 1+]</small></span>
+                            <span>Secuencia (Múltiples) <small style="color:var(--accent); font-weight:bold">[Nivel 2+]</small></span>
                     </label>
                 </div>
             </div>
@@ -1118,20 +1144,34 @@ const render = () => {
     if (pHeaderMount) pHeaderMount.innerHTML = ProfileHeader();
 
     const galleryMount = document.getElementById('profile-gallery-container');
-    if (galleryMount) galleryMount.innerHTML = Gallery();
+    if (galleryMount) {
+        galleryMount.innerHTML = profileTab === 'economy' ? '' : Gallery();
+    }
 
     // Advanced Filter Panel
     const advFilterMount = document.getElementById('adv-filter-mount');
-    if (advFilterMount) advFilterMount.innerHTML = AdvancedFilters(filters);
+    if (advFilterMount) advFilterMount.innerHTML = profileTab === 'economy' ? '' : AdvancedFilters(filters);
 
     attachEvents();
 
     // Economy Dashboard (own profile only)
     const isOwnProfile = store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser);
-    if (isOwnProfile) {
-        initEconomyDashboard('economyDashboardContainer');
-    } else {
+    const ecoContainer = document.getElementById('economyDashboardContainer');
+
+    if (isOwnProfile && profileTab === 'economy') {
         const ecoContainer = document.getElementById('economyDashboardContainer');
+        if (ecoContainer) {
+            ecoContainer.style.opacity = '0';
+            ecoContainer.style.transform = 'translateY(10px)';
+            ecoContainer.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            initEconomyDashboard('economyDashboardContainer');
+            // Force reflow and animate
+            setTimeout(() => {
+                ecoContainer.style.opacity = '1';
+                ecoContainer.style.transform = 'translateY(0)';
+            }, 50);
+        }
+    } else {
         if (ecoContainer) ecoContainer.innerHTML = '';
     }
 
@@ -1187,6 +1227,26 @@ window.openDetail = (id) => {
 window.showSlider = () => store.showSlider();
 window.initCrystalSlider = () => store.initCrystalSlider();
 window.postComm = () => store.postComm();
+
+window.togglePostType = (type) => {
+    const isSequence = type === 'sequence';
+    const effectiveLevel = store.getEffectiveLevel(store.currentUser);
+
+    if (isSequence && effectiveLevel < 2) {
+        if (window.toast) window.toast("⚠️ Función Bloqueda: Necesitas ser Nivel 2 o superior para subir secuencias.", "error");
+        else alert("⚠️ Función Bloqueda: Necesitas ser Nivel 2 o superior para subir secuencias.");
+        const singleRadio = document.querySelector('input[name="postType"][value="single"]');
+        if (singleRadio) singleRadio.checked = true;
+        return;
+    }
+    const sF = document.getElementById('singleFields');
+    const qF = document.getElementById('sequenceFields');
+    if (sF) sF.style.display = type === 'single' ? 'block' : 'none';
+    if (qF) qF.style.display = type === 'sequence' ? 'block' : 'none';
+    if (type === 'sequence' && seqStepCount === 0) {
+        window.addSeqStep();
+    }
+};
 
 window.toggleOptionsMenu = () => {
     const menu = document.getElementById('optionsMenu');
@@ -1589,6 +1649,10 @@ const triggerLoadMore = async () => {
 };
 
 window.forceLoadMore = () => {
+    if (!store.currentUser) {
+        toast("Inicia sesión para ver más contenido", "info");
+        return;
+    }
     console.log("🛡️ Carga Manual Perfil Solicitada");
     triggerLoadMore();
 };
@@ -2054,8 +2118,18 @@ window.doLogout = () => {
 
 window.doFollow = async (username) => {
     if (!store.currentUser) return window.openLogin();
-    await store.followUser(username);
-    render();
+
+    // UI Feedback inmediato
+    window.toast("Actualizando seguimiento...", "info");
+
+    const res = await store.followUser(username);
+    if (res.success) {
+        const msg = res.action === 'follow' ? `Ahora sigues a @${username}` : `Has dejado de seguir a @${username}`;
+        window.toast(msg, "success");
+        render(); // Re-renderizar para actualizar botones y contadores
+    } else {
+        window.toast(res.msg || "Error al procesar", "error");
+    }
 };
 
 window.toggleAuth = (m) => {

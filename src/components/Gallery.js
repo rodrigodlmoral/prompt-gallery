@@ -54,6 +54,16 @@ export const Gallery = ({
     const isMyProfile = (currentView === 'profile' && profileUser === currentUser?.username && profileTab === 'creations');
 
     if (list.length === 0) {
+        if (store.isLoadingMore) {
+            return `<div class="container" style="padding:40px 20px;"><div class="gallery-grid">
+                <div class="card skeleton-card"></div>
+                <div class="card skeleton-card"></div>
+                <div class="card skeleton-card"></div>
+                <div class="card skeleton-card"></div>
+                <div class="card skeleton-card"></div>
+                <div class="card skeleton-card"></div>
+            </div></div>`;
+        }
         if (isMyProfile) {
             return `
     <div class="container" style = "padding: 40px 20px; text-align: center;">

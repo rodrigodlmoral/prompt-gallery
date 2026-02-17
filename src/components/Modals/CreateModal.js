@@ -19,7 +19,7 @@ export const CreateModal = () => `
             </label>
             <label class="chk-wrap">
                 <input type="radio" name="postType" value="sequence" onchange="window.togglePostType('sequence')">
-                <span>Secuencia (Múltiples) <small style="color:var(--accent); font-weight:bold">[Nivel 1+]</small></span>
+                <span>Secuencia (Múltiples) <small style="color:var(--accent); font-weight:bold">[Nivel 2+]</small></span>
             </label>
         </div>
     </div>
@@ -95,8 +95,11 @@ export const CreateModal = () => `
 // --- LOGIC ---
 
 window.togglePostType = (type) => {
-    if (type === 'sequence' && (!store.currentUser || (store.currentUser.level || 0) < 1)) {
-        alert("⚠️ Función Bloqueda: Necesitas ser Nivel 1 o superior para subir secuencias (aporta al menos 10 prompts sencillos).");
+    const isSequence = type === 'sequence';
+    const effectiveLevel = store.getEffectiveLevel(store.currentUser);
+
+    if (isSequence && effectiveLevel < 2) {
+        alert("⚠️ Función Bloqueda: Necesitas ser Nivel 2 o superior (o tener una Badge Especial) para subir secuencias.");
         const singleRadio = document.querySelector('input[name="postType"][value="single"]');
         if (singleRadio) singleRadio.checked = true;
         return;
@@ -246,8 +249,8 @@ window.doPublish = () => {
                     resetBtn();
                 } else {
                     toast("✅ ¡Publicado con éxito!", "success");
+                    window.resetCreateModal();
                     window.closeModals();
-                    // await store.loadUsers(); // Eliminado: Innecesario y causaba error
                     if (window.render) window.render();
 
                     if (window.trackEvent) window.trackEvent('publish_post', { title, tool, type: 'single' });
@@ -310,7 +313,7 @@ window.doPublish = () => {
                             resetBtn();
                         } else {
                             toast("✅ ¡Secuencia publicada!", "success");
-                            seqStepCount = 0;
+                            window.resetCreateModal();
                             window.closeModals();
                             if (window.render) window.render();
                             if (window.trackEvent) window.trackEvent('publish_post', { title, tool, type: 'sequence', steps: steps.length });
@@ -452,17 +455,89 @@ window.doUpdate = async () => {
 };
 
 const finishUpdate = () => {
-    alert("✅ Post actualizado");
-    isEditing = false;
-    editingId = null;
-
-    // Close Modals explicitly
+    toast("✅ Post actualizado", "success");
+    window.resetCreateModal();
     window.closeModals();
     if (window.render) window.render();
+};
 
+window.resetCreateModal = () => {
+    console.log("[CREATE-MODAL] 🧹 Iniciando reset completo del formulario...");
+    isEditing = false;
+    editingId = null;
+    seqStepCount = 0;
+
+    // 1. Campos de texto
+    const fields = ['upTitle', 'upPrompt', 'upNegPrompt'];
+    fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    // 2. Selects
+    const selects = ['upTool', 'upRating'];
+    selects.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.selectedIndex = 0;
+    });
+
+    // 3. Paneles de visibilidad
+    const negPanel = document.getElementById('singleNeg');
+    if (negPanel) negPanel.style.display = 'none';
+
+    // 4. Checkboxes
+    const checkboxes = ['upPrivate', 'upReference'];
+    checkboxes.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
+    });
+
+    // 5. Archivos y Previews (CRÍTICO)
+    const upFile = document.getElementById('upFile');
+    if (upFile) {
+        upFile.value = ''; // Limpia el nombre del archivo en el input
+        console.log("[CREATE-MODAL] Input de archivo limpiado.");
+    }
+
+    const singlePrev = document.getElementById('singlePreview');
+    if (singlePrev) {
+        singlePrev.style.display = 'none';
+        const img = singlePrev.querySelector('img');
+        if (img) img.src = '';
+    }
+
+    // 6. Eliminar elementos dinámicos (Edit Previews y filas extra)
+    document.querySelectorAll('.edit-preview').forEach(el => el.remove());
+
+    const extraRows = document.getElementById('extraRowsContainer');
+    if (extraRows) extraRows.innerHTML = '';
+
+    const extraPanel = document.getElementById('upExtraConfig');
+    if (extraPanel) extraPanel.style.display = 'none';
+
+    const seqContainer = document.getElementById('seqContainer');
+    if (seqContainer) seqContainer.innerHTML = '';
+
+    // 7. Tags
+    if (window.selectedTags) window.selectedTags.clear();
+    else window.selectedTags = new Set();
+
+    if (window.renderTagSelector) window.renderTagSelector();
+
+    // 8. Restaurar Botón a estado inicial
     const btn = document.getElementById('pubBtn');
     if (btn) {
+        btn.disabled = false;
         btn.innerText = "Publicar";
-        btn.onclick = window.doPublish;
+        console.log("[CREATE-MODAL] Botón restaurado a 'Publicar'");
     }
+
+    // 9. Volver a vista Single
+    const singleRadio = document.querySelector('input[name="postType"][value="single"]');
+    if (singleRadio) {
+        singleRadio.checked = true;
+        window.togglePostType('single');
+    }
+
+    console.log("[CREATE-MODAL] ✅ Formulario limpio.");
 };

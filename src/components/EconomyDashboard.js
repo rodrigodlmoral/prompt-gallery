@@ -28,6 +28,27 @@ function timeAgo(dateStr) {
     return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
 }
 
+// Format full date and time
+function formatFullDateTime(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+
+    try {
+        // Example: "17 Feb, 00:36"
+        return date.toLocaleString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }).replace('.', '');
+    } catch (e) {
+        // Ultra-safe fallback
+        return date.toISOString().slice(5, 16).replace('T', ' ');
+    }
+}
+
 /**
  * Render the Economy Dashboard HTML
  */
@@ -35,7 +56,9 @@ export function renderEconomyDashboard(stats) {
     if (!stats) return '';
 
     const level = store.currentUser?.level || 0;
-    const nextMilestone = getNextMilestone(level, 0); // General info
+
+    // Final safety sort: Most recent first
+    const sortedTxs = [...(stats.transactions || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
 
     return `
     <div id="economyDashboard" class="economy-dashboard" style="
@@ -94,20 +117,25 @@ export function renderEconomyDashboard(stats) {
         </div>
 
         <!-- Recent Transactions -->
-        ${stats.transactions.length > 0 ? `
+        ${sortedTxs.length > 0 ? `
         <div>
             <h4 style="color:#999; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 12px 0">
                 Transacciones Recientes
             </h4>
             <div style="max-height:300px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:#333 transparent">
-                ${stats.transactions.map(tx => `
+                ${sortedTxs.map(tx => `
                     <div style="display:flex; align-items:center; gap:12px; padding:10px; border-bottom:1px solid rgba(255,255,255,0.05); transition:background 0.2s"
                          onmouseover="this.style.background='rgba(255,255,255,0.03)'"
                          onmouseout="this.style.background='transparent'">
                         <span style="font-size:1.2rem">${tx.icon}</span>
                         <div style="flex:1; min-width:0">
-                            <div style="font-size:0.85rem; color:#ddd; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${tx.description}</div>
-                            <div style="font-size:0.7rem; color:#666">${timeAgo(tx.date)}</div>
+                            <div style="font-size:0.9rem; color:#fff; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px">${tx.description}</div>
+                            <div style="font-size:0.75rem; color:#aaa; display:flex; align-items:center; gap:6px">
+                                <span>${timeAgo(tx.date)}</span>
+                                <span style="color:#eee; background:rgba(255,255,255,0.1); padding:1px 6px; border-radius:4px; font-weight:600">
+                                    ${formatFullDateTime(tx.date)}
+                                </span>
+                            </div>
                         </div>
                         <div style="font-size:0.95rem; font-weight:600; color:${tx.amount >= 0 ? '#22c55e' : '#ef4444'}; white-space:nowrap">
                             ${tx.amount >= 0 ? '+' : ''}${tx.amount} 💎

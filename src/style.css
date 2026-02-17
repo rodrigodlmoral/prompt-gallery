@@ -2421,6 +2421,12 @@ header nav {
   animation: fadeIn 0.2s ease-out;
 }
 
+/* Hide Mobile Elements Globally (Only show in Media Query) */
+.mobile-menu-btn,
+.mobile-nav-overlay {
+  display: none;
+}
+
 /* 3. Modal & Post Fixes */
 @media (max-width: 500px) {
 
@@ -2433,8 +2439,109 @@ header nav {
   .search-mobile-btn {
     display: block;
     margin-left: auto;
-    /* Push to right */
-    margin-right: 15px;
+    /* Push to right pivot */
+    margin-right: 10px;
+  }
+
+  /* Hide Top Bar and Header Desktop Nav */
+  .top-bar {
+    display: none !important;
+  }
+
+  header nav {
+    display: none !important;
+  }
+
+  /* Mobile Unified Menu Button */
+  .mobile-menu-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 1.4rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .mobile-menu-btn:active {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(0.95);
+  }
+
+  /* Mobile Navigation Overlay */
+  .mobile-nav-overlay {
+    position: fixed;
+    top: 72px;
+    left: 0;
+    width: 100%;
+    height: calc(100vh - 72px);
+    background: #0b0b0b;
+    /* Solid black to block background content */
+    z-index: 999999;
+    display: none;
+    flex-direction: column;
+    padding: 25px;
+    gap: 12px;
+    animation: mobileNavFadeIn 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    overflow-y: auto;
+    /* Allow scrolling if items are many */
+  }
+
+  .mobile-nav-overlay.active {
+    display: flex;
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 18px 20px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .mobile-nav-item i {
+    font-size: 1.2rem;
+    width: 24px;
+    text-align: center;
+    opacity: 0.8;
+  }
+
+  .mobile-nav-item:active {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--accent);
+    transform: translateX(5px);
+  }
+
+  .mobile-nav-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.05);
+    margin: 8px 0;
+  }
+
+  @keyframes mobileNavFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   /* Fix Post content visibility */
@@ -2469,6 +2576,67 @@ header nav {
     height: auto !important;
     min-height: 50vh;
     max-height: 60vh;
+  }
+
+  /* Filters Bar Optimization */
+  .filters-bar {
+    justify-content: flex-start !important;
+    /* Start from left to show first filters */
+    gap: 10px !important;
+    padding: 10px 15px !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .filters-bar::-webkit-scrollbar {
+    display: none;
+    /* Chrome/Safari */
+  }
+
+  .filters-bar select,
+  .filters-bar .btn-outline {
+    flex-shrink: 0 !important;
+    /* Prevent squashing */
+    max-width: 150px;
+    text-overflow: ellipsis;
+  }
+
+  /* Profile Responsiveness */
+  .profile-content {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 20px !important;
+  }
+
+  .profile-avatar-xl {
+    width: 100px !important;
+    height: 100px !important;
+  }
+
+  .profile-info {
+    align-items: center !important;
+    width: 100% !important;
+  }
+
+  .profile-username {
+    font-size: 1.8rem !important;
+  }
+
+  .profile-name-row,
+  .profile-meta-row,
+  .profile-stats-row,
+  .profile-actions {
+    justify-content: center !important;
+    width: 100% !important;
+  }
+
+  .profile-stats-row {
+    gap: 15px !important;
+    font-size: 0.85rem !important;
   }
 
   .view-img-side img {

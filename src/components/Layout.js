@@ -21,11 +21,16 @@ export const Header = ({ currentUser, filters, searchQuery }) => `
         </div>
         ` : ''}
 
-        <!-- Mobile Search Toggle -->
-        ${currentUser ? `<div class="search-mobile-btn" onclick="document.querySelector('.search-mobile-overlay').classList.add('active'); document.getElementById('searchMobileInput').focus()">🔍</div>` : ''}
+        <!-- Mobile Search & Menu Toggle -->
+        ${currentUser ? `
+        <div style="display:flex; align-items:center; gap:10px">
+            <div class="search-mobile-btn" onclick="document.querySelector('.search-mobile-overlay').classList.add('active'); document.getElementById('searchMobileInput').focus()">🔍</div>
+            <button class="mobile-menu-btn" onclick="window.toggleMobileNav()">☰</button>
+        </div>
+        ` : ''}
+
         <nav>
             ${currentUser ? `
-                ${currentUser.role === 'admin' ? `<a href="/admin.html" class="btn-outline" style="border-color:gold; color:gold; text-decoration:none; padding: 10px 15px; border-radius: 8px; font-weight: 600;">👑 Admin</a>` : ''}
                 <button class="btn" id="addBtn">Compartir Prompt</button>
                 <div class="user-info" onclick="window.openUserProfile('${currentUser.username}')" style="cursor:pointer">
                     <div class="user-avatar-sm" style="background-image:url('${currentUser.avatar || 'https://robohash.org/' + currentUser.username}')"></div>
@@ -34,6 +39,35 @@ export const Header = ({ currentUser, filters, searchQuery }) => `
                 <button class="btn-outline" onclick="window.doLogout()">Salir</button>
             ` : ''}
         </nav>
+    </div>
+
+    <!-- Mobile Navigation Overlay (Unified Menu) -->
+    <div class="mobile-nav-overlay" id="mobileNavOverlay">
+        ${currentUser ? `
+        <div class="mobile-nav-item" onclick="window.openUserProfile('${currentUser.username}'); window.toggleMobileNav();">
+            <i>👤</i> PERFIL
+        </div>
+        <div class="mobile-nav-item" onclick="window.openCreate(); window.toggleMobileNav();">
+            <i>🚀</i> COMPARTIR PROMPT
+        </div>
+        <div class="mobile-nav-divider"></div>
+        <div class="mobile-nav-item" onclick="window.openInfo('tos'); window.toggleMobileNav();">
+            <i>📄</i> TÉRMINOS
+        </div>
+        <div class="mobile-nav-item" onclick="window.openInfo('privacy'); window.toggleMobileNav();">
+            <i>🔒</i> PRIVACIDAD
+        </div>
+        <div class="mobile-nav-item" onclick="window.openInfo('safety'); window.toggleMobileNav();">
+            <i>🛡️</i> SEGURIDAD
+        </div>
+        <div class="mobile-nav-item" onclick="window.openInfo('support'); window.toggleMobileNav();">
+            <i>💬</i> SOPORTE
+        </div>
+        <div class="mobile-nav-divider"></div>
+        <div class="mobile-nav-item" onclick="window.doLogout(); window.toggleMobileNav();" style="color:#ff6b6b">
+            <i>🚪</i> SALIR O CERRAR SESIÓN
+        </div>
+        ` : ''}
     </div>
 
     <div class="search-mobile-overlay">

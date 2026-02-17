@@ -144,8 +144,15 @@ window.doActivateSubmit = async () => {
 
     toast("Procesando solicitud...", "info");
 
-    // Usar el método canónico para ambos flujos (activación y reset usan el mismo endpoint PB)
-    const res = await store.confirmResetPassword(token, pass, userOrEmail);
+    // Detección automática del tipo de flujo (Hotfix Feb 11)
+    const isPasswordReset = window._authType === 'password-reset';
+    let res;
+
+    if (isPasswordReset) {
+        res = await store.confirmPasswordReset(token, pass, userOrEmail);
+    } else {
+        res = await store.confirmResetPassword(token, pass, userOrEmail);
+    }
 
     if (res.success) {
         if (res.warning) {

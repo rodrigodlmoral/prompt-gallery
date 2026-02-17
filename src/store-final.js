@@ -146,6 +146,7 @@ const store = {
     hasMore: true,
     isLoadingMore: false,
     batchSize: 60,
+    isInitialized: false,
 
     async init() {
         if (pb.authStore.isValid && pb.authStore.model) {
@@ -160,6 +161,7 @@ const store = {
 
         await this.getPublicStats();
         this.trackVisit();
+        this.isInitialized = true;
     },
 
     async loadAllPromptsForAnalysis() {
@@ -667,14 +669,24 @@ const store = {
             // Priority: Use Secure API Proxy (Bypasses ACLs on Vercel)
             const token = pb.authStore.token;
             if (token) {
-                const res = await fetch('/api/history', {
+                // Add timestamp to bypass browser cache
+                const res = await fetch(`/api/history?v=${Date.now()}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (res.ok) {
                     const data = await res.json();
                     if (data.items && Array.isArray(data.items)) {
-                        transactions = data.items;
+                        // Pre-process items to ensure consistent icons even if API is older
+                        transactions = data.items.map(tx => {
+                            if (!tx.icon) {
+                                if (tx.type === 'sent') tx.icon = '📤';
+                                else if (tx.type === 'received') tx.icon = '📥';
+                                else if (tx.type === 'bonus') tx.icon = '🏆';
+                                else tx.icon = tx.amount >= 0 ? '📈' : '📉';
+                            }
+                            return tx;
+                        });
                         fetchedViaApi = true;
                     }
                 }
@@ -691,23 +703,29 @@ const store = {
                 // Removed 'expand' to avoid 400 Bad Request if relation data is inconsistent
                 // Removed 'sort' as it caused 400 Bad Request in backfill logs previously
                 // Sorting is handled client-side anyway.
-                const ledgerRecords = await pb.collection('ledger').getList(1, 20, {
+                const ledgerRecords = await pb.collection('ledger').getList(1, 40, {
                     filter: `from_user="${uid}" || to_user="${uid}"`,
+                    sort: '-updated',
                     $autoCancel: false
                 });
 
                 const ledgerTxs = ledgerRecords.items.map(rec => {
                     const isSender = rec.from_user === uid;
+                    const txDate = rec.created || rec.updated;
                     if (rec.type === 'TIP' || rec.type === 'PURCHASE') {
                         if (isSender) {
-                            // Without expand, we fallback to generic 'Usuario' or try to use cached profiles if available
-                            // This ensures the list at least LOADS.
-                            return { type: 'sent', amount: -rec.amount, description: rec.description || `Enviado`, date: rec.created, icon: '📤', id: rec.id };
+                            return { type: 'sent', amount: -rec.amount, description: rec.description || `Enviado`, date: txDate, icon: '📤', id: rec.id };
                         } else {
-                            return { type: 'received', amount: rec.amount, description: rec.description || `Recibido`, date: rec.created, icon: '📥', id: rec.id };
+                            return { type: 'received', amount: rec.amount, description: rec.description || `Recibido`, date: txDate, icon: '📥', id: rec.id };
                         }
                     }
-                    return { type: isSender ? 'expense' : 'income', amount: isSender ? -rec.amount : rec.amount, description: rec.description || 'Transacción', date: rec.created, icon: isSender ? '📉' : '📈', id: rec.id };
+                    if (rec.type === 'POST_REWARD') {
+                        return { type: 'income', amount: rec.amount, description: rec.description || 'Publicación', date: txDate, icon: '🖼️', id: rec.id };
+                    }
+                    if (rec.type === 'LEVEL_UP') {
+                        return { type: 'income', amount: rec.amount, description: rec.description || 'Bono de Nivel', date: txDate, icon: '✨', id: rec.id };
+                    }
+                    return { type: isSender ? 'expense' : 'income', amount: isSender ? -rec.amount : rec.amount, description: rec.description || 'Transacción', date: txDate, icon: isSender ? '📉' : '📈', id: rec.id };
                 });
                 transactions = [...transactions, ...ledgerTxs];
 
@@ -716,18 +734,20 @@ const store = {
                 // Removed 'sort' to prevent 400 Bad Request
                 const logRecords = await pb.collection('activity_logs').getList(1, 40, {
                     filter: `user="${uid}" || details.recipientId="${uid}"`,
+                    sort: '-updated',
                     $autoCancel: false
                 });
 
                 const logTxs = logRecords.items.map(log => {
                     const details = log.details || {};
+                    const logDate = log.created || log.updated;
                     if (log.action === 'copy_milestone_bonus') {
-                        return { type: 'bonus', amount: details.bonus || 0, description: `🎉 Milestone: ${details.copies} copias`, date: log.created, icon: '🏆', id: log.id };
+                        return { type: 'bonus', amount: details.bonus || 0, description: `🎉 Milestone: ${details.copies} copias`, date: logDate, icon: '🏆', id: log.id };
                     }
                     if (log.action === 'send_tip') {
                         const isSender = log.user === uid;
-                        if (isSender) return { type: 'sent', amount: -(details.amount || 0), description: `Enviado a @${details.recipient || 'Usuario'}`, date: log.created, icon: '📤', id: log.id };
-                        else return { type: 'received', amount: details.amount || 0, description: `Recibido de @${log.expand?.user?.username || 'Usuario'}`, date: log.created, icon: '📥', id: log.id };
+                        if (isSender) return { type: 'sent', amount: -(details.amount || 0), description: `Enviado a @${details.recipient || 'Usuario'}`, date: logDate, icon: '📤', id: log.id };
+                        else return { type: 'received', amount: details.amount || 0, description: `Recibido de @${log.expand?.user?.username || 'Usuario'}`, date: logDate, icon: '📥', id: log.id };
                     }
                     return null;
                 }).filter(Boolean);
@@ -798,15 +818,15 @@ const store = {
         // 1. Prioritize explicitly "featured" prompts that haven't expired
         const featured = this.allPrompts.filter(p =>
             !p.is_private &&
-            p.is_featured &&
-            p.featured_until &&
-            new Date(p.featured_until) > now
-        );
+            (p.is_featured || p.admin_featured) &&
+            (!p.featured_until || new Date(p.featured_until) > now)
+        ).sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0)); // Paid first, then admin
 
         // 2. Take recent prompts (last 7 days) and sort by score
         const recent = this.allPrompts.filter(p =>
             !p.is_private &&
             !p.is_featured &&
+            !p.admin_featured &&
             p.createdAt >= weekAgo
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
@@ -814,11 +834,12 @@ const store = {
         const fallbacks = this.allPrompts.filter(p =>
             !p.is_private &&
             !p.is_featured &&
+            !p.admin_featured &&
             p.createdAt < weekAgo
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
         const result = [...featured, ...recent, ...fallbacks].slice(0, 20);
-        console.log(`[CEREBRO] 🧠 Top Semanal calculado: ${result.length} items.`);
+        console.log(`[CEREBRO] 🧠 Top Semanal calculado: ${result.length} items (Featured: ${featured.length})`);
         return result;
     },
 
@@ -828,19 +849,28 @@ const store = {
         const now = Date.now();
         const dayAgo = now - (24 * 60 * 60 * 1000);
 
-        // 1. Take prompts from last 24h sorted by score
+        // 1. Prioritize featured prompts (Spotlight)
+        const featured = this.allPrompts.filter(p =>
+            !p.is_private &&
+            (p.is_featured || p.admin_featured) &&
+            (!p.featured_until || new Date(p.featured_until) > now)
+        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
+
+        // 2. Take prompts from last 24h sorted by score
         const recent = this.allPrompts.filter(p =>
             !p.is_private &&
+            !p.is_featured &&
+            !p.admin_featured &&
             p.createdAt >= dayAgo
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
-        // 2. Fallback: If very few recent, use the top from the week
-        if (recent.length < 3) {
+        // 3. Fallback: If very few recent, use the top from the week
+        if (featured.length + recent.length < 3) {
             const weekly = this.getTopWeeklyPrompts();
-            return [...recent, ...weekly].slice(0, 5);
+            return [...featured, ...recent, ...weekly].slice(0, 5);
         }
 
-        const result = recent.slice(0, 5);
+        const result = [...featured, ...recent].slice(0, 5);
         console.log(`[CEREBRO] 🔥 Top Diario calculado: ${result.length} items.`);
         return result;
     },
@@ -851,33 +881,39 @@ const store = {
         if (!this.currentUser) return { success: false, msg: "Inicia sesión para publicar" };
 
         // --- CHECK DAILY POST LIMIT (V3 LEVEL-BASED RESTRICTION) ---
-        const levelSystem = new LevelSystem(pb);
-        const userLevel = this.currentUser.level || 0;
-        const levelInfo = levelSystem.getLevelInfo(userLevel);
+        const isBatchUser = this.currentUser.batch_access === true;
 
-        // Count posts published today
-        const today = new Date().toISOString().split('T')[0];
-        const todayStart = `${today} 00:00:00`;
-        const todayEnd = `${today} 23:59:59`;
+        if (!isBatchUser) {
+            const levelSystem = new LevelSystem(pb);
+            const userLevel = this.getEffectiveLevel(this.currentUser);
+            const levelInfo = levelSystem.getLevelInfo(userLevel);
 
-        try {
-            const todayPosts = await pb.collection('prompts').getList(1, 1, {
-                filter: `author = "${this.currentUser.id}" && created >= "${todayStart}" && created <= "${todayEnd}"`,
-                fields: 'id'
-            });
+            // Count posts published today
+            const today = new Date().toISOString().split('T')[0];
+            const todayStart = `${today} 00:00:00`;
+            const todayEnd = `${today} 23:59:59`;
 
-            const postsToday = todayPosts.totalItems || 0;
-            const maxPerDay = levelInfo.benefits.find(b => b.includes('diarios'))?.match(/\d+/)?.[0] || 3;
+            try {
+                const todayPosts = await pb.collection('prompts').getList(1, 1, {
+                    filter: `author = "${this.currentUser.id}" && created >= "${todayStart}" && created <= "${todayEnd}"`,
+                    fields: 'id'
+                });
 
-            if (postsToday >= parseInt(maxPerDay)) {
-                return {
-                    success: false,
-                    msg: `Has alcanzado tu límite diario de ${maxPerDay} prompts (Nivel ${userLevel}: ${levelInfo.name}). ¡Sube de nivel para publicar más!`
-                };
+                const postsToday = todayPosts.totalItems || 0;
+                const maxPerDay = levelInfo.benefits.find(b => b.includes('diarios'))?.match(/\d+/)?.[0] || 3;
+
+                if (postsToday >= parseInt(maxPerDay)) {
+                    return {
+                        success: false,
+                        msg: `Has alcanzado tu límite diario de ${maxPerDay} prompts (Nivel ${userLevel}: ${levelInfo.name}). ¡Sube de nivel para publicar más!`
+                    };
+                }
+            } catch (err) {
+                console.error('[DAILY LIMIT CHECK] Error:', err);
+                // Continue on error (don't block user if check fails)
             }
-        } catch (err) {
-            console.error('[DAILY LIMIT CHECK] Error:', err);
-            // Continue on error (don't block user if check fails)
+        } else {
+            console.log(`[BATCH] 🚀 Usuario con acceso Batch detectado (@${this.currentUser.username}). Omitiendo límites diarios.`);
         }
 
         let imageUrl = '';
@@ -971,17 +1007,55 @@ const store = {
             });
             const totalCopies = allPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
 
+            console.log(`[ECONOMY] Calculated reward for post: ${tokensToAdd} tokens (Level ${oldLevel} -> ${newLevel})`);
+
             // Calculate progress for UI
             const progress = levelSystem.calculateProgress(newLevel, totalPosts, totalCopies);
 
-            // Update User
-            await pb.collection('users').update(this.currentUser.id, {
-                level: newLevel,
-                level_progress: progress,
-                prompts_count: totalPosts,
-                total_copies: totalCopies,
-                tokens: (this.currentUser.tokens || 0) + tokensToAdd
-            });
+            // === Auditoría Económica (v3.2: DB Schema Patched) ===
+            try {
+                // Sincronizar balance y estadísticas del perfil
+                const currentTokens = this.currentUser.tokens || 0;
+                const currentEarned = this.currentUser.total_earned || 0;
+                const currentRewards = this.currentUser.total_rewards || 0;
+
+                await pb.collection('users').update(this.currentUser.id, {
+                    level: newLevel,
+                    level_progress: progress,
+                    prompts_count: totalPosts,
+                    total_copies: totalCopies,
+                    tokens: currentTokens + tokensToAdd,
+                    total_earned: currentEarned + tokensToAdd,
+                    total_rewards: currentRewards + tokensToAdd
+                });
+
+                // Registro en el Ledger para la publicación (v3.2: de System a null relation)
+                await pb.collection('ledger').create({
+                    from_user: null,
+                    to_user: this.currentUser.id,
+                    amount: BASE_REWARD,
+                    type: 'POST_REWARD',
+                    description: `Publicación: ${data.title}`,
+                    tx_hash: 'PR-' + Date.now().toString(36).toUpperCase()
+                });
+
+                // Registro en el Ledger para subida de nivel (si ocurrió)
+                if (shouldLevelUp) {
+                    const bonus = tokensToAdd - BASE_REWARD;
+                    await pb.collection('ledger').create({
+                        from_user: null,
+                        to_user: this.currentUser.id,
+                        amount: bonus,
+                        type: 'LEVEL_UP',
+                        description: `Bono por subir al Nivel ${newLevel}: ${levelName}`,
+                        tx_hash: 'LVLR-' + Date.now().toString(36).toUpperCase()
+                    });
+                }
+            } catch (err) {
+                console.error("[ECONOMY] Error crítico en auditoría (verifica campos en DB):", err);
+                // No bloqueamos la publicación si el ledger falla, pero avisamos
+                if (window.showToast) window.showToast("Dificultades al registrar en el historial", "info");
+            }
 
             await this._loadUserProfile(this.currentUser.id);
             await this.loadPrompts();
@@ -1044,7 +1118,6 @@ const store = {
                 is_private: data.isPrivate,
                 needs_reference: data.needsReference,
                 tool: data.tool,
-                rating: data.rating,
                 rating: data.rating,
                 content: data.content,
                 extra_config: data.extraConfig,
@@ -1252,37 +1325,82 @@ const store = {
     },
 
 
-    async followUser(targetUsername) {
-        if (!this.currentUser) return { success: false };
+    async followUser(targetIdentifier) {
+        if (!this.currentUser) return { success: false, msg: "Login requerido" };
         try {
-            // Find target user by username or name (identificador real post-migración)
-            const target = await pb.collection('users').getFirstListItem(`username="${targetUsername}" || name="${targetUsername}"`);
-            if (!target) return { success: false };
+            console.log(`[FOLLOW] Procesando: ${targetIdentifier}`);
+            let target = null;
+            const lowerTarget = targetIdentifier.toLowerCase();
+
+            // 1. Intentar por ID (15 caracteres típicos de PB)
+            if (targetIdentifier.length === 15) {
+                try {
+                    target = await pb.collection('users').getOne(targetIdentifier);
+                    console.log("[FOLLOW] Encontrado por ID");
+                } catch (e) { }
+            }
+
+            // 2. Intentar por NAME (Campo verificado en auditoría)
+            if (!target) {
+                try {
+                    // Solo filtramos por name ya que username no existe en el esquema y da error 400
+                    target = await pb.collection('users').getFirstListItem(`name="${targetIdentifier}"`);
+                    console.log("[FOLLOW] Encontrado por NAME");
+                } catch (e) { }
+            }
+
+            if (!target) {
+                console.warn(`[FOLLOW] No se halló usuario para: ${targetIdentifier}`);
+                return { success: false, msg: `Usuario no identificado (${targetIdentifier})` };
+            }
+
+            if (target.id === this.currentUser.id) return { success: false, msg: "No puedes seguirte a ti mismo" };
 
             const following = [...(this.currentUser.following || [])];
             const followers = [...(target.followers || [])];
 
             const idx = following.indexOf(target.id);
+            let action = 'follow';
             if (idx > -1) {
                 // Unfollow
                 following.splice(idx, 1);
                 const fIdx = followers.indexOf(this.currentUser.id);
                 if (fIdx > -1) followers.splice(fIdx, 1);
+                action = 'unfollow';
             } else {
                 // Follow
                 following.push(target.id);
                 followers.push(this.currentUser.id);
             }
 
-            const batch = pb.createBatch();
-            batch.collection('users').update(this.currentUser.id, { following });
-            batch.collection('users').update(target.id, { followers });
-            await batch.send();
+            // A. Actualizar Perfil Propio (Prioridad)
+            try {
+                await pb.collection('users').update(this.currentUser.id, { following });
+                this.currentUser.following = following;
+            } catch (myErr) {
+                console.error("[FOLLOW] Error perfil propio:", myErr);
+                return { success: false, msg: "Error al actualizar tu lista de seguidos" };
+            }
 
-            this.currentUser.following = following;
-            this.logActivity('follow', { target: targetUsername });
-            return { success: true };
-        } catch (err) { return { success: false }; }
+            // B. Actualizar Perfil Objetivo (Opcional, puede fallar por RLS)
+            try {
+                await pb.collection('users').update(target.id, { followers });
+            } catch (targetErr) {
+                console.warn("[FOLLOW] Error perfil objetivo (RLS?):", targetErr);
+            }
+
+            // C. Sync Cache
+            target.followers = followers;
+            this.usersCache[lowerTarget] = { ...target, _fetchedAt: Date.now() };
+            // También cachear por ID para consistencia
+            this.usersCache[target.id] = this.usersCache[lowerTarget];
+
+            this.logActivity(action, { target: targetIdentifier });
+            return { success: true, action };
+        } catch (err) {
+            console.error("[FOLLOW] CRITICAL FAULT:", err);
+            return { success: false, msg: "Fallo crítico en el sistema de seguimiento" };
+        }
     },
 
 
@@ -1373,8 +1491,31 @@ const store = {
     },
 
     /**
+     * Get the effective level of a user, considering unique badges.
+     * CREADOR FUNDADOR and CREADOR VIP get Level 2 benefits automatically.
+     * @param {object} user 
+     * @returns {number}
+     */
+    getEffectiveLevel(user) {
+        if (!user) return 0;
+        const baseLevel = user.level || 0;
+        const badges = (user.unique_badges || []).map(b => b.toUpperCase());
+
+        const isVIP = badges.some(b =>
+            b.includes('FUNDADOR') ||
+            b.includes('V.I.P') ||
+            b.includes('VIP')
+        );
+
+        // Grant Level 2 benefits if VIP/Founder
+        if (isVIP && baseLevel < 2) return 2;
+
+        return baseLevel;
+    },
+
+    /**
      * Check if current user has access to a level-gated feature
-     * @param {string} feature - Feature name (e.g., 'comment', 'favorite', 'transfer', 'boost', 'avatar', 'socials')
+     * @param {string} feature - Feature name (e.g., 'comment', 'favorite', 'transfer', 'boost', 'avatar', 'socials', 'sequence')
      * @returns {object} { hasAccess: boolean, requiredLevel: number, message: string }
      */
     checkLevelFeature(feature) {
@@ -1382,7 +1523,7 @@ const store = {
             return { hasAccess: false, requiredLevel: 1, message: "Inicia sesión para continuar" };
         }
 
-        const userLevel = this.currentUser.level || 0;
+        const effectiveLevel = this.getEffectiveLevel(this.currentUser);
         const featureRequirements = {
             'comment': { level: 1, name: 'Novato', message: 'Necesitas ser Nivel 1 (Novato) para comentar. ¡Publica 5 prompts para subir!' },
             'favorite': { level: 1, name: 'Novato', message: 'Necesitas ser Nivel 1 (Novato) para guardar favoritos. ¡Publica 5 prompts!' },
@@ -1393,19 +1534,18 @@ const store = {
             'sequence': { level: 2, name: 'Creador Jr', message: 'Necesitas ser Nivel 2 (Creador Jr) para publicar secuencias. ¡Publica 25 prompts!' }
         };
 
-        // EXCEPCIÓN: Creadores Fundadores se saltan el nivel para AVATAR y SOCIALS
-        const founderBypass = ['avatar', 'socials'];
-        if (founderBypass.includes(feature) && this.hasBadge('CREADOR FUNDADOR')) {
-            return { hasAccess: true, requiredLevel: 0, message: '💎 Beneficio de Creador Fundador activado' };
-        }
-
         const requirement = featureRequirements[feature];
         if (!requirement) {
             return { hasAccess: true, requiredLevel: 0, message: '' };
         }
 
-        if (userLevel >= requirement.level) {
-            return { hasAccess: true, requiredLevel: requirement.level, message: '' };
+        if (effectiveLevel >= requirement.level) {
+            // Check if it's a VIP bypass for messaging
+            const badges = (this.currentUser.unique_badges || []).map(b => b.toUpperCase());
+            const isVIP = badges.some(b => b.includes('FUNDADOR') || b.includes('VIP') || b.includes('V.I.P'));
+            const msg = isVIP && this.currentUser.level < requirement.level ? `💎 Beneficio de VIP/Fundador activado` : '';
+
+            return { hasAccess: true, requiredLevel: requirement.level, message: msg };
         }
 
         return {
@@ -1705,8 +1845,18 @@ const store = {
         catch (err) { return { success: false, msg: "Error al enviar correo." }; }
     },
 
-    // MÉTODO CANÓNICO para activación de cuenta Y password reset
-    // Ambos usan el mismo endpoint de PocketBase: confirmPasswordReset
+    // MÉTODO para PASSWORD RESET (Hotfix Feb 11)
+    async confirmPasswordReset(token, password, userOrEmail) {
+        try {
+            await pb.collection('users').confirmPasswordReset(token, password, password);
+        } catch (err) {
+            console.error("Token Reset Error:", err);
+            return { success: false, msg: "El link de recuperación es inválido o ha expirado." };
+        }
+        return await this.login(userOrEmail, password);
+    },
+
+    // MÉTODO para ACTIVACIÓN DE CUENTA (Password inicial)
     async confirmResetPassword(token, password, userOrEmail) {
         // 1. Confirmar el cambio de contraseña via PocketBase
         try {
