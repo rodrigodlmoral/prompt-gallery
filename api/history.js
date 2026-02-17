@@ -33,7 +33,7 @@ export default async function handler(req, res) {
         // Buscamos donde sea remitente o destinatario
         const ledgerRecords = await pbAdmin.collection('ledger').getList(1, 50, {
             filter: `from_user = "${uid}" || to_user = "${uid}"`,
-            sort: '-created',
+            sort: '-updated',
             expand: 'from_user,to_user'
         });
 
@@ -41,7 +41,7 @@ export default async function handler(req, res) {
         // Como somos Admin, podemos ver TODO, así que filtramos explícitamente por el UID
         const logRecords = await pbAdmin.collection('activity_logs').getList(1, 50, {
             filter: `(user = "${uid}" || details.recipientId = "${uid}") && action = "copy_milestone_bonus"`,
-            sort: '-created'
+            sort: '-updated'
         });
 
         // 6. Formatear y Fusionar
@@ -50,6 +50,7 @@ export default async function handler(req, res) {
         // A) Ledger
         ledgerRecords.items.forEach(rec => {
             const isSender = rec.from_user === uid;
+            const txDate = rec.created || rec.updated;
 
             if (rec.type === 'TIP' || rec.type === 'PURCHASE' || rec.type === 'FEE') {
                 if (isSender) {
@@ -58,7 +59,7 @@ export default async function handler(req, res) {
                         type: 'sent',
                         amount: -rec.amount,
                         description: rec.description || `Enviado a @${toName}`,
-                        date: rec.created,
+                        date: txDate,
                         icon: '📤',
                         id: rec.id
                     });
@@ -68,17 +69,41 @@ export default async function handler(req, res) {
                         type: 'received',
                         amount: rec.amount,
                         description: rec.description || `Recibido de @${fromName}`,
-                        date: rec.created,
+                        date: txDate,
                         icon: '📥',
                         id: rec.id
                     });
                 }
+            } else if (rec.type === 'POST_REWARD') {
+                transactions.push({
+                    type: 'income',
+                    amount: rec.amount,
+                    description: rec.description || 'Publicación',
+                    date: txDate,
+                    icon: '🖼️',
+                    id: rec.id,
+                    from: 'Sistema'
+                });
+            } else if (rec.type === 'LEVEL_UP') {
+                transactions.push({
+                    type: 'income',
+                    amount: rec.amount,
+                    description: rec.description || 'Bono de Nivel',
+                    date: txDate,
+                    icon: '✨',
+                    id: rec.id,
+                    from: 'Sistema'
+                });
             } else {
+                const partnerName = isSender
+                    ? (rec.expand?.to_user?.username || 'Usuario')
+                    : (rec.expand?.from_user?.username || 'Sistema');
+
                 transactions.push({
                     type: isSender ? 'expense' : 'income',
                     amount: isSender ? -rec.amount : rec.amount,
-                    description: rec.description || 'Transacción',
-                    date: rec.created,
+                    description: rec.description || (isSender ? `Enviado a @${partnerName}` : `Recibido de @${partnerName}`),
+                    date: txDate,
                     icon: isSender ? '📉' : '📈',
                     id: rec.id
                 });
@@ -88,11 +113,12 @@ export default async function handler(req, res) {
         // B) Logs (Bonos)
         logRecords.items.forEach(log => {
             const details = log.details || {};
+            const logDate = log.created || log.updated;
             transactions.push({
                 type: 'bonus',
                 amount: details.bonus || 0,
                 description: `🎉 Milestone: ${details.copies} copias`,
-                date: log.created,
+                date: logDate,
                 icon: '🏆',
                 id: log.id
             });
