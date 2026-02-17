@@ -9,6 +9,12 @@ import './LiveChat.css';
  * Real-time global chat using PocketBase SSE
  */
 export const initLiveChat = () => {
+    // 0. Comprobación de Usuario (Solo visible para usuarios logueados)
+    if (!store.currentUser) {
+        console.log('🕵️‍♂️ Visitante detectado: Chat Global oculto.');
+        return;
+    }
+
     // 1. Create HTML Structure
     const chatContainer = document.createElement('div');
     chatContainer.id = 'live-chat-container';
