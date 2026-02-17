@@ -150,14 +150,20 @@ const store = {
 
     async init() {
         if (pb.authStore.isValid && pb.authStore.model) {
-            await this._loadUserProfile(pb.authStore.model.id);
+            // Carga de perfil no bloquea el inicio
+            this._loadUserProfile(pb.authStore.model.id);
         }
 
-        // 1. CARGA MAESTRA PARA ANÁLISIS (Todos los posts para que los Tops calculen bien)
-        await this.loadAllPromptsForAnalysis();
+        console.log("[STORE] ⚡ Iniciando Carga Optimizada...");
 
-        // 2. CARGA INICIAL PARA GALERÍA (Primeros 60)
-        await this.loadPrompts(true);
+        // Lanzamos procesos en paralelo
+        const [galleryResult, analysisResult] = await Promise.allSettled([
+            this.loadPrompts(true), // Prioridad 1: Que el usuario vea posts
+            this.loadAllPromptsForAnalysis() // Prioridad 2: Cálculo de Tops en background
+        ]);
+
+        if (galleryResult.status === 'rejected') console.error("❌ Gallery Load Error:", galleryResult.reason);
+        if (analysisResult.status === 'rejected') console.warn("⚠️ Analysis Load Error:", analysisResult.reason);
 
         await this.getPublicStats();
         this.trackVisit();
