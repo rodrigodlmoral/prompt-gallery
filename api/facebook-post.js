@@ -28,21 +28,22 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing prompt data' });
         }
 
-        const VERSION = "v4.3-FINAL-FIX-READY";
+        const VERSION = "v4.3.1-TOKEN-DEBUG-TRIM";
         console.log(`[FB_SYNC] Debug Recibido: "${prompt.title}" | Rating: "${prompt.rating}" | ID: ${prompt.id}`);
         console.log(`[FB_SYNC] API Version: ${VERSION} | Time: ${new Date().toISOString()}`);
 
-        // 2. Extraer credenciales desde variables de entorno de Vercel
-        const PAGE_ID = process.env.FB_PAGE_ID;
-        const ACCESS_TOKEN = process.env.FB_PAGE_ACCESS_TOKEN;
+        // 2. Extraer credenciales desde variables de entorno de Vercel (con limpieza robusta)
+        const PAGE_ID = (process.env.FB_PAGE_ID || '').trim();
+        const ACCESS_TOKEN = (process.env.FB_PAGE_ACCESS_TOKEN || '').trim();
 
         if (!PAGE_ID || !ACCESS_TOKEN) {
             console.error('[FB_SYNC] Missing FB credentials in environment variables.');
             return res.status(500).json({ error: 'System not configured for Facebook Auto-Post' });
         }
 
-        // Diagnóstico de formato (sin exponer credenciales completas)
-        console.log(`[FB_SYNC] PAGE_ID: ${PAGE_ID.substring(0, 4)}... | Token: ${ACCESS_TOKEN.substring(0, 7)}...`);
+        // Diagnóstico de formato (debug profundo para "Decryption Error")
+        console.log(`[FB_SYNC] Token Analysis: Length=${ACCESS_TOKEN.length} | Start=${ACCESS_TOKEN.substring(0, 5)}... | End=...${ACCESS_TOKEN.substring(ACCESS_TOKEN.length - 5)}`);
+        console.log(`[FB_SYNC] Page ID: ${PAGE_ID}`);
 
         // --- DIAGNÓSTICO DE TOKEN ---
         try {
