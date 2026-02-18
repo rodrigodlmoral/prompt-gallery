@@ -45,6 +45,7 @@ export const setupLevelModals = () => {
                 </style>
                 ${bgHtml}
                 <div class="level-up-card" onclick="event.stopPropagation()">
+                    <span style="display:none">v4.8.2-DEBUG</span>
                     
                     <!-- Botón X de Cierre -->
                     <button onclick="document.getElementById('levelUpModalCanvas').remove()" style="position:absolute; top:20px; right:20px; background:transparent; border:none; color:rgba(255,255,255,0.5); font-size:2rem; cursor:pointer; line-height:1; padding:10px; transition:color 0.2s" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">×</button>
