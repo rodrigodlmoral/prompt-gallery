@@ -625,11 +625,6 @@ const store = {
                 added_by: promptRecord.author || this.currentUser?.id
             });
             console.log(`[FB_SYNC] ✅ Añadido a la cola correctamente: ${promptRecord.title}`);
-
-            // Notificar al admin si está presente
-            if (this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.username === 'rodrigodlmoral')) {
-                if (window.showToast) window.showToast(`📘 Encolado para Facebook: ${promptRecord.title}`, "info");
-            }
         } catch (error) {
             console.error('[FB_SYNC] ❌ Error al encolar:', error);
         }
