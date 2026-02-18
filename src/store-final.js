@@ -609,9 +609,6 @@ const store = {
         }
     },
 
-    /**
-     * Puente para automatizar publicaciones en Facebook Page (Auto-Post)
-     */
     async _bridgeToFacebook(promptRecord) {
         if (!promptRecord) return;
 
@@ -619,36 +616,22 @@ const store = {
         const allowed = ['SFW / Apto', 'Sugestivo'];
         if (!allowed.includes(promptRecord.rating)) return;
 
-        console.log('[FB_SYNC] Intentando sincronizar con Facebook...');
+        console.log('[FB_SYNC] 🚧 Desviando a Cola de Publicación Automatizada...');
 
         try {
-            const response = await fetch('/api/facebook-post', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: promptRecord })
+            await pb.collection('facebook_queue').create({
+                prompt: promptRecord.id,
+                status: 'pending',
+                added_by: promptRecord.author || this.currentUser?.id
             });
+            console.log(`[FB_SYNC] ✅ Añadido a la cola correctamente: ${promptRecord.title}`);
 
-            const result = await response.json();
-
-            if (response.ok && result.success) {
-                console.log(`[FB_SYNC] ✅ Publicado con éxito. ID: ${result.id}`);
-                // Opcional: Toast sutil para el admin
-                if (this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.username === 'rodrigodlmoral')) {
-                    if (window.toast) window.toast(`📱 Facebook Auto-Post: ¡Éxito! (ID: ${result.id})`, "success");
-                }
-            } else if (result.skipped) {
-                console.log(`[FB_SYNC] ℹ️ Publicación omitida: ${result.message} (${result.debugRating})`);
-            } else {
-                console.error('[FB_SYNC] ❌ Fallo en la sincronización:', result.details || result.error || result);
-                // Alerta crítica para el admin si falla por permisos o token
-                if (this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.username === 'rodrigodlmoral')) {
-                    const errorMsg = result.details || result.error || "Revisa las credenciales en Vercel.";
-                    const code = result.fb_code ? ` (Cod ${result.fb_code})` : "";
-                    if (window.toast) window.toast(`⚠️ Facebook Error: ${errorMsg}${code}`, "error");
-                }
+            // Notificar al admin si está presente
+            if (this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.username === 'rodrigodlmoral')) {
+                if (window.showToast) window.showToast(`📘 Encolado para Facebook: ${promptRecord.title}`, "info");
             }
         } catch (error) {
-            console.error('[FB_SYNC] ❌ Error de red o servidor:', error);
+            console.error('[FB_SYNC] ❌ Error al encolar:', error);
         }
     },
 
