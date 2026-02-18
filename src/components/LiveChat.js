@@ -330,7 +330,7 @@ export const initLiveChat = () => {
                             <img src="${thumbUrl}" class="share-thumb ${blurClass}" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
                             ${overlayHtml}
                         </div>
-                        <div class="share-name">${meta.title || 'Untitled Prompt'} <span style="font-size:0.6rem; color:#aaa">(${rating})</span></div>
+                        <div class="share-name">${meta.title || 'Untitled Prompt'}</div>
                         <div class="share-click-hint">Click para ver detalle</div>
                     </div>
                 </div>
