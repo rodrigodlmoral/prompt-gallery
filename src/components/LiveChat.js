@@ -301,7 +301,17 @@ export const initLiveChat = () => {
             const thumbUrl = meta.thumb || 'https://via.placeholder.com/300x200?text=Cargando...';
 
             // NSFW Check
-            const rating = meta.rating || 'SFW / Apto';
+            let rating = meta.rating;
+
+            // Fallback: Try to find real-time data in store if metadata is missing (Old posts)
+            if (!rating) {
+                const p = store.findPrompt(meta.promptId);
+                if (p && p.rating) rating = p.rating;
+            }
+
+            // Final fallback
+            rating = rating || 'SFW / Apto';
+
             const { applyBlur, warningLabel } = store.getModeration({ rating });
 
             const blurClass = applyBlur ? 'blurred' : '';
