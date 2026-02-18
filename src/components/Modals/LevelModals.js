@@ -36,31 +36,27 @@ export const setupLevelModals = () => {
             const animDelay = Math.random() * 2;
             const dur = 3 + Math.random() * 3;
             const emoji = bgEmojis[Math.floor(Math.random() * bgEmojis.length)];
-            bgHtml += `<div style="position:absolute; top:-10%; left:${left}%; font-size:${1 + Math.random()}rem; animation: fall-celeb ${dur}s linear infinite; animation-delay:-${animDelay}s; opacity:0.6; user-select:none; pointer-events:none; z-index:10;">${emoji}</div>`;
+            bgHtml += `<div style="position:absolute; top:-10%; left:${left}%; font-size:${0.8 + Math.random()}rem; animation: fall-celeb ${dur}s linear infinite; animation-delay:-${animDelay}s; opacity:0.8; user-select:none; pointer-events:none; z-index:5;">${emoji}</div>`;
         }
 
         const modalHtml = `
-            <div id="levelUpModalCanvas" style="position:fixed !important; top:0 !important; left:0 !important; right:0 !important; bottom:0 !important; width:100vw !important; height:100vh !important; background:rgba(0,0,0,0.96) !important; backdrop-filter:blur(25px) !important; -webkit-backdrop-filter:blur(25px) !important; z-index:2147483647 !important; display:flex !important; align-items:center !important; justify-content:center !important; margin:0 !important; padding:20px !important; pointer-events:all !important; color:white !important; font-family: 'Inter', sans-serif !important; box-sizing: border-box !important;">
+            <div id="levelUpModalCanvas" style="position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important; background:rgba(0,0,0,0.96) !important; backdrop-filter:blur(20px) !important; -webkit-backdrop-filter:blur(20px) !important; z-index:2147483647 !important; display:flex !important; align-items:center !important; justify-content:center !important; margin:0 !important; padding:10px !important; pointer-events:all !important; color:white !important; font-family: 'Inter', sans-serif !important; box-sizing: border-box !important;">
                 <style>
                     @keyframes fall-celeb {
                         0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; }
-                        10% { opacity: 0.6; }
-                        90% { opacity: 0.6; }
+                        10% { opacity: 0.8; }
+                        90% { opacity: 0.8; }
                         100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
                     }
                     .level-up-card {
-                        position:relative !important; width:95% !important; max-width:480px !important; 
-                        max-height: calc(100vh - 40px) !important; overflow-y: auto !important;
-                        background:rgba(18,18,18,0.98) !important; 
-                        border:2px solid gold !important; border-radius:32px !important; padding:40px 30px !important; 
-                        box-shadow:0 0 120px rgba(255,215,0,0.4) !important; text-align:center !important; 
-                        animation: popInCeleb 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+                        position:relative !important; width:92% !important; max-width:350px !important; 
+                        background:rgba(20,20,20,0.98) !important; 
+                        border:2px solid gold !important; border-radius:24px !important; padding:25px 20px !important; 
+                        box-shadow:0 0 80px rgba(255,215,0,0.3) !important; text-align:center !important; 
+                        animation: popInCeleb 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
                         z-index: 1000 !important;
                         margin: auto !important;
-                        scrollbar-width: none; /* Firefox */
                     }
-                    .level-up-card::-webkit-scrollbar { display: none; } /* Chrome/Safari */
-                    
                     @keyframes popInCeleb {
                         from { transform: scale(0.7); opacity: 0; }
                         to { transform: scale(1); opacity: 1; }
@@ -70,22 +66,22 @@ export const setupLevelModals = () => {
                 <div class="level-up-card" onclick="event.stopPropagation()">
                     
                     <!-- Botón X de Cierre -->
-                    <button onclick="window.closeLevelUpModal()" style="position:absolute !important; top:15px !important; right:15px !important; background:rgba(255,255,255,0.08) !important; border:none !important; color:white !important; font-size:1.5rem !important; cursor:pointer !important; line-height:1 !important; width:40px !important; height:40px !important; border-radius:50% !important; display:flex !important; align-items:center !important; justify-content:center !important; transition:all 0.2s !important; z-index:1100 !important;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">×</button>
+                    <button onclick="window.closeLevelUpModal()" style="position:absolute !important; top:12px !important; right:12px !important; background:rgba(255,255,255,0.08) !important; border:none !important; color:white !important; font-size:1.2rem !important; cursor:pointer !important; line-height:1 !important; width:32px !important; height:32px !important; border-radius:50% !important; display:flex !important; align-items:center !important; justify-content:center !important; transition:all 0.2s !important; z-index:1100 !important;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">×</button>
 
                     <div class="level-up-content">
-                        <div style="font-size:4.5rem !important; margin-bottom:15px !important; filter: drop-shadow(0 0 15px gold) !important;">${lvlInfo.icon}</div>
-                        <div style="color:gold !important; font-weight:900 !important; letter-spacing:4px !important; font-size:0.8rem !important; margin-bottom:10px !important; opacity:0.9">¡NIVEL DESBLOQUEADO!</div>
-                        <h2 style="font-size:2rem !important; color:white !important; margin-bottom:5px !important; font-weight:900 !important; line-height:1.2 !important">Alcanzaste el Nivel ${newLevel}</h2>
-                        <h3 style="color:#aaa !important; text-transform:uppercase !important; letter-spacing:3px !important; margin-bottom:20px !important; font-size:0.9rem !important">${lvlInfo.name}</h3>
+                        <div style="font-size:3.5rem !important; margin-bottom:10px !important; filter: drop-shadow(0 0 10px gold) !important;">${lvlInfo.icon}</div>
+                        <div style="color:gold !important; font-weight:900 !important; letter-spacing:3px !important; font-size:0.65rem !important; margin-bottom:8px !important; opacity:0.9">¡NIVEL DESBLOQUEADO!</div>
+                        <h2 style="font-size:1.6rem !important; color:white !important; margin-bottom:4px !important; font-weight:900 !important; line-height:1.2 !important">Alcanzaste el Nivel ${newLevel}</h2>
+                        <h3 style="color:#aaa !important; text-transform:uppercase !important; letter-spacing:2px !important; margin-bottom:15px !important; font-size:0.75rem !important">${lvlInfo.name}</h3>
 
-                        <div style="background:rgba(255,255,255,0.03) !important; padding:20px !important; border-radius:24px !important; margin-bottom:25px !important; text-align:left !important; border:1px solid rgba(255,215,0,0.15) !important">
-                            <div style="font-weight:900 !important; margin-bottom:12px !important; color:gold !important; font-size:0.85rem !important; text-transform:uppercase !important; letter-spacing:1px !important">Beneficios Desbloqueados:</div>
-                            <ul style="padding-left:18px !important; margin:0 !important; color:#ccc !important; line-height:1.6 !important; font-size:0.95rem !important">
-                                ${lvlInfo.benefits.map(b => `<li style="margin-bottom:6px !important">${b}</li>`).join('')}
+                        <div style="background:rgba(255,255,255,0.03) !important; padding:15px !important; border-radius:18px !important; margin-bottom:20px !important; text-align:left !important; border:1px solid rgba(255,215,0,0.15) !important">
+                            <div style="font-weight:900 !important; margin-bottom:10px !important; color:gold !important; font-size:0.75rem !important; text-transform:uppercase !important; letter-spacing:1px !important">Beneficios:</div>
+                            <ul style="padding-left:15px !important; margin:0 !important; color:#ccc !important; line-height:1.5 !important; font-size:0.85rem !important">
+                                ${lvlInfo.benefits.map(b => `<li style="margin-bottom:4px !important">${b}</li>`).join('')}
                             </ul>
                         </div>
 
-                        <button class="btn" onclick="window.closeLevelUpModal()" style="width:100% !important; font-size:1.1rem !important; font-weight:1000 !important; background:linear-gradient(135deg, #ffd700, #ffae00) !important; color:black !important; border:none !important; padding:18px !important; border-radius:18px !important; cursor:pointer !important; box-shadow:0 12px 30px rgba(255,215,0,0.3) !important; transition:all 0.3s !important;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 15px 35px rgba(255,215,0,0.5)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 12px 30px rgba(255,215,0,0.3)'">
+                        <button class="btn" onclick="window.closeLevelUpModal()" style="width:100% !important; font-size:0.95rem !important; font-weight:1000 !important; background:linear-gradient(135deg, #ffd700, #ffae00) !important; color:black !important; border:none !important; padding:15px !important; border-radius:14px !important; cursor:pointer !important; box-shadow:0 8px 25px rgba(255,215,0,0.25) !important; transition:all 0.3s !important;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 30px rgba(255,215,0,0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 25px rgba(255,215,0,0.25)'">
                             ¡GENIAL, A SEGUIR! 🚀
                         </button>
                     </div>
