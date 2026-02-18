@@ -23,18 +23,28 @@ export const setupLevelModals = () => {
         }
 
         const modalHtml = `
-            <div id="levelUpModalCanvas">
+            <div id="levelUpModalCanvas" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(10px); z-index:2147483647; display:flex; align-items:center; justify-content:center; overflow:hidden;">
                 <style>
                     @keyframes fall {
                         0% { transform: translateY(-10vh) rotate(0deg); }
                         100% { transform: translateY(110vh) rotate(360deg); }
                     }
+                    .level-up-card {
+                        position:relative; width:90%; max-width:500px; background:rgba(0,0,0,0.95); 
+                        border:2px solid gold; border-radius:24px; padding:40px; 
+                        box-shadow:0 0 80px rgba(255,215,0,0.4); text-align:center; 
+                        animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    }
+                    @keyframes popIn {
+                        from { transform: scale(0.8); opacity: 0; }
+                        to { transform: scale(1); opacity: 1; }
+                    }
                 </style>
                 ${bgHtml}
-                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; background:rgba(0,0,0,0.95); border:2px solid gold; border-radius:24px; padding:40px; box-shadow:0 0 80px rgba(255,215,0,0.4); z-index:20; text-align:center; backdrop-filter:blur(10px); position:relative;">
+                <div class="level-up-card" onclick="event.stopPropagation()">
                     
                     <!-- Botón X de Cierre -->
-                    <button onclick="this.closest('#levelUpModalCanvas').remove()" style="position:absolute; top:20px; right:20px; background:transparent; border:none; color:rgba(255,255,255,0.5); font-size:2rem; cursor:pointer; line-height:1; padding:10px; transition:color 0.2s" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">×</button>
+                    <button onclick="document.getElementById('levelUpModalCanvas').remove()" style="position:absolute; top:20px; right:20px; background:transparent; border:none; color:rgba(255,255,255,0.5); font-size:2rem; cursor:pointer; line-height:1; padding:10px; transition:color 0.2s" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">×</button>
 
                     <div class="level-up-content">
                         <div style="font-size:5rem; margin-bottom:20px; filter: drop-shadow(0 0 10px gold)">${lvlInfo.icon}</div>
@@ -49,7 +59,7 @@ export const setupLevelModals = () => {
                             </ul>
                         </div>
 
-                        <button class="btn" onclick="this.closest('#levelUpModalCanvas').remove()" style="width:100%; font-size:1.2rem; font-weight:900; background:linear-gradient(135deg, #ffd700, #ffae00); color:black; border:none; padding:18px; border-radius:14px; cursor:pointer; box-shadow:0 10px 25px rgba(255,215,0,0.4); transition:transform 0.2s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                        <button class="btn" onclick="document.getElementById('levelUpModalCanvas').remove()" style="width:100%; font-size:1.2rem; font-weight:900; background:linear-gradient(135deg, #ffd700, #ffae00); color:black; border:none; padding:18px; border-radius:14px; cursor:pointer; box-shadow:0 10px 25px rgba(255,215,0,0.4); transition:transform 0.2s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
                             ¡GENIAL! ✨
                         </button>
                     </div>
