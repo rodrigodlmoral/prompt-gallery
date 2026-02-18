@@ -133,6 +133,9 @@ export const initLiveChat = () => {
                 const record = await pb.collection('chat_presence').create(data);
                 presenceRecordId = record.id;
             }
+
+            // Refrescar conteo tras latido exitoso
+            fetchOnlineCount();
         } catch (err) {
             // Silenciamos logs de error 404/403 si la sesión expiró o similar
             if (err.status !== 404 && err.status !== 403) {
@@ -147,10 +150,10 @@ export const initLiveChat = () => {
 
     async function fetchOnlineCount() {
         try {
-            // Contar usuarios que han sido vistos en los últimos 60 segundos
-            const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+            // Aumentamos margen a 5 minutos para evitar fallos por clock drift entre cliente y servidor
+            const fiveMinutesAgo = new Date(Date.now() - (5 * 60000)).toISOString();
             const result = await pb.collection('chat_presence').getList(1, 1, {
-                filter: `last_seen > "${oneMinuteAgo}"`,
+                filter: `last_seen > "${fiveMinutesAgo}"`,
                 requestKey: null // Evitar cancelaciones automáticas
             });
 
@@ -165,6 +168,7 @@ export const initLiveChat = () => {
                 }
                 lastPresenceCount = count;
             }
+            console.log(`[PRESENCE] Online Count Updated: ${count} (Threshold: 5min)`);
         } catch (err) {
             console.warn('⚠️ Error al obtener contador online:', err);
         }
