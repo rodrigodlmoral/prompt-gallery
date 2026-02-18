@@ -105,12 +105,12 @@ export default async function handler(req, res) {
         }
 
         // --- APLICAR MARCA DE AGUA (Cloudinary Only) ---
-        // Texto: PROMPT-GALLERY.APP | Fuente: Arial | Tamaño: 40 | Color: Blanco | Borde: Negro | Posición: Abajo al centro
+        // Texto: PROMPT-GALLERY.APP | Fuente: Arial | Tamaño: 45 | Color: Blanco | Posición: Abajo al centro
         if (targetImg.includes('cloudinary.com') && targetImg.includes('/upload/')) {
-            // Transformación: overlay texto, gravedad sur, margen Y 20, color blanco, borde negro 3px
-            const watermarkTransform = 'l_text:Arial_45_bold:PROMPT-GALLERY.APP,co_white,bo_4px_solid_black,g_south,y_30/';
+            // Transformación: overlay texto, gravedad sur, margen Y 30, color blanco
+            const watermarkTransform = 'l_text:Arial_45_bold:PROMPT-GALLERY.APP,co_white,g_south,y_30/';
             targetImg = targetImg.replace('/upload/', `/upload/${watermarkTransform}`);
-            console.log(`[FB_SYNC] Watermark applied: ${targetImg}`);
+            console.log(`[FB_SYNC] Watermark applied (Text only): ${targetImg}`);
         } else {
             console.log('[FB_SYNC] Skipping watermark (Not a Cloudinary URL or incompatible format)');
         }
