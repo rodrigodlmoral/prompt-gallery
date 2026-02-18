@@ -44,7 +44,9 @@ const AdminLayout = () => `
                 <span style="font-size:2.5rem">👑</span>
                 <div>
                     <h1 style="color:gold; margin:0; font-size:1.8rem">Panel de Administración</h1>
-                    <p style="color:#666; margin:5px 0 0 0">Gestión total de Prompt Gallery</p>
+                    <p style="color:#666; margin:5px 0 0 0">Gestión// Admin Panel - Prompt Gallery
+// v4.7.1: FB Queue Fix confirmed 🚀
+ total de Prompt Gallery</p>
                 </div>
             </div>
             <a href="/" class="btn-outline" style="text-decoration:none; padding:10px 20px">Volver a la Galería</a>
