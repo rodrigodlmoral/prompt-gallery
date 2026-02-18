@@ -40,7 +40,7 @@ export const setupLevelModals = () => {
         }
 
         const modalHtml = `
-            <div id="levelUpModalCanvas" style="position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; background:rgba(0,0,0,0.9) !important; backdrop-filter:blur(15px) !important; -webkit-backdrop-filter:blur(15px) !important; z-index:999999999 !important; display:flex !important; align-items:center !important; justify-content:center !important; overflow:hidden !important; pointer-events:all !important; touch-action:none !important;">
+            <div id="levelUpModalCanvas" style="position:fixed !important; inset:0 !important; width:100% !important; height:100% !important; background:rgba(0,0,0,0.92) !important; backdrop-filter:blur(20px) !important; -webkit-backdrop-filter:blur(20px) !important; z-index:2147483647 !important; display:flex !important; align-items:center !important; justify-content:center !important; margin:0 !important; padding:0 !important; pointer-events:all !important;">
                 <style>
                     @keyframes fall {
                         0% { transform: translateY(-10vh) rotate(0deg); }
@@ -49,10 +49,10 @@ export const setupLevelModals = () => {
                     .level-up-card {
                         position:relative; width:90%; max-width:500px; background:rgba(15,15,15,0.98); 
                         border:2px solid gold; border-radius:28px; padding:45px 35px; 
-                        box-shadow:0 0 100px rgba(255,215,0,0.4); text-align:center; 
+                        box-shadow:0 0 100px rgba(255,215,0,0.5); text-align:center; 
                         animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                         z-index: 1000;
-                        pointer-events: all !important;
+                        margin: auto !important;
                     }
                     @keyframes popIn {
                         from { transform: scale(0.7); opacity: 0; }
@@ -63,7 +63,7 @@ export const setupLevelModals = () => {
                 <div class="level-up-card" onclick="event.stopPropagation()">
                     
                     <!-- Botón X de Cierre -->
-                    <button onclick="window.closeLevelUpModal()" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.05); border:none; color:white; font-size:1.8rem; cursor:pointer; line-height:1; width:45px; height:45px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition:all 0.2s; z-index:1100;" onmouseover="this.style.background='rgba(255,0,0,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">×</button>
+                    <button onclick="window.closeLevelUpModal()" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.1); border:none; color:white; font-size:1.8rem; cursor:pointer; line-height:1; width:45px; height:45px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition:all 0.2s; z-index:1100;" onmouseover="this.style.background='rgba(255,0,0,0.4)'; this.style.color='white'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.color='white'">×</button>
 
                     <div class="level-up-content">
                         <div style="font-size:5.5rem; margin-bottom:20px; filter: drop-shadow(0 0 15px gold)">${lvlInfo.icon}</div>
@@ -73,7 +73,7 @@ export const setupLevelModals = () => {
 
                         <div style="background:rgba(255,255,255,0.03); padding:25px; border-radius:20px; margin-bottom:30px; text-align:left; border:1px solid rgba(255,215,0,0.15)">
                             <div style="font-weight:900; margin-bottom:15px; color:gold; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px">Beneficios Desbloqueados:</div>
-                            <ul style="padding-left:20px; margin:0; color:#ddd; line-height:1.7; font-size:1rem">
+                            <ul style="padding-left:20px; margin:0; color:#ccc; line-height:1.7; font-size:1rem">
                                 ${lvlInfo.benefits.map(b => `<li style="margin-bottom:8px">${b}</li>`).join('')}
                             </ul>
                         </div>
