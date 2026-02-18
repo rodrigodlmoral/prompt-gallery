@@ -318,7 +318,7 @@ const Header = () => `
             <div class="search-bar search-desktop" style="position:relative">
                 <!-- Trap for Chrome Autofill -->
                 <input type="password" style="display:none" autocomplete="new-password">
-                <input type="text" class="search-input" id="searchInput" placeholder="Buscar..." value="${searchQuery}" autocomplete="chrome-off-v3" spellcheck="false" name="prof_find_v${Date.now()}">
+                <input type="text" class="search-input" id="searchInput" placeholder="${store.currentUser?.username === profileUser ? 'Buscar en MIS prompts... 👤' : 'Buscar en este perfil... 🎯'}" value="${searchQuery}" autocomplete="chrome-off-v3" spellcheck="false" name="prof_find_v${Date.now()}">
                 <div id="search-suggestions-mount"></div>
             </div>
             ` : ''}
@@ -2620,10 +2620,6 @@ const init = async () => {
             // 2. CARGA INICIAL PARA GALERÍA (Primeros 60)
             const filter = `author = "${user.id}"`;
             await store.loadPrompts(true, filter);
-
-            // 3. CARGA GLOBAL DE USUARIOS (Background)
-            // Para que el buscador funcione con todos los usuarios, no solo el perfil actual
-            store.loadGlobalUsers().then(() => console.log("[PROFILE] 🌍 Global users loaded for search."));
         }
     }
     window.initDone = true;

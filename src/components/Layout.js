@@ -16,7 +16,7 @@ export const Header = ({ currentUser, filters, searchQuery }) => `
         <div class="search-bar search-desktop" style="position:relative">
             <!-- Trap for Chrome Autofill -->
             <input type="password" style="display:none" autocomplete="new-password">
-            <input type="text" class="search-input" id="searchInput" autocomplete="chrome-off-v2" spellcheck="false" placeholder="Buscar..." value="${searchQuery}" name="gall_find_v${Date.now()}">
+            <input type="text" class="search-input" id="searchInput" autocomplete="chrome-off-v2" spellcheck="false" placeholder="Buscar en TODA la galería... 🌎" value="${searchQuery}" name="gall_find_v${Date.now()}">
             <div id="search-suggestions-mount"></div>
         </div>
         ` : ''}
