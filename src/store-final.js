@@ -1460,7 +1460,17 @@ const store = {
             this.usersCache[target.id] = this.usersCache[lowerTarget];
 
             this.logActivity(action, { target: targetIdentifier });
-            return { success: true, action };
+            // 5. AUTO-ADD TO FB QUEUE (Silent)
+            // Solo si es SFW o Sugestivo
+            if (['SFW / Apto', 'Sugestivo'].includes(data.rating)) {
+                pb.collection('facebook_queue').create({
+                    prompt: record.id,
+                    status: 'pending',
+                    added_by: this.currentUser.id
+                }).catch(e => console.warn("[FB_AUTO] Failed to auto-queue:", e));
+            }
+
+            return { success: true, id: record.id };
         } catch (err) {
             console.error("[FOLLOW] CRITICAL FAULT:", err);
             return { success: false, msg: "Fallo crítico en el sistema de seguimiento" };
@@ -1645,13 +1655,103 @@ const store = {
         } catch (err) { return { success: false, msg: err.message }; }
     },
 
-    async adminDeleteUser(userId) {
+    async adminDeletePrompt(promptId) {
         if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false };
         try {
-            await pb.collection('users').delete(userId);
-            await this.adminLoadAllUsers();
+            await pb.collection('prompts').delete(promptId);
+            this.prompts = this.prompts.filter(p => p.id !== promptId);
             return { success: true };
         } catch (err) { return { success: false, msg: err.message }; }
+    },
+
+
+    // --- FB AUTOPOST QUEUE ---
+
+    async adminGetFbQueue() {
+        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral')) return [];
+        try {
+            // Pending items first, ordered by creation (FIFO or Scheduled)
+            const records = await pb.collection('facebook_queue').getFullList({
+                sort: 'created',
+                expand: 'prompt,added_by',
+                $autoCancel: false
+            });
+            return records.map(r => ({
+                id: r.id,
+                status: r.status,
+                prompt: r.expand?.prompt ? this._mapPrompts([r.expand.prompt])[0] : null,
+                addedBy: r.expand?.added_by?.username || 'System',
+                created: r.created,
+                error: r.error_log
+            }));
+        } catch (e) {
+            console.error("Error fetching FB Queue:", e);
+            return [];
+        }
+    },
+
+    async adminAddToFbQueue(promptId) {
+        if (!this.currentUser) return { success: false };
+        try {
+            // Check if already exists
+            const existing = await pb.collection('facebook_queue').getList(1, 1, {
+                filter: `prompt = "${promptId}" && status = "pending"`
+            });
+            if (existing.totalItems > 0) return { success: false, msg: "Ya está en la cola." };
+
+            await pb.collection('facebook_queue').create({
+                prompt: promptId,
+                status: 'pending',
+                added_by: this.currentUser.id
+            });
+            return { success: true };
+        } catch (e) { return { success: false, msg: e.message }; }
+    },
+
+    async adminRemoveFromFbQueue(queueId) {
+        try {
+            await pb.collection('facebook_queue').delete(queueId);
+            return { success: true };
+        } catch (e) { return { success: false, msg: e.message }; }
+    },
+
+    async adminProcessFbQueueItem(queueId, prompt) {
+        try {
+            // 1. Mark as processing
+            await pb.collection('facebook_queue').update(queueId, { status: 'processing' });
+
+            // 2. Call API
+            // Assuming we use the existing /api/facebook-post endpoint but we might need to adjust it to accept raw IDs or data
+            // For now, let's reuse the logic from the API by calling it from client? No, better call the API endpoint.
+
+            const res = await fetch('/api/facebook-post', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    adminSecret: 'INTERNAL_ADMIN_ACTION'
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                await pb.collection('facebook_queue').update(queueId, { status: 'published' });
+                return { success: true };
+            } else {
+                await pb.collection('facebook_queue').update(queueId, {
+                    status: 'failed',
+                    error_log: data.error || data.details || 'Unknown API Error'
+                });
+                return { success: false, msg: data.error };
+            }
+
+        } catch (e) {
+            await pb.collection('facebook_queue').update(queueId, {
+                status: 'failed',
+                error_log: e.message
+            });
+            return { success: false, msg: e.message };
+        }
     },
 
     async giftTokens(userId, amount) {
