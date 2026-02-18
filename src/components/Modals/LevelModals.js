@@ -8,7 +8,10 @@ export const setupLevelModals = () => {
 
     // --- LEVEL UP MODAL (Success Celebration) ---
     window.showLevelUpModal = (newLevel) => {
-        // ... existing showLevelUpModal content (lines 7-52)
+        // Clean up any existing stale modal
+        const existing = document.getElementById('levelUpModalCanvas');
+        if (existing) existing.remove();
+
         const lvlInfo = LEVEL_REQS[newLevel] || LEVEL_REQS[0];
 
         // Simple Emojis for "Confetti" background

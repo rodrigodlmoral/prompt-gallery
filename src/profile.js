@@ -2053,52 +2053,6 @@ window.doPublish = () => {
     }
 };
 
-window.showLevelUpModal = (newLevel) => {
-    const lvlInfo = LEVEL_REQS[newLevel] || LEVEL_REQS[0];
-    const bgEmojis = ["✨", "🎉", "💎", "🎊", "🔥", "🚀", "🌟"];
-    let bgHtml = '';
-    for (let i = 0; i < 30; i++) {
-        const left = Math.random() * 100;
-        const animDelay = Math.random() * 2;
-        const dur = 3 + Math.random() * 3;
-        const emoji = bgEmojis[Math.floor(Math.random() * bgEmojis.length)];
-        bgHtml += `<div style="position:absolute; top:-10%; left:${left}%; font-size:${1 + Math.random()}rem; animation: fall ${dur}s linear infinite; animation-delay:-${animDelay}s; opacity:0.6; user-select:none;">${emoji}</div>`;
-    }
-
-    const modalHtml = `
-                        <div id="levelUpModalCanvas" onclick="this.remove()">
-                            <style>
-                                @keyframes fall {
-                                    0 % { transform: translateY(-10vh) rotate(0deg); }
-                100% {transform: translateY(110vh) rotate(360deg); }
-            }
-                            </style>
-                            ${bgHtml}
-                            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; background:rgba(0,0,0,0.9); border:2px solid gold; border-radius:20px; padding:40px; box-shadow:0 0 50px rgba(255,215,0,0.3); z-index:10000000;">
-                                <div class="level-up-content" style="text-align:center">
-                                    <div style="font-size:4rem; margin-bottom:10px">${lvlInfo.icon}</div>
-                                    <div style="font-size:1.5rem; font-weight:800; color:gold; margin-bottom:10px">¡NIVEL DESBLOQUEADO!</div>
-                                    <h2 style="font-size:1.5rem; color:white; margin-bottom:5px">Has alcanzado el Nivel ${newLevel}</h2>
-                                    <h3 style="color:#aaa; text-transform:uppercase; letter-spacing:2px; margin-bottom:20px">${lvlInfo.name}</h3>
-
-                                    <div style="text-align:left; background:rgba(255,255,255,0.05); padding:15px; border-radius:10px">
-                                        <div style="font-weight:bold; margin-bottom:10px; color:white">Nuevos Beneficios:</div>
-                                        <ul style="padding-left:20px; margin:0; color:#ddd">
-                                            ${lvlInfo.benefits.map(b => `<li>${b}</li>`).join('')}
-                                        </ul>
-                                    </div>
-
-                                    <button class="btn" onclick="this.closest('#levelUpModalCanvas').remove()" style="width:100%; font-size:1.2rem; font-weight:bold; background:gold; color:black; border:none; padding:15px; border-radius:10px; cursor:pointer; margin-top:20px; box-shadow:0 5px 15px rgba(255,215,0,0.4)">
-                                        ¡GENIAL!
-                                    </button>
-                                </div>
-                            </div>
-                        </div>`;
-
-    const div = document.createElement('div');
-    div.innerHTML = modalHtml;
-    document.body.appendChild(div.firstElementChild);
-};
 
 window.closeModals = () => {
     const modals = ['viewModal', 'settingsModal', 'confirmModal', 'createModal'];
