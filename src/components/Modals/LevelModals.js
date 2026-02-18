@@ -40,21 +40,21 @@ export const setupLevelModals = () => {
         }
 
         const modalHtml = `
-            <div id="levelUpModalCanvas" style="position:fixed !important; inset:0 !important; width:100% !important; height:100% !important; background:rgba(0,0,0,0.92) !important; backdrop-filter:blur(20px) !important; -webkit-backdrop-filter:blur(20px) !important; z-index:2147483647 !important; display:flex !important; align-items:center !important; justify-content:center !important; margin:0 !important; padding:0 !important; pointer-events:all !important;">
+            <div id="levelUpModalCanvas" style="position:fixed !important; top:0 !important; left:0 !important; right:0 !important; bottom:0 !important; width:100vw !important; height:100vh !important; background:rgba(0,0,0,0.95) !important; backdrop-filter:blur(15px) !important; -webkit-backdrop-filter:blur(15px) !important; z-index:2147483647 !important; display:flex !important; align-items:center !important; justify-content:center !important; margin:0 !important; padding:0 !important; pointer-events:all !important; color:white !important; font-family: 'Inter', sans-serif !important;">
                 <style>
-                    @keyframes fall {
+                    @keyframes fall-celeb {
                         0% { transform: translateY(-10vh) rotate(0deg); }
                         100% { transform: translateY(110vh) rotate(360deg); }
                     }
                     .level-up-card {
-                        position:relative; width:90%; max-width:500px; background:rgba(15,15,15,0.98); 
-                        border:2px solid gold; border-radius:28px; padding:45px 35px; 
-                        box-shadow:0 0 100px rgba(255,215,0,0.5); text-align:center; 
-                        animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                        z-index: 1000;
+                        position:relative !important; width:90% !important; max-width:500px !important; background:rgba(15,15,15,0.98) !important; 
+                        border:2px solid gold !important; border-radius:28px !important; padding:45px 35px !important; 
+                        box-shadow:0 0 100px rgba(255,215,0,0.5) !important; text-align:center !important; 
+                        animation: popInCeleb 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+                        z-index: 1000 !important;
                         margin: auto !important;
                     }
-                    @keyframes popIn {
+                    @keyframes popInCeleb {
                         from { transform: scale(0.7); opacity: 0; }
                         to { transform: scale(1); opacity: 1; }
                     }
@@ -63,31 +63,31 @@ export const setupLevelModals = () => {
                 <div class="level-up-card" onclick="event.stopPropagation()">
                     
                     <!-- Botón X de Cierre -->
-                    <button onclick="window.closeLevelUpModal()" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.1); border:none; color:white; font-size:1.8rem; cursor:pointer; line-height:1; width:45px; height:45px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition:all 0.2s; z-index:1100;" onmouseover="this.style.background='rgba(255,0,0,0.4)'; this.style.color='white'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.color='white'">×</button>
+                    <button onclick="window.closeLevelUpModal()" style="position:absolute !important; top:20px !important; right:20px !important; background:rgba(255,255,255,0.1) !important; border:none !important; color:white !important; font-size:1.8rem !important; cursor:pointer !important; line-height:1 !important; width:45px !important; height:45px !important; border-radius:50% !important; display:flex !important; align-items:center !important; justify-content:center !important; transition:all 0.2s !important; z-index:1100 !important;" onmouseover="this.style.background='rgba(255,0,0,0.4)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">×</button>
 
                     <div class="level-up-content">
-                        <div style="font-size:5.5rem; margin-bottom:20px; filter: drop-shadow(0 0 15px gold)">${lvlInfo.icon}</div>
-                        <div style="color:gold; font-weight:900; letter-spacing:5px; font-size:0.85rem; margin-bottom:12px">¡NIVEL DESBLOQUEADO!</div>
-                        <h2 style="font-size:2.4rem; color:white; margin-bottom:8px; font-weight:900; line-height:1.1">Alcanzaste el Nivel ${newLevel}</h2>
-                        <h3 style="color:#aaa; text-transform:uppercase; letter-spacing:3px; margin-bottom:25px; font-size:1rem">${lvlInfo.name}</h3>
+                        <div style="font-size:5.5rem !important; margin-bottom:20px !important; filter: drop-shadow(0 0 15px gold) !important;">${lvlInfo.icon}</div>
+                        <div style="color:gold !important; font-weight:900 !important; letter-spacing:5px !important; font-size:0.85rem !important; margin-bottom:12px !important">¡NIVEL DESBLOQUEADO!</div>
+                        <h2 style="font-size:2.4rem !important; color:white !important; margin-bottom:8px !important; font-weight:900 !important; line-height:1.1 !important">Alcanzaste el Nivel ${newLevel}</h2>
+                        <h3 style="color:#aaa !important; text-transform:uppercase !important; letter-spacing:3px !important; margin-bottom:25px !important; font-size:1rem !important">${lvlInfo.name}</h3>
 
-                        <div style="background:rgba(255,255,255,0.03); padding:25px; border-radius:20px; margin-bottom:30px; text-align:left; border:1px solid rgba(255,215,0,0.15)">
-                            <div style="font-weight:900; margin-bottom:15px; color:gold; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px">Beneficios Desbloqueados:</div>
-                            <ul style="padding-left:20px; margin:0; color:#ccc; line-height:1.7; font-size:1rem">
-                                ${lvlInfo.benefits.map(b => `<li style="margin-bottom:8px">${b}</li>`).join('')}
+                        <div style="background:rgba(255,255,255,0.03) !important; padding:25px !important; border-radius:20px !important; margin-bottom:30px !important; text-align:left !important; border:1px solid rgba(255,215,0,0.15) !important">
+                            <div style="font-weight:900 !important; margin-bottom:15px !important; color:gold !important; font-size:0.9rem !important; text-transform:uppercase !important; letter-spacing:1px !important">Beneficios Desbloqueados:</div>
+                            <ul style="padding-left:20px !important; margin:0 !important; color:#ccc !important; line-height:1.7 !important; font-size:1rem !important">
+                                ${lvlInfo.benefits.map(b => `<li style="margin-bottom:8px !important">${b}</li>`).join('')}
                             </ul>
                         </div>
 
-                        <button class="btn" onclick="window.closeLevelUpModal()" style="width:100%; font-size:1.25rem; font-weight:1000; background:linear-gradient(135deg, #ffd700, #ffae00); color:black; border:none; padding:22px; border-radius:18px; cursor:pointer; box-shadow:0 15px 35px rgba(255,215,0,0.4); transition:all 0.3s" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 20px 45px rgba(255,215,0,0.6)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 15px 35px rgba(255,215,0,0.4)'">
+                        <button class="btn" onclick="window.closeLevelUpModal()" style="width:100% !important; font-size:1.25rem !important; font-weight:1000 !important; background:linear-gradient(135deg, #ffd700, #ffae00) !important; color:black !important; border:none !important; padding:22px !important; border-radius:18px !important; cursor:pointer !important; box-shadow:0 15px 35px rgba(255,215,0,0.4) !important; transition:all 0.3s !important;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 20px 45px rgba(255,215,0,0.6)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 15px 35px rgba(255,215,0,0.4)'">
                             ¡GENIAL, A SEGUIR! 🚀
                         </button>
                     </div>
                 </div>
             </div>`;
 
-        // Inyectar directamente al body para evitar problemas de jerarquía
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        document.body.style.overflow = 'hidden'; // Bloquear scroll de fondo
+        // Inyectar directamente al HTML (documentElement) para evitar el zoom/transform del BODY
+        document.documentElement.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.style.overflow = 'hidden';
     };
 
     window.openLevelProgress = async () => {
