@@ -1670,12 +1670,14 @@ const store = {
     async adminGetFbQueue() {
         if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral')) return [];
         try {
-            // Pending items first, ordered by creation (FIFO or Scheduled)
+            // Pending items first (FIFO) - removed sort: 'created' due to 400 error
             const records = await pb.collection('facebook_queue').getFullList({
-                sort: 'created',
                 expand: 'prompt,added_by',
                 $autoCancel: false
             });
+            // Manual sort locally for safety
+            records.sort((a, b) => new Date(a.created) - new Date(b.created));
+
             return records.map(r => ({
                 id: r.id,
                 status: r.status,
