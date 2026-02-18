@@ -23,7 +23,7 @@ export const setupLevelModals = () => {
         }
 
         const modalHtml = `
-            <div id="levelUpModalCanvas" onclick="this.remove()">
+            <div id="levelUpModalCanvas">
                 <style>
                     @keyframes fall {
                         0% { transform: translateY(-10vh) rotate(0deg); }
@@ -31,7 +31,11 @@ export const setupLevelModals = () => {
                     }
                 </style>
                 ${bgHtml}
-                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; background:rgba(0,0,0,0.95); border:2px solid gold; border-radius:24px; padding:40px; box-shadow:0 0 80px rgba(255,215,0,0.4); z-index:20; text-align:center; backdrop-filter:blur(10px)">
+                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; background:rgba(0,0,0,0.95); border:2px solid gold; border-radius:24px; padding:40px; box-shadow:0 0 80px rgba(255,215,0,0.4); z-index:20; text-align:center; backdrop-filter:blur(10px); position:relative;">
+                    
+                    <!-- Botón X de Cierre -->
+                    <button onclick="this.closest('#levelUpModalCanvas').remove()" style="position:absolute; top:20px; right:20px; background:transparent; border:none; color:rgba(255,255,255,0.5); font-size:2rem; cursor:pointer; line-height:1; padding:10px; transition:color 0.2s" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">×</button>
+
                     <div class="level-up-content">
                         <div style="font-size:5rem; margin-bottom:20px; filter: drop-shadow(0 0 10px gold)">${lvlInfo.icon}</div>
                         <div style="color:gold; font-weight:900; letter-spacing:4px; font-size:0.8rem; margin-bottom:10px">¡NIVEL DESBLOQUEADO!</div>
@@ -46,7 +50,7 @@ export const setupLevelModals = () => {
                         </div>
 
                         <button class="btn" onclick="this.closest('#levelUpModalCanvas').remove()" style="width:100%; font-size:1.2rem; font-weight:900; background:linear-gradient(135deg, #ffd700, #ffae00); color:black; border:none; padding:18px; border-radius:14px; cursor:pointer; box-shadow:0 10px 25px rgba(255,215,0,0.4); transition:transform 0.2s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                            ¡A RECLAMAR MI RECOMPENSA! 🚀
+                            ¡GENIAL! ✨
                         </button>
                     </div>
                 </div>
