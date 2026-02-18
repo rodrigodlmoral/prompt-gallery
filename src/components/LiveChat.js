@@ -158,13 +158,12 @@ export const initLiveChat = () => {
 
             console.log(`[PRESENCE] Debug RAW Records:`, result.length);
 
-            // Margen de 5 minutos (ISO String)
-            const fiveMinutesAgo = Date.now() - (5 * 60000);
+            // Margen de 2 minutos (Suficiente para evitar clock drift pero reactivo)
+            const twoMinutesAgo = Date.now() - (120000);
 
             const activeItems = result.filter(item => {
                 const itemTime = new Date(item.last_seen).getTime();
-                const isActive = itemTime > fiveMinutesAgo;
-                if (!isActive) console.log(`[PRESENCE] Item ${item.id} is OLD (${new Date(item.last_seen).toLocaleString()})`);
+                const isActive = itemTime > twoMinutesAgo;
                 return isActive;
             });
 
@@ -178,44 +177,33 @@ export const initLiveChat = () => {
                 }
                 lastPresenceCount = count;
             }
-            console.log(`[PRESENCE] Final Count: ${count} | User IDs:`, activeItems.map(a => a.user));
+            console.log(`[PRESENCE] Count: ${count} | Margin: 2min`);
         } catch (err) {
-            console.warn('⚠️ Error crítico en contador online:', err);
+            console.warn('⚠️ Error en contador online:', err);
         }
     }
 
     // 4. Data Logic
     async function loadInitialMessages() {
         try {
+            // El error 400 suele ser por expansion fallida si no hay relacion o el ID es nulo
             const records = await pb.collection('global_chat').getList(1, 100, {
                 sort: '-created',
-                expand: 'user'
+                expand: 'user',
+                requestKey: null
             });
             renderHistory(records.items, true);
         } catch (err) {
+            console.warn('⚠️ Error cargando chat (intento 1):', err);
+            // Re-intento sin expansión si falla por integridad de datos
             try {
                 const records = await pb.collection('global_chat').getList(1, 100, {
                     sort: '-created',
-                    expand: 'user'
+                    requestKey: null
                 });
                 renderHistory(records.items, true);
             } catch (err2) {
-                try {
-                    const records = await pb.collection('global_chat').getList(1, 100, {
-                        expand: 'user'
-                    });
-                    const needsReverse = records.items.length > 1 &&
-                        new Date(records.items[0].created) > new Date(records.items[records.items.length - 1].created);
-                    renderHistory(records.items, needsReverse);
-                } catch (err3) {
-                    messagesEl.innerHTML += `
-                        <div class="chat-msg system">
-                            <div class="chat-content" style="color: #ff4444;">
-                                ❌ Error de permisos.<br>
-                                <small>Activa "List" en 'global_chat'.</small>
-                            </div>
-                        </div>`;
-                }
+                console.error('❌ Error total al cargar mensajes:', err2);
             }
         }
     }
