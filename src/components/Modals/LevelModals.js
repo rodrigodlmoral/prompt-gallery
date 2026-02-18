@@ -7,14 +7,28 @@ export const setupLevelModals = () => {
     const levelSystem = new LevelSystem(pb);
 
     // --- LEVEL UP MODAL (Success Celebration) ---
+    // Global close function to ensure it's always accessible
+    window.closeLevelUpModal = () => {
+        console.log("🏆 [LevelUp] Intentando cerrar modal...");
+        const modal = document.getElementById('levelUpModalCanvas');
+        if (modal) {
+            modal.remove();
+            document.body.style.overflow = '';
+            console.log("✅ [LevelUp] Modal cerrado correctamente.");
+        } else {
+            console.warn("⚠️ [LevelUp] No se encontró el modal para cerrar.");
+        }
+    };
+
     window.showLevelUpModal = (newLevel) => {
-        // Clean up any existing stale modal
+        console.log(`🏆 [LevelUp] Mostrando celebración para Nivel ${newLevel}`);
+
+        // Limpieza de seguridad
         const existing = document.getElementById('levelUpModalCanvas');
         if (existing) existing.remove();
 
         const lvlInfo = LEVEL_REQS[newLevel] || LEVEL_REQS[0];
 
-        // Simple Emojis for "Confetti" background
         const bgEmojis = ["✨", "🎉", "💎", "🎊", "🔥", "🚀", "🌟"];
         let bgHtml = '';
         for (let i = 0; i < 30; i++) {
@@ -22,57 +36,58 @@ export const setupLevelModals = () => {
             const animDelay = Math.random() * 2;
             const dur = 3 + Math.random() * 3;
             const emoji = bgEmojis[Math.floor(Math.random() * bgEmojis.length)];
-            bgHtml += `<div style="position:absolute; top:-10%; left:${left}%; font-size:${1 + Math.random()}rem; animation: fall ${dur}s linear infinite; animation-delay:-${animDelay}s; opacity:0.6; user-select:none;">${emoji}</div>`;
+            bgHtml += `<div style="position:absolute; top:-10%; left:${left}%; font-size:${1 + Math.random()}rem; animation: fall ${dur}s linear infinite; animation-delay:-${animDelay}s; opacity:0.6; user-select:none; pointer-events:none;">${emoji}</div>`;
         }
 
         const modalHtml = `
-            <div id="levelUpModalCanvas" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(10px); z-index:2147483647; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+            <div id="levelUpModalCanvas" style="position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; background:rgba(0,0,0,0.9) !important; backdrop-filter:blur(15px) !important; -webkit-backdrop-filter:blur(15px) !important; z-index:999999999 !important; display:flex !important; align-items:center !important; justify-content:center !important; overflow:hidden !important; pointer-events:all !important; touch-action:none !important;">
                 <style>
                     @keyframes fall {
                         0% { transform: translateY(-10vh) rotate(0deg); }
                         100% { transform: translateY(110vh) rotate(360deg); }
                     }
                     .level-up-card {
-                        position:relative; width:90%; max-width:500px; background:rgba(0,0,0,0.95); 
-                        border:2px solid gold; border-radius:24px; padding:40px; 
-                        box-shadow:0 0 80px rgba(255,215,0,0.4); text-align:center; 
-                        animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                        position:relative; width:90%; max-width:500px; background:rgba(15,15,15,0.98); 
+                        border:2px solid gold; border-radius:28px; padding:45px 35px; 
+                        box-shadow:0 0 100px rgba(255,215,0,0.4); text-align:center; 
+                        animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                        z-index: 1000;
+                        pointer-events: all !important;
                     }
                     @keyframes popIn {
-                        from { transform: scale(0.8); opacity: 0; }
+                        from { transform: scale(0.7); opacity: 0; }
                         to { transform: scale(1); opacity: 1; }
                     }
                 </style>
                 ${bgHtml}
                 <div class="level-up-card" onclick="event.stopPropagation()">
-                    <span style="display:none">v4.8.2-DEBUG</span>
                     
                     <!-- Botón X de Cierre -->
-                    <button onclick="document.getElementById('levelUpModalCanvas').remove()" style="position:absolute; top:20px; right:20px; background:transparent; border:none; color:rgba(255,255,255,0.5); font-size:2rem; cursor:pointer; line-height:1; padding:10px; transition:color 0.2s" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">×</button>
+                    <button onclick="window.closeLevelUpModal()" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.05); border:none; color:white; font-size:1.8rem; cursor:pointer; line-height:1; width:45px; height:45px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition:all 0.2s; z-index:1100;" onmouseover="this.style.background='rgba(255,0,0,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">×</button>
 
                     <div class="level-up-content">
-                        <div style="font-size:5rem; margin-bottom:20px; filter: drop-shadow(0 0 10px gold)">${lvlInfo.icon}</div>
-                        <div style="color:gold; font-weight:900; letter-spacing:4px; font-size:0.8rem; margin-bottom:10px">¡NIVEL DESBLOQUEADO!</div>
-                        <h2 style="font-size:2.2rem; color:white; margin-bottom:10px; font-weight:800">Has alcanzado el Nivel ${newLevel}</h2>
-                        <h3 style="color:#fff; text-transform:uppercase; letter-spacing:2px; margin-bottom:25px; opacity:0.7">${lvlInfo.name}</h3>
+                        <div style="font-size:5.5rem; margin-bottom:20px; filter: drop-shadow(0 0 15px gold)">${lvlInfo.icon}</div>
+                        <div style="color:gold; font-weight:900; letter-spacing:5px; font-size:0.85rem; margin-bottom:12px">¡NIVEL DESBLOQUEADO!</div>
+                        <h2 style="font-size:2.4rem; color:white; margin-bottom:8px; font-weight:900; line-height:1.1">Alcanzaste el Nivel ${newLevel}</h2>
+                        <h3 style="color:#aaa; text-transform:uppercase; letter-spacing:3px; margin-bottom:25px; font-size:1rem">${lvlInfo.name}</h3>
 
-                        <div style="background:rgba(255,255,255,0.05); padding:20px; border-radius:16px; margin-bottom:30px; text-align:left; border:1px solid rgba(255,255,255,0.1)">
-                            <div style="font-weight:bold; margin-bottom:15px; color:gold; font-size:0.9rem; text-transform:uppercase">Nuevos Beneficios:</div>
-                            <ul style="padding-left:20px; margin:0; color:#ccc; line-height:1.6; font-size:0.95rem">
+                        <div style="background:rgba(255,255,255,0.03); padding:25px; border-radius:20px; margin-bottom:30px; text-align:left; border:1px solid rgba(255,215,0,0.15)">
+                            <div style="font-weight:900; margin-bottom:15px; color:gold; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px">Beneficios Desbloqueados:</div>
+                            <ul style="padding-left:20px; margin:0; color:#ddd; line-height:1.7; font-size:1rem">
                                 ${lvlInfo.benefits.map(b => `<li style="margin-bottom:8px">${b}</li>`).join('')}
                             </ul>
                         </div>
 
-                        <button class="btn" onclick="document.getElementById('levelUpModalCanvas').remove()" style="width:100%; font-size:1.2rem; font-weight:900; background:linear-gradient(135deg, #ffd700, #ffae00); color:black; border:none; padding:18px; border-radius:14px; cursor:pointer; box-shadow:0 10px 25px rgba(255,215,0,0.4); transition:transform 0.2s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                            ¡GENIAL! ✨
+                        <button class="btn" onclick="window.closeLevelUpModal()" style="width:100%; font-size:1.25rem; font-weight:1000; background:linear-gradient(135deg, #ffd700, #ffae00); color:black; border:none; padding:22px; border-radius:18px; cursor:pointer; box-shadow:0 15px 35px rgba(255,215,0,0.4); transition:all 0.3s" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 20px 45px rgba(255,215,0,0.6)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 15px 35px rgba(255,215,0,0.4)'">
+                            ¡GENIAL, A SEGUIR! 🚀
                         </button>
                     </div>
                 </div>
             </div>`;
 
-        const div = document.createElement('div');
-        div.innerHTML = modalHtml;
-        document.body.appendChild(div.firstElementChild);
+        // Inyectar directamente al body para evitar problemas de jerarquía
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.style.overflow = 'hidden'; // Bloquear scroll de fondo
     };
 
     window.openLevelProgress = async () => {
