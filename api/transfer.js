@@ -79,6 +79,19 @@ export default async function handler(req, res) {
         const recipientName = recipient.username || recipient.name || 'Usuario';
         const senderName = sender.username || sender.name || 'Usuario';
 
+        // B.2) Si hay Post ID, actualizar el contador del prompt
+        if (postId) {
+            try {
+                await pbAdmin.collection('prompts').update(postId, {
+                    "tokens_received+": amount
+                });
+                console.log(`[TRANSFER] Updated prompt ${postId} with +${amount} tokens`);
+            } catch (err) {
+                console.error(`[TRANSFER] Failed to update prompt ${postId}:`, err);
+                // No fallamos la transferencia principal, solo logueamos
+            }
+        }
+
         // C) Registrar en LEDGER (Oficial, solicitado por Usuario)
         try {
             const txHash = crypto.randomBytes(16).toString('hex');

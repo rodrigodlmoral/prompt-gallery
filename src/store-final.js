@@ -1338,7 +1338,8 @@ const store = {
                 },
                 body: JSON.stringify({
                     recipientId: actualRecipientId,
-                    amount: amount
+                    amount: amount,
+                    postId: postId || null
                 })
             });
 
