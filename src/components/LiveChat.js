@@ -150,27 +150,37 @@ export const initLiveChat = () => {
 
     async function fetchOnlineCount() {
         try {
-            // Aumentamos margen a 5 minutos para evitar fallos por clock drift entre cliente y servidor
-            const fiveMinutesAgo = new Date(Date.now() - (5 * 60000)).toISOString();
-            const result = await pb.collection('chat_presence').getList(1, 1, {
-                filter: `last_seen > "${fiveMinutesAgo}"`,
-                requestKey: null // Evitar cancelaciones automáticas
+            // FUERZA BRUTA: Obtener todos los registros disponibles para ver qué "ve" el cliente
+            const result = await pb.collection('chat_presence').getFullList({
+                requestKey: null,
+                expand: 'user'
             });
 
-            const count = result.totalItems || 1;
+            console.log(`[PRESENCE] Debug RAW Records:`, result.length);
+
+            // Margen de 5 minutos (ISO String)
+            const fiveMinutesAgo = Date.now() - (5 * 60000);
+
+            const activeItems = result.filter(item => {
+                const itemTime = new Date(item.last_seen).getTime();
+                const isActive = itemTime > fiveMinutesAgo;
+                if (!isActive) console.log(`[PRESENCE] Item ${item.id} is OLD (${new Date(item.last_seen).toLocaleString()})`);
+                return isActive;
+            });
+
+            const count = Math.max(activeItems.length, 1);
             const countEl = document.getElementById('chatOnlineCount');
             if (countEl) {
                 countEl.textContent = count;
-                // Pequeña animación si cambia
                 if (count !== lastPresenceCount) {
                     countEl.classList.add('pulse-count');
                     setTimeout(() => countEl.classList.remove('pulse-count'), 500);
                 }
                 lastPresenceCount = count;
             }
-            console.log(`[PRESENCE] Online Count Updated: ${count} (Threshold: 5min)`);
+            console.log(`[PRESENCE] Final Count: ${count} | User IDs:`, activeItems.map(a => a.user));
         } catch (err) {
-            console.warn('⚠️ Error al obtener contador online:', err);
+            console.warn('⚠️ Error crítico en contador online:', err);
         }
     }
 
