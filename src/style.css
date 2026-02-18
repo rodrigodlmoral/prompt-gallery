@@ -2967,3 +2967,89 @@ header nav {
   color: white;
   border-color: rgba(255, 255, 255, 0.3);
 }
+/* --- HEADER REFINEMENT (Desktop) - LAST VISUAL FIX --- */
+@media (min-width: 900px) {
+    
+    /* 1. Flex Container Alignment */
+    header nav {
+        display: flex;
+        align-items: center;
+        gap: 12px; /* Consistent gap between elements */
+        height: 100%;
+    }
+
+    /* 2. Unified Height & Base Styles for All Actions */
+    header nav .btn, 
+    header nav .btn-outline, 
+    header nav .user-info {
+        height: 42px; /* Fixed robust height for all */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        font-weight: 700;
+        border-radius: 8px; /* Consistent geometry */
+        box-sizing: border-box;
+        transition: all 0.2s ease;
+        margin: 0; /* Remove potential margins */
+    }
+
+    /* 3. COMPARTIR PROMPT (Primary Action) */
+    header nav .btn#addBtn {
+        background: var(--accent); /* Keep vivid blue */
+        color: white;
+        padding: 0 24px; /* Generous padding */
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); /* Subtle glow */
+        border: 1px solid transparent; /* No border */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.85rem;
+    }
+    header nav .btn#addBtn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
+        background: #3b82f6;
+    }
+
+    /* 4. USER PROFILE (Middle Element) */
+    header nav .user-info {
+        background: transparent;
+        color: #ddd;
+        padding: 0 12px 0 6px; /* Optimized padding */
+        gap: 10px;
+        cursor: pointer;
+        border: 1px solid transparent; /* Invisible border to match height calculation */
+        min-width: 140px; /* Minimum width for stability */
+        justify-content: flex-start; /* Align left */
+    }
+    header nav .user-info:hover {
+        background: rgba(255,255,255,0.05); /* Slight highlight on hover */
+        border-radius: 21px; /* Pill shape hover effect */
+        color: white;
+    }
+    
+    /* Specific Avatar Style in Header */
+    header nav .user-info .user-avatar-sm {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.1);
+        background-size: cover;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    /* 5. SALIR (Logout - Secondary Action) */
+    header nav .btn-outline {
+        padding: 0 20px;
+        border: 1px solid rgba(255,255,255,0.15);
+        color: #aaa;
+        background: transparent;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    header nav .btn-outline:hover {
+        background: rgba(255, 60, 60, 0.1); /* Subtle red tint */
+        border-color: rgba(255, 60, 60, 0.4);
+        color: #ff6b6b;
+    }
+}
