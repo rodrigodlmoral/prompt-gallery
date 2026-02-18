@@ -1691,7 +1691,7 @@ const store = {
     },
 
     async adminAddToFbQueue(promptId) {
-        if (!this.currentUser) return { success: false };
+        if (!this.currentUser) return { success: false, msg: "No user" };
         try {
             // Check if already exists
             const existing = await pb.collection('facebook_queue').getList(1, 1, {
@@ -1705,7 +1705,11 @@ const store = {
                 added_by: this.currentUser.id
             });
             return { success: true };
-        } catch (e) { return { success: false, msg: e.message }; }
+        } catch (e) {
+            console.error("[FB QUEUE ERROR]", e);
+            // Return detailed error for toast
+            return { success: false, msg: e.data?.message || e.message };
+        }
     },
 
     async adminRemoveFromFbQueue(queueId) {
