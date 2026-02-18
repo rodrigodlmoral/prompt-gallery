@@ -297,7 +297,47 @@ const renderFbQueueTab = async (container) => {
 
     // Load Data
     const queue = await store.adminGetFbQueue();
-    // Load source pool (all prompts) if not loaded
+    window.fbQueueCache = queue; // Store for filtering & real-time
+
+    // Real-Time Subscription
+    store.unsubscribeFromFbQueue(); // Clean previous
+    store.subscribeToFbQueue(({ action, record }) => {
+        const queueList = document.getElementById('fbQueueList');
+        const queueCount = document.getElementById('fbQueueCount');
+        if (!queueList) return;
+
+        if (action === 'create') {
+            const newItem = {
+                id: record.id,
+                status: record.status,
+                created: record.created,
+                prompt: record.expand?.prompt ? {
+                    id: record.expand.prompt.id,
+                    title: record.expand.prompt.title,
+                    image: record.expand.prompt.image,
+                    author: record.expand.prompt.expand?.author?.username || record.expand.prompt.author || 'Usuario'
+                } : null
+            };
+            window.fbQueueCache.push(newItem);
+        } else if (action === 'update') {
+            const idx = window.fbQueueCache.findIndex(i => i.id === record.id);
+            if (idx !== -1) {
+                window.fbQueueCache[idx].status = record.status;
+                if (record.expand?.prompt) {
+                    window.fbQueueCache[idx].prompt.title = record.expand.prompt.title;
+                }
+            }
+        } else if (action === 'delete') {
+            window.fbQueueCache = window.fbQueueCache.filter(i => i.id !== record.id);
+        }
+
+        // Sort & Refresh List
+        window.fbQueueCache.sort((a, b) => new Date(a.created) - new Date(b.created));
+        queueList.innerHTML = renderFbQueueItems(window.fbQueueCache);
+        if (queueCount) queueCount.innerText = window.fbQueueCache.length;
+    });
+
+    // Load source pool (all prompts)
     if (!store.prompts || store.prompts.length === 0) await store.loadPrompts(true); // Ensure some prompts
     // Better: load all for admin source
     // We'll use store.allPrompts if available or fallback to store.prompts

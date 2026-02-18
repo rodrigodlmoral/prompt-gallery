@@ -1724,20 +1724,12 @@ const store = {
 
     async adminProcessFbQueueItem(queueId, prompt) {
         try {
-            // 1. Mark as processing
             await pb.collection('facebook_queue').update(queueId, { status: 'processing' });
-
-            // 2. Call API
-            // Assuming we use the existing /api/facebook-post endpoint but we might need to adjust it to accept raw IDs or data
-            // For now, let's reuse the logic from the API by calling it from client? No, better call the API endpoint.
 
             const res = await fetch('/api/facebook-post', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt: prompt,
-                    adminSecret: 'INTERNAL_ADMIN_ACTION'
-                })
+                body: JSON.stringify({ prompt, adminSecret: 'PG_ROBOT_SECRET' })
             });
             const data = await res.json();
 
@@ -1745,13 +1737,9 @@ const store = {
                 await pb.collection('facebook_queue').update(queueId, { status: 'published' });
                 return { success: true };
             } else {
-                await pb.collection('facebook_queue').update(queueId, {
-                    status: 'failed',
-                    error_log: data.error || data.details || 'Unknown API Error'
-                });
-                return { success: false, msg: data.error };
+                await pb.collection('facebook_queue').update(queueId, { status: 'failed', error_log: data.message || data.error });
+                return { success: false, msg: data.message || data.error };
             }
-
         } catch (e) {
             await pb.collection('facebook_queue').update(queueId, {
                 status: 'failed',
@@ -1759,6 +1747,28 @@ const store = {
             });
             return { success: false, msg: e.message };
         }
+    },
+
+    subscribeToFbQueue(callback) {
+        pb.collection('facebook_queue').subscribe('*', async ({ action, record }) => {
+            // Expansion logic for real-time item
+            if (action === 'create' || action === 'update') {
+                try {
+                    const expanded = await pb.collection('facebook_queue').getOne(record.id, {
+                        expand: 'prompt,prompt.author,added_by'
+                    });
+                    callback({ action, record: expanded });
+                } catch (e) {
+                    callback({ action, record });
+                }
+            } else {
+                callback({ action, record });
+            }
+        });
+    },
+
+    unsubscribeFromFbQueue() {
+        pb.collection('facebook_queue').unsubscribe('*');
     },
 
     async giftTokens(userId, amount) {
