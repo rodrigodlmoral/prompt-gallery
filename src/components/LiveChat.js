@@ -300,6 +300,13 @@ export const initLiveChat = () => {
             // PRIORIDAD: meta.thumb (URL estática) > fallback dinámico
             const thumbUrl = meta.thumb || 'https://via.placeholder.com/300x200?text=Cargando...';
 
+            // NSFW Check
+            const rating = meta.rating || 'SFW / Apto';
+            const { applyBlur, warningLabel } = store.getModeration({ rating });
+
+            const blurClass = applyBlur ? 'blurred' : '';
+            const overlayHtml = applyBlur ? `<div class="share-warning-overlay"><span class="share-warning-badge">${warningLabel}</span></div>` : '';
+
             msgDiv.innerHTML = `
                 <div class="chat-avatar" style="background-image: url('${avatar}')"></div>
                 <div style="flex: 1; min-width: 0;">
@@ -307,24 +314,17 @@ export const initLiveChat = () => {
                         <span class="chat-user">${username}</span>
                         ${badgesHtml}
                     </div>
-                    <div class="chat-content share-card" id="chat-share-${record.id}">
+                    <div class="chat-content share-card" onclick="window.openDetail('${meta.promptId}')">
                         <div class="share-title">🖼️ COMPARTIÓ UN PROMPT</div>
                         <div class="share-thumb-wrap">
-                            <img src="${thumbUrl}" class="share-thumb" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                            <img src="${thumbUrl}" class="share-thumb ${blurClass}" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                            ${overlayHtml}
                         </div>
                         <div class="share-name">${meta.title || 'Untitled Prompt'}</div>
                         <div class="share-click-hint">Click para ver detalle</div>
                     </div>
                 </div>
             `;
-
-            // Listener de clic diferido para asegurar que el elemento exista en el DOM
-            setTimeout(() => {
-                const card = document.getElementById(`chat-share-${record.id}`);
-                if (card && store.openDetail) {
-                    card.addEventListener('click', () => store.openDetail(meta.promptId));
-                }
-            }, 0);
         } else {
             msgDiv.innerHTML = `
                 <div class="chat-avatar" style="background-image: url('${avatar}')"></div>
@@ -363,6 +363,7 @@ export const initLiveChat = () => {
                 metadata: {
                     promptId: p.id,
                     title: p.title,
+                    rating: p.rating,
                     // CORRECCIÓN: Usar p.image ya que contiene la URL procesada (Cloudinary o Raw) que funciona en el resto de la app
                     thumb: p.type === 'sequence' ? (p.content[0]?.image || p.image) : p.image
                 }
