@@ -1671,8 +1671,9 @@ const store = {
         if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral')) return [];
         try {
             // Pending items first (FIFO) - removed sort: 'created' due to 400 error
+            // Added prompt.author to nested expand to fix @undefined bug
             const records = await pb.collection('facebook_queue').getFullList({
-                expand: 'prompt,added_by',
+                expand: 'prompt,prompt.author,added_by',
                 $autoCancel: false
             });
             // Manual sort locally for safety

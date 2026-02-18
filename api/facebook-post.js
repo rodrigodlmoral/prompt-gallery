@@ -75,9 +75,11 @@ export default async function handler(req, res) {
         }
 
         // 4. Preparar mensaje (Sin enlaces, solo texto espaciado)
+        // Usamos prompt.author (mapeado en store-final) en lugar de author_name
+        const authorDisplay = prompt.author || prompt.author_name || 'Explorador';
         const message = `✨ ¡Nuevo Prompt! ✨\n\n` +
             `📝 Título: ${prompt.title}\n` +
-            `👤 Autor: @${prompt.author_name}\n` +
+            `👤 Autor: @${authorDisplay}\n` +
             `🛠️ Herramienta: ${prompt.tool}\n` +
             `📸 Requiere Referencia: ${prompt.needs_reference ? 'SÍ ✅' : 'NO ❌'}\n\n` +
             `💡 PROMPT:\n${prompt.prompt}\n\n` +
