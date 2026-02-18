@@ -28,7 +28,7 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing prompt data' });
         }
 
-        const VERSION = "v4.4-WATERMARK-READY";
+        const VERSION = "v4.5-TEXT-POLISH";
         console.log(`[FB_SYNC] Debug Recibido: "${prompt.title}" | Rating: "${prompt.rating}" | ID: ${prompt.id}`);
         console.log(`[FB_SYNC] API Version: ${VERSION} | Time: ${new Date().toISOString()}`);
 
@@ -75,13 +75,14 @@ export default async function handler(req, res) {
         }
 
         // 4. Preparar mensaje (Sin enlaces, solo texto espaciado)
-        const message = `✨ ¡Nuevo Prompt en Prompt Gallery! ✨\n\n` +
+        const message = `✨ ¡Nuevo Prompt! ✨\n\n` +
             `📝 Título: ${prompt.title}\n` +
             `👤 Autor: @${prompt.author_name}\n` +
             `🛠️ Herramienta: ${prompt.tool}\n` +
             `📸 Requiere Referencia: ${prompt.needs_reference ? 'SÍ ✅' : 'NO ❌'}\n\n` +
             `💡 PROMPT:\n${prompt.prompt}\n\n` +
             (prompt.negative_prompt ? `🚫 NEGATIVE PROMPT:\n${prompt.negative_prompt}\n\n` : '') +
+            `Encuentra más prompts como este en:\n` +
             `|| WWW. PROMPT-GALLERY . APP ||\n\n` +
             `#PromptGallery #AI #AIArt #Prompts`;
 
