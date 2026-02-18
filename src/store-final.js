@@ -451,6 +451,7 @@ const store = {
         const lowerQuery = query.toLowerCase();
 
         // 1. Check Cache (Normalized) with 60s TTL
+        // NOTE: We do NOT rely solely on cache if we need to force a refresh, but for profile view it's fine.
         if (this.usersCache[lowerQuery] && (Date.now() - this.usersCache[lowerQuery]._fetchedAt < 60000)) {
             return this.usersCache[lowerQuery];
         }
@@ -492,16 +493,8 @@ const store = {
             // STRATEGY 4: NUCLEAR FALLBACK (Total Registry)
             if (!found) {
                 console.log("[ST_DEBUG] Engaging NUCLEAR search...");
-                let items = [];
-                const CACHE_TTL = 300000;
-                if (this.nuclearCache.items.length > 0 && (Date.now() - this.nuclearCache.lastFetch < CACHE_TTL)) {
-                    items = this.nuclearCache.items;
-                } else {
-                    const res = await pb.collection('users').getList(1, 1000, { $autoCancel: false });
-                    items = res.items;
-                    this.nuclearCache.items = items;
-                    this.nuclearCache.lastFetch = Date.now();
-                }
+                const items = await this.loadGlobalUsers(); // REFACTORED: Use shared method
+
                 found = items.find(u =>
                     (u.name && u.name.toLowerCase() === lowerQuery) ||
                     (u.username && u.username.toLowerCase() === lowerQuery)
@@ -535,6 +528,24 @@ const store = {
             console.error(`[CRITICAL] Error fetching profile for ${query}: ${err.message}`);
         }
         return null;
+    },
+
+    async loadGlobalUsers() {
+        const CACHE_TTL = 300000; // 5 Minutes
+        if (this.nuclearCache.items.length > 0 && (Date.now() - this.nuclearCache.lastFetch < CACHE_TTL)) {
+            return this.nuclearCache.items;
+        }
+
+        try {
+            console.log("[STORE] 🌍 Loading Global Users (Nuclear Cache)...");
+            const res = await pb.collection('users').getList(1, 1000, { $autoCancel: false });
+            this.nuclearCache.items = res.items;
+            this.nuclearCache.lastFetch = Date.now();
+            return res.items;
+        } catch (err) {
+            console.error("[STORE] ❌ Error loading global users:", err);
+            return [];
+        }
     },
 
     _cacheUser(key, record) {

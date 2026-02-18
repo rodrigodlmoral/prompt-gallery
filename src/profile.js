@@ -2620,6 +2620,10 @@ const init = async () => {
             // 2. CARGA INICIAL PARA GALERÍA (Primeros 60)
             const filter = `author = "${user.id}"`;
             await store.loadPrompts(true, filter);
+
+            // 3. CARGA GLOBAL DE USUARIOS (Background)
+            // Para que el buscador funcione con todos los usuarios, no solo el perfil actual
+            store.loadGlobalUsers().then(() => console.log("[PROFILE] 🌍 Global users loaded for search."));
         }
     }
     window.initDone = true;
