@@ -28,7 +28,9 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing prompt data' });
         }
 
+        const VERSION = "v4.2-FB-FIX-TOKEN-RELOAD";
         console.log(`[FB_SYNC] Debug Recibido: "${prompt.title}" | Rating: "${prompt.rating}" | ID: ${prompt.id}`);
+        console.log(`[FB_SYNC] API Version: ${VERSION} | Time: ${new Date().toISOString()}`);
 
         // 2. Extraer credenciales desde variables de entorno de Vercel
         const PAGE_ID = process.env.FB_PAGE_ID;
