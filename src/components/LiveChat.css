@@ -426,6 +426,8 @@
     margin-bottom: 10px !important;
     background: #151515 !important;
     border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    position: relative !important;
+    /* FIX for Overlay containment */
 }
 
 .share-thumb {
@@ -443,7 +445,8 @@
 /* NSFW Blur Support */
 .share-thumb.blurred {
     filter: blur(20px);
-    transform: scale(1.1); /* Avoid white edges */
+    transform: scale(1.1);
+    /* Avoid white edges */
 }
 
 .share-warning-overlay {
