@@ -28,7 +28,7 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing prompt data' });
         }
 
-        const VERSION = "v4.3.1-TOKEN-DEBUG-TRIM";
+        const VERSION = "v4.4-WATERMARK-READY";
         console.log(`[FB_SYNC] Debug Recibido: "${prompt.title}" | Rating: "${prompt.rating}" | ID: ${prompt.id}`);
         console.log(`[FB_SYNC] API Version: ${VERSION} | Time: ${new Date().toISOString()}`);
 
@@ -74,7 +74,7 @@ export default async function handler(req, res) {
             });
         }
 
-        // 4. Preparar mensaje
+        // 4. Preparar mensaje (Sin enlaces, solo texto espaciado)
         const message = `✨ ¡Nuevo Prompt en Prompt Gallery! ✨\n\n` +
             `📝 Título: ${prompt.title}\n` +
             `👤 Autor: @${prompt.author_name}\n` +
@@ -82,7 +82,7 @@ export default async function handler(req, res) {
             `📸 Requiere Referencia: ${prompt.needs_reference ? 'SÍ ✅' : 'NO ❌'}\n\n` +
             `💡 PROMPT:\n${prompt.prompt}\n\n` +
             (prompt.negative_prompt ? `🚫 NEGATIVE PROMPT:\n${prompt.negative_prompt}\n\n` : '') +
-            `🔗 Ver más en: https://prompt-gallery-v2.vercel.app/post/${prompt.id}\n\n` +
+            `|| WWW. PROMPT-GALLERY . APP ||\n\n` +
             `#PromptGallery #AI #AIArt #Prompts`;
 
         // 5. Publicar en Facebook
@@ -99,6 +99,17 @@ export default async function handler(req, res) {
         if (!targetImg || !targetImg.startsWith('http')) {
             console.error('[FB_SYNC] Error: URL de imagen inválida o local.');
             return res.status(400).json({ error: 'Valid public image URL required', url: targetImg });
+        }
+
+        // --- APLICAR MARCA DE AGUA (Cloudinary Only) ---
+        // Texto: PROMPT-GALLERY.APP | Fuente: Arial | Tamaño: 40 | Color: Blanco | Borde: Negro | Posición: Abajo al centro
+        if (targetImg.includes('cloudinary.com') && targetImg.includes('/upload/')) {
+            // Transformación: overlay texto, gravedad sur, margen Y 20, color blanco, borde negro 3px
+            const watermarkTransform = 'l_text:Arial_45_bold:PROMPT-GALLERY.APP,co_white,bo_4px_solid_black,g_south,y_30/';
+            targetImg = targetImg.replace('/upload/', `/upload/${watermarkTransform}`);
+            console.log(`[FB_SYNC] Watermark applied: ${targetImg}`);
+        } else {
+            console.log('[FB_SYNC] Skipping watermark (Not a Cloudinary URL or incompatible format)');
         }
 
         fbResponse = await postToFacebook(PAGE_ID, ACCESS_TOKEN, targetImg, message);
