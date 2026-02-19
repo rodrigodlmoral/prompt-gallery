@@ -402,7 +402,7 @@ const renderFbQueueTab = async (container) => {
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; flex:1; min-height:0">
                 
                 <!-- LEFT: SOURCE (Discovery) -->
-                <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; display:flex; flex-direction:column; overflow:hidden">
+                <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; display:flex; flex-direction:column; overflow:hidden; height:1100px">
                     <div style="padding:15px; border-bottom:1px solid #333; background:#222">
                         <h3 style="margin:0; color:#ccc; display:flex; align-items:center; gap:10px">
                             <span>🗂️ Fuente de Prompts</span>
@@ -423,7 +423,7 @@ const renderFbQueueTab = async (container) => {
                 </div>
 
                 <!-- RIGHT: QUEUE (Scheduled) -->
-                <div style="background:#0f172a; border:1px solid #1e293b; border-radius:12px; display:flex; flex-direction:column; overflow:hidden">
+                <div style="background:#0f172a; border:1px solid #1e293b; border-radius:12px; display:flex; flex-direction:column; overflow:hidden; height:1100px">
                     <div style="padding:15px; border-bottom:1px solid #1e293b; background:#1e293b; display:flex; justify-content:space-between; align-items:center">
                         <div>
                             <h3 style="margin:0; color:#3b82f6; display:flex; align-items:center; gap:10px">
