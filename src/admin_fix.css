@@ -40,29 +40,44 @@ thead th {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 /* =========================================
-   SCROLLBARS PREMIUM (V4.9.0)
+   SCROLLBARS PREMIUM (V4.9.1)
    ========================================= */
+/* Target specific containers AND global check */
+.fb-source-wrapper .fb-source-list::-webkit-scrollbar,
+.fb-queue-wrapper .fb-queue-list::-webkit-scrollbar,
+div[style*="overflow-y:auto"]::-webkit-scrollbar,
 .fb-source-list::-webkit-scrollbar,
 .fb-queue-list::-webkit-scrollbar {
-    width: 8px;
+    width: 8px !important;
 }
 
+.fb-source-wrapper .fb-source-list::-webkit-scrollbar-track,
+.fb-queue-wrapper .fb-queue-list::-webkit-scrollbar-track,
+div[style*="overflow-y:auto"]::-webkit-scrollbar-track,
 .fb-source-list::-webkit-scrollbar-track,
 .fb-queue-list::-webkit-scrollbar-track {
-    background: #0f172a;
-    border-radius: 4px;
+    background: #0f172a !important;
+    border-radius: 4px !important;
 }
 
+.fb-source-wrapper .fb-source-list::-webkit-scrollbar-thumb,
+.fb-queue-wrapper .fb-queue-list::-webkit-scrollbar-thumb,
+div[style*="overflow-y:auto"]::-webkit-scrollbar-thumb,
 .fb-source-list::-webkit-scrollbar-thumb,
 .fb-queue-list::-webkit-scrollbar-thumb {
-    background: #334155;
-    border-radius: 4px;
-    border: 2px solid #0f172a; /* Padding effect */
+    background: #334155 !important;
+    border-radius: 4px !important;
+    border: 2px solid #0f172a !important;
 }
 
 .fb-source-list::-webkit-scrollbar-thumb:hover,

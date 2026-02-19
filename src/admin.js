@@ -673,7 +673,7 @@ const renderFbQueueItems = (queue) => {
                         ${item.error ? `<br><span style="color:#ef4444">Error: ${item.error}</span>` : ''}
                     </div>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:6px">
+                <div style="display:flex; flex-direction:row; gap:6px; align-items:center">
                     ${item.status === 'pending' || item.status === 'failed' ? `
                         <button class="btn-icon-pro btn-publish" onclick="window.processFbItem('${item.id}', '${p.id}')" title="Publicar Ahora">🚀</button>
                         <button class="btn-icon-pro btn-delete" onclick="window.removeFromFbQueue('${item.id}')" title="Eliminar de la Cola">🗑️</button>
