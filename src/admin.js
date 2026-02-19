@@ -1,6 +1,7 @@
 import './style.css'
 import './admin_fix.css'
 import { store } from './store-final.js'
+import { pb } from './pocketbase.js'
 import './utils/LevelDebug.js'; // Load Debug Tools
 
 const app = document.getElementById('app');
@@ -298,7 +299,7 @@ const renderFbQueueTab = async (container) => {
     // 1. Check Connection Status
     let fbSettings = null;
     try {
-        const settingsList = await store.pb.collection('fb_settings').getList(1, 1, {
+        const settingsList = await pb.collection('fb_settings').getList(1, 1, {
             filter: 'status="active"',
             sort: '-created',
             $autoCancel: false
@@ -433,36 +434,39 @@ const renderFbQueueTab = async (container) => {
 window.connectFacebook = () => {
     if (!window.FB) return alert('Facebook SDK no cargó. Recarga la página.');
 
-    window.FB.login(async (response) => {
-        if (response.authResponse) {
-            console.log('FB Login Success. Token:', response.authResponse.accessToken);
-            const userToken = response.authResponse.accessToken;
-
-            // Call API to exchange token & list pages via proxy
-            // (Avoid calling Graph API directly from client if possible, but for page listing it's ok via proxy)
-            try {
-                if (window.showToast) window.showToast("Obteniendo páginas...", "info");
-
-                const res = await fetch('/api/fb-connect', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ shortUserToken: userToken })
-                });
-
-                const data = await res.json();
-                if (!data.success) throw new Error(data.error || 'Error al obtener páginas');
-
-                // Show Page Selection Modal
-                renderPageSelectionModal(data.pages);
-
-            } catch (err) {
-                console.error(err);
-                alert('Error conectando: ' + err.message);
-            }
-        } else {
-            console.log('User cancelled login or did not fully authorize.');
-        }
+    // SDK requires a synchronous callback
+    window.FB.login((response) => {
+        handleFbLoginResponse(response);
     }, { scope: 'pages_manage_posts,pages_read_engagement' });
+};
+
+const handleFbLoginResponse = async (response) => {
+    if (response.authResponse) {
+        console.log('FB Login Success. Token:', response.authResponse.accessToken);
+        const userToken = response.authResponse.accessToken;
+
+        try {
+            if (window.showToast) window.showToast("Obteniendo páginas...", "info");
+
+            const res = await fetch('/api/fb-connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shortUserToken: userToken })
+            });
+
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Error al obtener páginas');
+
+            // Show Page Selection Modal
+            renderPageSelectionModal(data.pages);
+
+        } catch (err) {
+            console.error(err);
+            alert('Error conectando: ' + err.message);
+        }
+    } else {
+        console.log('User cancelled login or did not fully authorize.');
+    }
 };
 
 window.disconnectFacebook = async (settingsId) => {
