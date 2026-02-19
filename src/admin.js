@@ -513,8 +513,15 @@ const handleFbLoginResponse = async (response) => {
 window.disconnectFacebook = async (settingsId) => {
     if (!confirm('¿Desconectar página? Los posts automáticos podrían fallar.')) return;
     try {
-        // Use imported 'pb' directly, as store.pb may be inaccessible like this
-        await pb.collection('fb_settings').delete(settingsId);
+        // Use server-side endpoint to bypass RLS restrictions
+        const res = await fetch('/api/fb-disconnect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ settingsId })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+
         window.switchAdminTab('fb-queue'); // Refresh
     } catch (e) {
         alert('Error: ' + e.message);
