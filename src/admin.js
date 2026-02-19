@@ -638,7 +638,9 @@ const renderFbSourceItems = (prompts, queue) => {
                 <input type="checkbox" class="cb-source-item" data-id="${p.id}" onchange="window.updateSourceSelection()" style="accent-color:#3b82f6; flex-shrink:0">
                 <img src="${p.image || (p.content && p.content[0] ? p.content[0].image : '')}" style="width:50px; height:50px; border-radius:6px; object-fit:cover; background:#000">
                 <div style="flex:1; overflow:hidden">
-                    <div style="font-weight:600; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" title="${p.title}">${p.title}</div>
+                    <div style="font-weight:600; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" title="${p.title}">
+                        ${(p.content && p.content.length > 1) ? '<span title="Secuencia/Carrusel">📚</span> ' : ''}${p.title}
+                    </div>
                     <div style="font-size:0.75rem; color:#666">@${p.author} • ${new Date(p.createdAt).toLocaleDateString()}</div>
                 </div>
                 <button class="btn-sm" onclick="window.addToFbQueue('${p.id}')" style="background:#222; border:1px solid #444">➕</button>
@@ -663,7 +665,9 @@ const renderFbQueueItems = (queue) => {
                 <div style="position:absolute; top:4px; right:8px; font-size:0.65rem; color:#64748b; font-weight:bold">Pos: ${idx + 1}</div>
                 <img src="${p.image || (p.content && p.content[0] ? p.content[0].image : '')}" style="width:60px; height:60px; border-radius:6px; object-fit:cover; background:#000">
                 <div style="flex:1; overflow:hidden">
-                    <div style="font-weight:bold; font-size:0.9rem; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${p.title}</div>
+                    <div style="font-weight:bold; font-size:0.9rem; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">
+                         ${(p.content && p.content.length > 1) ? '<span title="Secuencia/Carrusel">📚</span> ' : ''}${p.title}
+                    </div>
                     <div style="font-size:0.75rem; color:#94a3b8">
                         Status: <span style="color:${statusColor}; text-transform:uppercase; font-weight:bold">${item.status}</span>
                         ${item.error ? `<br><span style="color:#ef4444">Error: ${item.error}</span>` : ''}
