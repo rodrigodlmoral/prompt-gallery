@@ -301,7 +301,7 @@ const renderFbQueueTab = async (container) => {
     try {
         const settingsList = await pb.collection('fb_settings').getList(1, 1, {
             filter: 'status="active"',
-            sort: '-created',
+            // sort: '-created', // REMOVED CAUSE 400 ERROR IN PB v0.23+
             $autoCancel: false
         });
         if (settingsList.items.length > 0) {
@@ -505,6 +505,7 @@ const renderPageSelectionModal = (pages) => {
             <button onclick="document.body.removeChild(this.parentElement.parentElement)" class="btn" style="width:100%; background:#333; padding:12px">Cancelar</button>
         </div>
     `;
+    modal.id = 'fbPageSelectModal';
     document.body.appendChild(modal);
 };
 
@@ -513,8 +514,13 @@ window.selectPage = async (id, name, token) => {
         if (window.showToast) window.showToast("Guardando conexión...", "info");
 
         // Remove modal
-        const modal = document.querySelector('div[style*="z-index:9999"]');
-        if (modal) modal.remove();
+        // Remove modal by ID first, fallback to selector
+        const modalById = document.getElementById('fbPageSelectModal');
+        if (modalById) modalById.remove();
+        else {
+            const modal = document.querySelector('div[style*="z-index:9999"]');
+            if (modal) modal.remove();
+        }
 
         // Call backend to save
         const res = await fetch('/api/fb-save-page', {
