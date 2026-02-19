@@ -485,24 +485,24 @@ const renderPageSelectionModal = (pages) => {
 
     let pagesHtml = pages.map(p => `
         <div onclick="window.selectPage('${p.id}', '${p.name}', '${p.access_token}')" 
-             style="background:#222; padding:15px; margin-bottom:10px; border-radius:8px; cursor:pointer; border:1px solid #333; display:flex; justify-content:space-between; hover:brightness(1.2)">
-            <div>
-                <div style="color:white; font-weight:bold">${p.name}</div>
-                <div style="color:#666; font-size:0.8rem">ID: ${p.id}</div>
-                <div style="color:#888; font-size:0.7rem">${p.category || 'Página'}</div>
+             style="background:#222; padding:15px; margin-bottom:10px; border-radius:8px; cursor:pointer; border:1px solid #333; display:flex; justify-content:space-between; align-items:center; transition:background 0.2s">
+            <div style="overflow:hidden; padding-right:10px">
+                <div style="color:white; font-weight:bold; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${p.name}</div>
+                <div style="color:#666; font-size:0.75rem; font-family:monospace">ID: ${p.id}</div>
+                <div style="color:#fbbf24; font-size:0.7rem; text-transform:uppercase">${p.category || 'Página'}</div>
             </div>
             <div style="font-size:1.5rem">👉</div>
         </div>
     `).join('');
 
     modal.innerHTML = `
-        <div style="background:#111; padding:25px; border-radius:12px; width:400px; max-width:90%; border:1px solid gold">
-            <h3 style="color:gold; margin-top:0">Selecciona tu Página</h3>
-            <p style="color:#bbb; font-size:0.9rem">¿En cuál página quieres publicar los prompts?</p>
-            <div style="max-height:300px; overflow-y:auto; margin:15px 0">
-                ${pagesHtml.length > 0 ? pagesHtml : '<div style="color:#666">No se encontraron páginas administrables.</div>'}
+        <div style="background:#111; padding:25px; border-radius:12px; width:550px; max-width:95%; border:1px solid gold; box-shadow:0 0 30px rgba(0,0,0,0.5)">
+            <h3 style="color:gold; margin-top:0; font-size:1.2rem">Selecciona tu Página</h3>
+            <p style="color:#bbb; font-size:0.9rem; margin-bottom:15px">¿En cuál página quieres publicar los prompts?</p>
+            <div style="max-height:400px; overflow-y:auto; margin:15px 0; padding-right:5px">
+                ${pagesHtml.length > 0 ? pagesHtml : '<div style="color:#666; text-align:center; padding:20px">No se encontraron páginas administrables. Asegúrate de haber otorgado permisos.</div>'}
             </div>
-            <button onclick="document.body.removeChild(this.parentElement.parentElement)" class="btn" style="width:100%; background:#333">Cancelar</button>
+            <button onclick="document.body.removeChild(this.parentElement.parentElement)" class="btn" style="width:100%; background:#333; padding:12px">Cancelar</button>
         </div>
     `;
     document.body.appendChild(modal);
@@ -529,7 +529,7 @@ window.selectPage = async (id, name, token) => {
         });
 
         const data = await res.json();
-        if (!data.success) throw new Error(data.error);
+        if (!data.success) throw new Error(data.error + (data.message ? ` (${data.message})` : ''));
 
         alert(`✅ Conectado exitosamente a: ${name}`);
         window.switchAdminTab('fb-queue'); // Refresh

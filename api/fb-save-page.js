@@ -87,6 +87,7 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error('[FB_SAVE] Error:', error);
-        return res.status(500).json({ error: 'Internal server error', message: error.message });
+        // Concatenate message to 'error' so frontend alert shows it without code changes needed there
+        return res.status(500).json({ error: 'Save Error: ' + error.message, message: error.message });
     }
 }
