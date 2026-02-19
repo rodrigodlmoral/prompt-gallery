@@ -613,8 +613,8 @@ const store = {
     async _bridgeToFacebook(promptRecord) {
         if (!promptRecord) return;
 
-        // Solo intentar si es SFW o Sugestivo
-        const allowed = ['SFW / Apto', 'Sugestivo'];
+        // Solo intentar si es SFW (Sugestivo excluido por petición del usuario)
+        const allowed = ['SFW / Apto'];
         if (!allowed.includes(promptRecord.rating)) return;
 
         console.log('[FB_SYNC] 🚧 Desviando a Cola de Publicación Automatizada...');
