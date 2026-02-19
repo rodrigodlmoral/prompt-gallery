@@ -44,7 +44,7 @@ export default async function handler(req, res) {
         const authRes = await fetch(`${pbUrl}/api/collections/_superusers/auth-with-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ identity: email, password: PASS }) // Note: PASS variable needs to be defined from env
+            body: JSON.stringify({ identity: email, password: pass })
         });
 
         const authData = await authRes.json();
