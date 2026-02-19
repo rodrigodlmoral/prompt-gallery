@@ -1,94 +1,89 @@
-import PocketBase from 'pocketbase';
-
 /**
  * api/fb-save-page.js
  * 
- * 1. Receives Page ID, Name, and Page Access Token
- * 2. Validates token by calling /me endpoint of the page
- * 3. Authenticates as Admin to PocketBase
- * 4. Saves/Updates the single 'active' record in 'fb_settings'
+ * STANDARD FETCH IMPLEMENTATION (SDK BYPASS)
+ * To rule out any SDK version/environment incompatibilities.
  */
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const steps = []; // Diagnostic breadcrumbs
+    const steps = [];
 
     try {
         const { pageId, pageName, pageAccessToken, userId } = req.body;
-        steps.push(`Received: pageId=${pageId}, pageName=${pageName}, userId=${userId}, tokenLen=${pageAccessToken?.length}`);
+        steps.push(`Received: pageId=${pageId}, tokenLen=${pageAccessToken?.length}`);
 
         if (!pageId || !pageAccessToken) {
             return res.status(400).json({ error: 'Missing page details' });
         }
 
-        // Step 1: Validate Token with FB
+        // --- Step 1: FB Validation ---
         steps.push('Step 1: Validating token with Facebook...');
-        const debugUrl = `https://graph.facebook.com/me?access_token=${pageAccessToken}`;
-        const debugRes = await fetch(debugUrl);
-        const debugData = await debugRes.json();
-
-        if (debugData.error || debugData.id !== pageId) {
-            steps.push(`Step 1 FAILED: ${JSON.stringify(debugData.error || { mismatch: debugData.id })}`);
-            return res.status(400).json({
-                error: 'Invalid Page Token',
-                details: debugData.error?.message,
-                steps
-            });
+        const fbRes = await fetch(`https://graph.facebook.com/me?access_token=${pageAccessToken}`);
+        const fbData = await fbRes.json();
+        if (fbData.error || fbData.id !== pageId) {
+            steps.push(`Step 1 FAILED: ${JSON.stringify(fbData.error || { mismatch: fbData.id })}`);
+            return res.status(400).json({ error: 'FB Token Invalid', steps });
         }
-        steps.push(`Step 1 OK: Token valid for "${debugData.name}" (${debugData.id})`);
+        steps.push(`Step 1 OK: Token valid (${fbData.id})`);
 
-        // Step 2: Connect to PocketBase as Admin
-        const pbUrl = process.env.PB_URL || process.env.VITE_POCKETBASE_URL;
+        // --- Step 2: PB Auth (Raw Fetch) ---
+        const pbUrl = (process.env.PB_URL || process.env.VITE_POCKETBASE_URL || '').replace(/\/$/, ''); // Remove trailing slash
         const email = process.env.PB_ADMIN_EMAIL;
         const pass = process.env.PB_ADMIN_PASS;
-        steps.push(`Step 2: Connecting to PB at ${pbUrl ? pbUrl.substring(0, 30) + '...' : 'UNDEFINED'}`);
+
+        steps.push(`Step 2: Connecting to PB (fetch) at ${pbUrl}...`);
 
         if (!pbUrl || !email || !pass) {
-            return res.status(500).json({
-                error: `Server misconfiguration: PB_URL=${!!pbUrl}, EMAIL=${!!email}, PASS=${!!pass}`,
-                steps
-            });
+            return res.status(500).json({ error: 'Missing PB Envs', steps });
         }
 
-        const pb = new PocketBase(pbUrl);
+        const authRes = await fetch(`${pbUrl}/api/admins/auth-with-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identity: email, password: pass })
+        });
 
-        try {
-            await pb.admins.authWithPassword(email, pass);
-            steps.push('Step 2 OK: Admin authenticated');
-        } catch (authErr) {
-            steps.push(`Step 2 FAILED: Auth error: ${authErr.message}`);
-            return res.status(500).json({ error: 'PB Admin Auth failed: ' + authErr.message, steps });
+        const authData = await authRes.json();
+
+        if (!authRes.ok || !authData.token) {
+            steps.push(`Step 2 FAILED: ${authRes.status} | ${JSON.stringify(authData)}`);
+            return res.status(500).json({ error: 'PB Auth Failed', steps });
         }
 
-        // Step 3: Check for existing active settings
+        const adminToken = authData.token;
+        steps.push('Step 2 OK: Got Admin Token');
+
+        // --- Step 3: Check Existing (Raw Fetch) ---
         steps.push('Step 3: Checking existing settings...');
-        let existing;
-        try {
-            // Fix: Do NOT use filter param directly to avoid 400 errors if syntax/schema mismatch.
-            // Just fetch latest 10 and filter in memory.
-            const list = await pb.collection('fb_settings').getList(1, 10, {
-                sort: '-created',
-                requestKey: null // Disable auto-cancellation
-            });
+        const listQuery = new URLSearchParams({
+            page: '1',
+            perPage: '10',
+            sort: '-created'
+        });
 
-            steps.push(`Step 3 List OK: Fetched ${list.items.length} recent records.`);
+        const listRes = await fetch(`${pbUrl}/api/collections/fb_settings/records?${listQuery.toString()}`, {
+            headers: {
+                'Authorization': adminToken
+            }
+        });
 
-            // Filter in memory for 'active'
-            const activeRecord = list.items.find(i => i.status === 'active');
-
-            // Mock the structure expected by Step 5
-            existing = { items: activeRecord ? [activeRecord] : [] };
-
-            steps.push(`Step 3 Filter OK: Found ${existing.items.length} active settings in memory.`);
-        } catch (listErr) {
-            steps.push(`Step 3 FAILED: List error: ${listErr.message} | Data: ${JSON.stringify(listErr.data || {})}`);
-            return res.status(500).json({ error: 'List settings failed: ' + listErr.message, steps });
+        if (!listRes.ok) {
+            const errText = await listRes.text();
+            steps.push(`Step 3 FAILED: ${listRes.status} | RESPONSE: ${errText.substring(0, 200)}`);
+            return res.status(500).json({ error: 'List Failed', steps });
         }
 
-        // Step 4: Save new setting
-        steps.push('Step 4: Preparing record data...');
+        const listData = await listRes.json(); // Expected: { items: [...] }
+        steps.push(`Step 3 OK: Fetched ${listData.items?.length} items`);
+
+        // Filter active
+        const existingActive = (listData.items || []).find(i => i.status === 'active');
+
+        // --- Step 4: Prepare Data ---
+        steps.push('Step 4: Preparing data...');
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 59);
 
@@ -98,54 +93,48 @@ export default async function handler(req, res) {
             access_token: pageAccessToken,
             status: 'active',
             expires_at: expiresAt.toISOString(),
+            // connected_by: userId (skip to be safe unless needed)
+            debug_info: { source: 'api_v4.6.8_raw_fetch' }
         };
+        if (userId && typeof userId === 'string') recordData.connected_by = userId;
 
-        // Only add connected_by if userId is a valid string
-        if (userId && typeof userId === 'string' && userId.length > 5) {
-            recordData.connected_by = userId;
-        }
-
-        steps.push(`Step 4: Record data keys: ${Object.keys(recordData).join(', ')}`);
-
-        let savedRecord;
-
-        // Step 5: Archive old + Create new
-        try {
-            if (existing && existing.items.length > 0) {
-                const oldId = existing.items[0].id;
-                steps.push(`Step 5a: Archiving old setting ${oldId}...`);
-                await pb.collection('fb_settings').update(oldId, { status: 'expired' });
-                steps.push('Step 5a OK: Old setting archived');
-            }
-
-            steps.push('Step 5b: Creating new setting...');
-            savedRecord = await pb.collection('fb_settings').create(recordData);
-            steps.push(`Step 5b OK: Created record ${savedRecord.id}`);
-        } catch (saveErr) {
-            // Extract detailed PocketBase validation errors
-            const pbData = saveErr.data || {};
-            const fieldErrors = Object.entries(pbData)
-                .filter(([k]) => k !== 'message' && k !== 'code')
-                .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
-                .join('; ');
-
-            steps.push(`Step 5 FAILED: ${saveErr.message} | Status: ${saveErr.status} | Fields: ${fieldErrors || 'none'}`);
-            return res.status(500).json({
-                error: `Save failed: ${saveErr.message}${fieldErrors ? ' | ' + fieldErrors : ''}`,
-                pbStatus: saveErr.status,
-                pbData: pbData,
-                steps
+        // --- Step 5: Save (Archive Old + Create New) ---
+        if (existingActive) {
+            steps.push(`Step 5a: Archiving ${existingActive.id}...`);
+            await fetch(`${pbUrl}/api/collections/fb_settings/records/${existingActive.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': adminToken
+                },
+                body: JSON.stringify({ status: 'expired' })
             });
+            steps.push('Step 5a OK');
         }
 
-        return res.status(200).json({ success: true, id: savedRecord.id, steps });
-
-    } catch (error) {
-        steps.push(`UNHANDLED: ${error.message}`);
-        return res.status(500).json({
-            error: 'Save Error: ' + error.message,
-            message: error.message,
-            steps
+        steps.push('Step 5b: Creating new...');
+        const createRes = await fetch(`${pbUrl}/api/collections/fb_settings/records`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': adminToken
+            },
+            body: JSON.stringify(recordData)
         });
+
+        if (!createRes.ok) {
+            const createErr = await createRes.json();
+            steps.push(`Step 5b FAILED: ${createRes.status} | ${JSON.stringify(createErr)}`);
+            return res.status(500).json({ error: 'Create Failed', steps });
+        }
+
+        const createdItem = await createRes.json();
+        steps.push(`Step 5b OK: Created ${createdItem.id}`);
+
+        return res.status(200).json({ success: true, id: createdItem.id, steps });
+
+    } catch (e) {
+        steps.push(`CRITICAL EXCEPTION: ${e.message}`);
+        return res.status(500).json({ error: 'Exception: ' + e.message, steps });
     }
 }
