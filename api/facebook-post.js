@@ -43,12 +43,18 @@ export default async function handler(req, res) {
             const pbUrl = process.env.PB_URL || process.env.VITE_POCKETBASE_URL || 'https://prompt-gallery.pockethost.io';
             const pb = new PocketBase(pbUrl);
 
-            // Auth Admin (necesario para leer token protegido)
-            await pb.admins.authWithPassword(process.env.PB_ADMIN_EMAIL, process.env.PB_ADMIN_PASS);
+            // Auth Admin (PB v0.23+ requires _superusers collection)
+            try {
+                await pb.collection('_superusers').authWithPassword(process.env.PB_ADMIN_EMAIL, process.env.PB_ADMIN_PASS);
+            } catch (authErr) {
+                // Fallback for older PB versions or if _superusers doesn't exist yet
+                console.warn('[FB_SYNC] _superusers auth failed, trying legacy admins...', authErr.message);
+                await pb.admins.authWithPassword(process.env.PB_ADMIN_EMAIL, process.env.PB_ADMIN_PASS);
+            }
 
             const settings = await pb.collection('fb_settings').getList(1, 1, {
                 filter: 'status="active"',
-                sort: '-created'
+                // sort: '-created' // REMOVED: Causes 400 error in PB v0.23+ on this collection
             });
 
             if (settings.items.length > 0) {
