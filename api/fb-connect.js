@@ -54,13 +54,46 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Failed to fetch pages', details: pagesData.error.message });
         }
 
-        // 3. Format response
-        const pages = pagesData.data.map(p => ({
-            id: p.id,
-            name: p.name,
-            category: p.category,
-            access_token: p.access_token, // This is the Page Token (Long-Lived because User Token was Long-Lived)
-            tasks: p.tasks // tasks usually include 'MANAGE', 'CREATE_CONTENT', etc.
+        // 3. For each page, detect linked Instagram Business Account
+        console.log('[FB_CONNECT] Detecting Instagram accounts for each page...');
+        const pages = await Promise.all(pagesData.data.map(async (p) => {
+            let ig = null;
+            try {
+                const igRes = await fetch(
+                    `https://graph.facebook.com/v24.0/${p.id}?fields=instagram_business_account{id,username,profile_picture_url,name}&access_token=${p.access_token}`
+                );
+                const igData = await igRes.json();
+                if (igData.instagram_business_account) {
+                    ig = {
+                        id: igData.instagram_business_account.id,
+                        username: igData.instagram_business_account.username || null,
+                        name: igData.instagram_business_account.name || null,
+                        picture: igData.instagram_business_account.profile_picture_url || null
+                    };
+                }
+            } catch (e) {
+                console.warn(`[FB_CONNECT] Could not detect IG for page ${p.id}:`, e.message);
+            }
+
+            // Also get FB page picture
+            let fb_picture = null;
+            try {
+                const picRes = await fetch(
+                    `https://graph.facebook.com/v24.0/${p.id}/picture?redirect=false&type=small&access_token=${p.access_token}`
+                );
+                const picData = await picRes.json();
+                fb_picture = picData.data?.url || null;
+            } catch (e) { /* ignore */ }
+
+            return {
+                id: p.id,
+                name: p.name,
+                category: p.category,
+                access_token: p.access_token,
+                tasks: p.tasks,
+                fb_picture,
+                instagram: ig
+            };
         }));
 
         console.log(`[FB_CONNECT] Found ${pages.length} pages.`);

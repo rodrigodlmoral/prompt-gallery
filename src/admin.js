@@ -530,28 +530,52 @@ window.disconnectFacebook = async (settingsId) => {
 
 const renderPageSelectionModal = (pages) => {
     const modal = document.createElement('div');
-    modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; display:flex; justify-content:center; align-items:center`;
+    modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; display:flex; justify-content:center; align-items:center`;
 
-    let pagesHtml = pages.map(p => `
-        <div onclick="window.selectPage('${p.id}', '${p.name}', '${p.access_token}')" 
-             style="background:#222; padding:15px; margin-bottom:10px; border-radius:8px; cursor:pointer; border:1px solid #333; display:flex; justify-content:space-between; align-items:center; transition:background 0.2s">
-            <div style="overflow:hidden; padding-right:10px">
-                <div style="color:white; font-weight:bold; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${p.name}</div>
-                <div style="color:#666; font-size:0.75rem; font-family:monospace">ID: ${p.id}</div>
-                <div style="color:#fbbf24; font-size:0.7rem; text-transform:uppercase">${p.category || 'Página'}</div>
+    let pagesHtml = pages.map(p => {
+        const igSection = p.instagram
+            ? `<div style="display:flex; align-items:center; gap:8px">
+                    <img src="${p.instagram.picture || ''}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; background:#333; border:2px solid #E1306C" onerror="this.style.display='none'">
+                    <div>
+                        <div style="font-size:0.8rem; color:#E1306C; font-weight:600">📸 @${p.instagram.username || 'IG'}</div>
+                        <div style="font-size:0.65rem; color:#888">${p.instagram.name || ''}</div>
+                    </div>
+                </div>`
+            : `<div style="display:flex; align-items:center; gap:8px; opacity:0.4">
+                    <div style="width:36px; height:36px; border-radius:50%; background:#333; display:flex; align-items:center; justify-content:center; border:2px dashed #555">📷</div>
+                    <div style="font-size:0.75rem; color:#666">Sin IG vinculado</div>
+                </div>`;
+
+        const fbSection = `<div style="display:flex; align-items:center; gap:8px">
+                <img src="${p.fb_picture || ''}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; background:#333; border:2px solid #1877F2" onerror="this.style.display='none'">
+                <div>
+                    <div style="font-size:0.8rem; color:#1877F2; font-weight:600">📘 ${p.name}</div>
+                    <div style="font-size:0.65rem; color:#888">${p.category || 'Página'}</div>
+                </div>
+            </div>`;
+
+        return `
+            <div onclick="window.selectPage('${p.id}', '${p.name.replace(/'/g, "\\'")}', '${p.access_token}')" 
+                 style="background:#1a1a1a; padding:14px 18px; margin-bottom:10px; border-radius:10px; cursor:pointer; border:1px solid #333; display:flex; align-items:center; gap:12px; transition:all 0.2s; hover:border-color:gold"
+                 onmouseover="this.style.borderColor='gold'; this.style.background='#222'" onmouseout="this.style.borderColor='#333'; this.style.background='#1a1a1a'">
+                ${igSection}
+                <div style="font-size:1.2rem; color:#666; flex-shrink:0; margin:0 4px">→</div>
+                ${fbSection}
+                <div style="margin-left:auto; flex-shrink:0">
+                    <button class="btn" style="background:#3b82f6; padding:6px 14px; font-size:0.75rem; font-weight:bold; pointer-events:none">Seleccionar</button>
+                </div>
             </div>
-            <div style="font-size:1.5rem">👉</div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 
     modal.innerHTML = `
-        <div style="background:#111; padding:25px; border-radius:12px; width:550px; max-width:95%; border:1px solid gold; box-shadow:0 0 30px rgba(0,0,0,0.5)">
-            <h3 style="color:gold; margin-top:0; font-size:1.2rem">Selecciona tu Página</h3>
-            <p style="color:#bbb; font-size:0.9rem; margin-bottom:15px">¿En cuál página quieres publicar los prompts?</p>
-            <div style="max-height:400px; overflow-y:auto; margin:15px 0; padding-right:5px">
+        <div style="background:#111; padding:25px; border-radius:16px; width:650px; max-width:95%; border:1px solid gold; box-shadow:0 0 40px rgba(0,0,0,0.6)">
+            <h3 style="color:gold; margin-top:0; font-size:1.2rem">📡 Cuentas vinculadas a tu perfil</h3>
+            <p style="color:#bbb; font-size:0.85rem; margin-bottom:15px">Selecciona la combinación Instagram ↔ Facebook donde quieres publicar:</p>
+            <div style="max-height:450px; overflow-y:auto; margin:15px 0; padding-right:5px">
                 ${pagesHtml.length > 0 ? pagesHtml : '<div style="color:#666; text-align:center; padding:20px">No se encontraron páginas administrables. Asegúrate de haber otorgado permisos.</div>'}
             </div>
-            <button onclick="document.body.removeChild(this.parentElement.parentElement)" class="btn" style="width:100%; background:#333; padding:12px">Cancelar</button>
+            <button onclick="document.body.removeChild(this.parentElement.parentElement)" class="btn" style="width:100%; background:#333; padding:12px; margin-top:5px">Cancelar</button>
         </div>
     `;
     modal.id = 'fbPageSelectModal';
