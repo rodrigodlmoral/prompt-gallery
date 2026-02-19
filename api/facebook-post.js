@@ -28,7 +28,7 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing prompt data' });
         }
 
-        const VERSION = "v4.7.3-DUAL-POST";
+        const VERSION = "v4.8.0-CAROUSEL";
         console.log(`[FB_SYNC] Debug Recibido: "${prompt.title}" | Rating: "${prompt.rating}" | ID: ${prompt.id}`);
         console.log(`[FB_SYNC] API Version: ${VERSION} | Time: ${new Date().toISOString()}`);
 
@@ -113,51 +113,137 @@ export default async function handler(req, res) {
             `🌐 www.prompt-gallery.app\n\n` +
             `#PromptGallery #AI #AIArt #Prompts #AIGenerated #DigitalArt #CreativeAI`;
 
-        // 5. Preparar imagen
-        let targetImg = prompt.image;
+        // 5. Preparar imágenes (soporta single + multi-image)
+        const isSequence = prompt.type === 'sequence' && prompt.content && prompt.content.length > 1;
+        let allImages = [];
 
-        if (prompt.type === 'sequence' && prompt.content && prompt.content.length > 0) {
-            targetImg = prompt.content[0].image;
+        if (isSequence) {
+            // Multi-image: extract all valid image URLs from sequence
+            allImages = prompt.content
+                .map(item => item.image)
+                .filter(url => url && url.startsWith('http'));
+            console.log(`[FB_SYNC] Sequence detected: ${allImages.length} images`);
+        } else {
+            // Single image (standard or sequence with 1 image)
+            let targetImg = prompt.image;
+            if (prompt.type === 'sequence' && prompt.content && prompt.content.length > 0) {
+                targetImg = prompt.content[0].image;
+            }
+            if (targetImg && targetImg.startsWith('http')) {
+                allImages = [targetImg];
+            }
         }
 
-        if (!targetImg || !targetImg.startsWith('http')) {
-            console.error('[FB_SYNC] Error: URL de imagen inválida o local.');
-            return res.status(400).json({ error: 'Valid public image URL required', url: targetImg });
+        if (allImages.length === 0) {
+            console.error('[FB_SYNC] Error: No valid image URLs found.');
+            return res.status(400).json({ error: 'No valid public image URLs found' });
         }
 
         // --- APLICAR MARCA DE AGUA (Cloudinary Only) ---
-        let fbImg = targetImg;
-        if (fbImg.includes('cloudinary.com') && fbImg.includes('/upload/')) {
-            const watermarkTransform = 'l_text:Arial_45_bold:PROMPT-GALLERY.APP,co_white,g_south,y_30/';
-            fbImg = fbImg.replace('/upload/', `/upload/${watermarkTransform}`);
-            console.log(`[FB_SYNC] FB Watermark applied: ${fbImg}`);
-        }
+        const applyWatermark = (url) => {
+            if (url.includes('cloudinary.com') && url.includes('/upload/')) {
+                const watermarkTransform = 'l_text:Arial_45_bold:PROMPT-GALLERY.APP,co_white,g_south,y_30/';
+                return url.replace('/upload/', `/upload/${watermarkTransform}`);
+            }
+            return url;
+        };
 
-        // IG usa la imagen original (sin marca de agua de texto, solo visual)
-        const igImg = targetImg;
+        const fbImages = allImages.map(applyWatermark);
+        const igImages = [...allImages]; // IG uses originals (no text watermark)
 
         // ============================================
-        // 6. PUBLICAR EN FACEBOOK (Existente - No tocar)
+        // 6. PUBLICAR EN FACEBOOK
         // ============================================
-        const fbResponse = await postToFacebook(PAGE_ID, ACCESS_TOKEN, fbImg, fbMessage);
+        let fbPostId = null;
+        let fbResponse = null;
 
-        console.log(`[FB_SYNC] FB Graph API response: ${fbResponse.id ? 'Success' : 'Error'}`);
+        if (fbImages.length === 1) {
+            // --- SINGLE IMAGE POST (original logic) ---
+            fbResponse = await postToFacebook(PAGE_ID, ACCESS_TOKEN, fbImages[0], fbMessage);
+            console.log(`[FB_SYNC] FB Single-Image response: ${fbResponse.id ? 'Success' : 'Error'}`);
 
-        if (fbResponse.error) {
-            console.error('[FB_SYNC] Facebook Graph API REJECTED:', JSON.stringify(fbResponse.error));
-            return res.status(400).json({
-                error: 'Facebook API rejected the post',
-                details: fbResponse.error.message,
-                fb_code: fbResponse.error.code,
-                fb_subcode: fbResponse.error.error_subcode
+            if (fbResponse.error) {
+                console.error('[FB_SYNC] Facebook Graph API REJECTED:', JSON.stringify(fbResponse.error));
+                return res.status(400).json({
+                    error: 'Facebook API rejected the post',
+                    details: fbResponse.error.message,
+                    fb_code: fbResponse.error.code,
+                    fb_subcode: fbResponse.error.error_subcode
+                });
+            }
+            fbPostId = fbResponse.id || fbResponse.post_id;
+
+        } else {
+            // --- MULTI-IMAGE ALBUM POST ---
+            console.log(`[FB_SYNC] Starting multi-image album upload (${fbImages.length} photos)...`);
+            const mediaIds = [];
+
+            for (let i = 0; i < fbImages.length; i++) {
+                const imgUrl = fbImages[i];
+                console.log(`[FB_SYNC] Uploading photo ${i + 1}/${fbImages.length}...`);
+
+                const params = new URLSearchParams();
+                params.set('url', imgUrl);
+                params.set('published', 'false'); // Upload but don't publish individually
+                params.set('access_token', ACCESS_TOKEN);
+
+                try {
+                    const photoRes = await fetch(
+                        `https://graph.facebook.com/v24.0/${PAGE_ID}/photos`,
+                        { method: 'POST', body: params }
+                    );
+                    const photoData = await photoRes.json();
+
+                    if (photoData.error) {
+                        console.error(`[FB_SYNC] Photo ${i + 1} upload FAILED:`, JSON.stringify(photoData.error));
+                        continue; // Skip failed photos, try the rest
+                    }
+                    mediaIds.push(photoData.id);
+                    console.log(`[FB_SYNC] Photo ${i + 1} uploaded: ${photoData.id}`);
+                } catch (photoErr) {
+                    console.error(`[FB_SYNC] Photo ${i + 1} network error:`, photoErr.message);
+                }
+            }
+
+            if (mediaIds.length === 0) {
+                console.error('[FB_SYNC] All photo uploads failed.');
+                return res.status(400).json({ error: 'All Facebook photo uploads failed' });
+            }
+
+            // Create the multi-photo feed post
+            const feedParams = new URLSearchParams();
+            feedParams.set('message', fbMessage);
+            feedParams.set('access_token', ACCESS_TOKEN);
+            mediaIds.forEach((id, i) => {
+                feedParams.append(`attached_media[${i}]`, JSON.stringify({ media_fbid: id }));
             });
+
+            try {
+                const feedRes = await fetch(
+                    `https://graph.facebook.com/v24.0/${PAGE_ID}/feed`,
+                    { method: 'POST', body: feedParams }
+                );
+                fbResponse = await feedRes.json();
+
+                if (fbResponse.error) {
+                    console.error('[FB_SYNC] Multi-photo feed post FAILED:', JSON.stringify(fbResponse.error));
+                    return res.status(400).json({
+                        error: 'Facebook multi-photo post failed',
+                        details: fbResponse.error.message
+                    });
+                }
+                fbPostId = fbResponse.id;
+                console.log(`[FB_SYNC] FB ALBUM SUCCESS! Post ID: ${fbPostId} (${mediaIds.length} photos)`);
+            } catch (feedErr) {
+                console.error('[FB_SYNC] Feed post network error:', feedErr.message);
+                return res.status(500).json({ error: 'Network error creating multi-photo post' });
+            }
         }
 
-        const fbPostId = fbResponse.id || fbResponse.post_id;
         console.log(`[FB_SYNC] FB SUCCESS! Post ID: ${fbPostId}`);
 
         // ============================================
-        // 7. PUBLICAR EN INSTAGRAM (Nuevo - Aislado)
+        // 7. PUBLICAR EN INSTAGRAM (Aislado)
         //    Si falla, FB ya fue exitoso y se reporta OK
         // ============================================
         let igResult = { attempted: false };
@@ -177,46 +263,132 @@ export default async function handler(req, res) {
                 console.log(`[IG_SYNC] Found IG Account: ${igUserId}. Starting publish flow...`);
                 igResult.attempted = true;
 
-                // Step 7b: Create Media Container
-                const containerParams = new URLSearchParams();
-                containerParams.set('image_url', igImg);
-                containerParams.set('caption', igCaption);
-                containerParams.set('access_token', ACCESS_TOKEN);
+                if (igImages.length === 1) {
+                    // --- SINGLE IMAGE IG POST ---
+                    const containerParams = new URLSearchParams();
+                    containerParams.set('image_url', igImages[0]);
+                    containerParams.set('caption', igCaption);
+                    containerParams.set('access_token', ACCESS_TOKEN);
 
-                const containerRes = await fetch(
-                    `https://graph.facebook.com/v24.0/${igUserId}/media`,
-                    { method: 'POST', body: containerParams }
-                );
-                const containerData = await containerRes.json();
-
-                if (containerData.error) {
-                    console.error('[IG_SYNC] Container creation FAILED:', JSON.stringify(containerData.error));
-                    igResult.error = containerData.error.message;
-                } else {
-                    const containerId = containerData.id;
-                    console.log(`[IG_SYNC] Container created: ${containerId}. Publishing...`);
-
-                    // Step 7c: Wait briefly for container to be ready (IG processing)
-                    await new Promise(resolve => setTimeout(resolve, 3000));
-
-                    // Step 7d: Publish the container
-                    const publishParams = new URLSearchParams();
-                    publishParams.set('creation_id', containerId);
-                    publishParams.set('access_token', ACCESS_TOKEN);
-
-                    const publishRes = await fetch(
-                        `https://graph.facebook.com/v24.0/${igUserId}/media_publish`,
-                        { method: 'POST', body: publishParams }
+                    const containerRes = await fetch(
+                        `https://graph.facebook.com/v24.0/${igUserId}/media`,
+                        { method: 'POST', body: containerParams }
                     );
-                    const publishData = await publishRes.json();
+                    const containerData = await containerRes.json();
 
-                    if (publishData.error) {
-                        console.error('[IG_SYNC] Publish FAILED:', JSON.stringify(publishData.error));
-                        igResult.error = publishData.error.message;
+                    if (containerData.error) {
+                        console.error('[IG_SYNC] Container creation FAILED:', JSON.stringify(containerData.error));
+                        igResult.error = containerData.error.message;
                     } else {
-                        igResult.success = true;
-                        igResult.id = publishData.id;
-                        console.log(`[IG_SYNC] SUCCESS! IG Post ID: ${publishData.id}`);
+                        const containerId = containerData.id;
+                        console.log(`[IG_SYNC] Container created: ${containerId}. Publishing...`);
+
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+
+                        const publishParams = new URLSearchParams();
+                        publishParams.set('creation_id', containerId);
+                        publishParams.set('access_token', ACCESS_TOKEN);
+
+                        const publishRes = await fetch(
+                            `https://graph.facebook.com/v24.0/${igUserId}/media_publish`,
+                            { method: 'POST', body: publishParams }
+                        );
+                        const publishData = await publishRes.json();
+
+                        if (publishData.error) {
+                            console.error('[IG_SYNC] Publish FAILED:', JSON.stringify(publishData.error));
+                            igResult.error = publishData.error.message;
+                        } else {
+                            igResult.success = true;
+                            igResult.id = publishData.id;
+                            console.log(`[IG_SYNC] SUCCESS! IG Post ID: ${publishData.id}`);
+                        }
+                    }
+
+                } else {
+                    // --- MULTI-IMAGE IG CAROUSEL ---
+                    console.log(`[IG_SYNC] Starting CAROUSEL upload (${igImages.length} items)...`);
+                    const childIds = [];
+
+                    // Step 7b: Create individual item containers (no caption on children)
+                    for (let i = 0; i < igImages.length; i++) {
+                        const itemParams = new URLSearchParams();
+                        itemParams.set('image_url', igImages[i]);
+                        itemParams.set('is_carousel_item', 'true');
+                        itemParams.set('access_token', ACCESS_TOKEN);
+
+                        try {
+                            const itemRes = await fetch(
+                                `https://graph.facebook.com/v24.0/${igUserId}/media`,
+                                { method: 'POST', body: itemParams }
+                            );
+                            const itemData = await itemRes.json();
+
+                            if (itemData.error) {
+                                console.error(`[IG_SYNC] Carousel item ${i + 1} FAILED:`, JSON.stringify(itemData.error));
+                                continue;
+                            }
+                            childIds.push(itemData.id);
+                            console.log(`[IG_SYNC] Carousel item ${i + 1} created: ${itemData.id}`);
+                        } catch (itemErr) {
+                            console.error(`[IG_SYNC] Carousel item ${i + 1} network error:`, itemErr.message);
+                        }
+
+                        // Small delay between uploads to avoid rate limiting
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+
+                    if (childIds.length < 2) {
+                        console.error(`[IG_SYNC] Not enough carousel items created (${childIds.length}). Need >= 2.`);
+                        igResult.error = `Only ${childIds.length} items uploaded. IG carousel needs at least 2.`;
+                    } else {
+                        // Step 7c: Create the carousel container
+                        const carouselParams = new URLSearchParams();
+                        carouselParams.set('media_type', 'CAROUSEL');
+                        carouselParams.set('caption', igCaption);
+                        carouselParams.set('access_token', ACCESS_TOKEN);
+                        childIds.forEach(id => {
+                            carouselParams.append('children', id);
+                        });
+
+                        const carouselRes = await fetch(
+                            `https://graph.facebook.com/v24.0/${igUserId}/media`,
+                            { method: 'POST', body: carouselParams }
+                        );
+                        const carouselData = await carouselRes.json();
+
+                        if (carouselData.error) {
+                            console.error('[IG_SYNC] Carousel container FAILED:', JSON.stringify(carouselData.error));
+                            igResult.error = carouselData.error.message;
+                        } else {
+                            const carouselId = carouselData.id;
+                            console.log(`[IG_SYNC] Carousel container created: ${carouselId}. Waiting for processing...`);
+
+                            // Step 7d: Wait for processing (carousels take longer)
+                            await new Promise(resolve => setTimeout(resolve, 5000));
+
+                            // Step 7e: Publish the carousel
+                            const publishParams = new URLSearchParams();
+                            publishParams.set('creation_id', carouselId);
+                            publishParams.set('access_token', ACCESS_TOKEN);
+
+                            const publishRes = await fetch(
+                                `https://graph.facebook.com/v24.0/${igUserId}/media_publish`,
+                                { method: 'POST', body: publishParams }
+                            );
+                            const publishData = await publishRes.json();
+
+                            if (publishData.error) {
+                                console.error('[IG_SYNC] Carousel publish FAILED:', JSON.stringify(publishData.error));
+                                igResult.error = publishData.error.message;
+                            } else {
+                                igResult.success = true;
+                                igResult.id = publishData.id;
+                                igResult.type = 'carousel';
+                                igResult.itemCount = childIds.length;
+                                console.log(`[IG_SYNC] CAROUSEL SUCCESS! IG Post ID: ${publishData.id} (${childIds.length} images)`);
+                            }
+                        }
                     }
                 }
             }
@@ -228,8 +400,10 @@ export default async function handler(req, res) {
         // 8. Return combined result (FB is always the primary)
         return res.status(200).json({
             success: true,
-            message: 'Posted successfully',
+            message: isSequence ? `Album posted (${allImages.length} images)` : 'Posted successfully',
             id: fbPostId,
+            type: isSequence ? 'album' : 'single',
+            imageCount: allImages.length,
             instagram: igResult
         });
 
