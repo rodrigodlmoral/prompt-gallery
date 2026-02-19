@@ -8,6 +8,7 @@
  */
 
 import { LEVEL_REQS } from '../store-final.js';
+import { LedgerService } from './LedgerService.js';
 
 export class LevelSystem {
     constructor(pb) {
@@ -237,15 +238,11 @@ export class LevelSystem {
                     total_rewards: currentRewards + bonusTokens
                 });
 
-                // 2. Record in Ledger (v3.2: null relation for system bonuses)
-                await this.pb.collection('ledger').create({
-                    from_user: null,
-                    to_user: userId,
-                    amount: bonusTokens,
-                    type: 'LEVEL_UP',
-                    description: `Bono: Subida al Nivel ${newLevel} (${levelName})`,
-                    tx_hash: 'LVL-' + Date.now().toString(36).toUpperCase()
-                });
+                // 2. Record in Ledger — Phase C: Double-Entry via LedgerService
+                await LedgerService.systemReward(
+                    userId, bonusTokens, 'LEVEL_UP',
+                    `Bono: Subida al Nivel ${newLevel} (${levelName})`
+                );
 
                 // 3. Activity Log
                 try {

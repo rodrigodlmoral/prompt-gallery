@@ -7,6 +7,7 @@
  */
 
 import { pb } from '../pocketbase.js';
+import { LedgerService } from './LedgerService.js';
 // import { LEVEL_REQS } from '../store-final.js'; // Removed to avoid circular dependency
 
 // Copy milestones per level: { copyCount: bonusAmount }
@@ -49,6 +50,12 @@ export async function checkCopyMilestone(authorId, promptId, newCopyCount) {
             tokens: (author.tokens || 0) + bonusAmount,
             total_earned: (author.total_earned || 0) + bonusAmount
         });
+
+        // Phase C: Record in Ledger (was missing before!)
+        await LedgerService.systemReward(
+            authorId, bonusAmount, 'COPY_MILESTONE',
+            `Bono por ${newCopyCount} copias en prompt ${promptId}`
+        );
 
         // 4. Log the activity
         try {

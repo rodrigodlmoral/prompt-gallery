@@ -2,6 +2,7 @@ import { pb } from './pocketbase.js';
 import { uploadToCloudinary } from './uploadService.js';
 import { LevelSystem } from './lib/LevelSystem.js';
 import { checkCopyMilestone, getNextMilestone } from './lib/CopyBonusSystem.js';
+import { LedgerService } from './lib/LedgerService.js';
 
 // --- GOOGLE ANALYTICS HELPER ---
 window.trackEvent = (name, params = {}) => {
@@ -747,24 +748,40 @@ const store = {
                     $autoCancel: false
                 });
 
-                const ledgerTxs = ledgerRecords.items.map(rec => {
-                    const isSender = rec.from_user === uid;
-                    const txDate = rec.created || rec.updated;
-                    if (rec.type === 'TIP' || rec.type === 'PURCHASE') {
-                        if (isSender) {
-                            return { type: 'sent', amount: -rec.amount, description: rec.description || `Enviado`, date: txDate, icon: '📤', id: rec.id };
-                        } else {
-                            return { type: 'received', amount: rec.amount, description: rec.description || `Recibido`, date: txDate, icon: '📥', id: rec.id };
+                const ledgerTxs = ledgerRecords.items
+                    // Phase C: Filter double-entry TIPs to avoid duplicates
+                    .filter(rec => {
+                        // Legacy records (no entry_type) always pass through
+                        if (!rec.entry_type) return true;
+                        // For TIPs with double-entry: show DEBIT to sender, CREDIT to receiver
+                        if (rec.type === 'TIP' || rec.type === 'PURCHASE' || rec.type === 'FEE') {
+                            if (rec.from_user === uid) return rec.entry_type === 'DEBIT';
+                            if (rec.to_user === uid) return rec.entry_type === 'CREDIT';
                         }
-                    }
-                    if (rec.type === 'POST_REWARD') {
-                        return { type: 'income', amount: rec.amount, description: rec.description || 'Publicación', date: txDate, icon: '🖼️', id: rec.id };
-                    }
-                    if (rec.type === 'LEVEL_UP') {
-                        return { type: 'income', amount: rec.amount, description: rec.description || 'Bono de Nivel', date: txDate, icon: '✨', id: rec.id };
-                    }
-                    return { type: isSender ? 'expense' : 'income', amount: isSender ? -rec.amount : rec.amount, description: rec.description || 'Transacción', date: txDate, icon: isSender ? '📉' : '📈', id: rec.id };
-                });
+                        // System rewards (CREDIT) always pass through
+                        return true;
+                    })
+                    .map(rec => {
+                        const isSender = rec.from_user === uid;
+                        const txDate = rec.created || rec.updated;
+                        if (rec.type === 'TIP' || rec.type === 'PURCHASE') {
+                            if (isSender) {
+                                return { type: 'sent', amount: -rec.amount, description: rec.description || `Enviado`, date: txDate, icon: '📤', id: rec.id };
+                            } else {
+                                return { type: 'received', amount: rec.amount, description: rec.description || `Recibido`, date: txDate, icon: '📥', id: rec.id };
+                            }
+                        }
+                        if (rec.type === 'POST_REWARD') {
+                            return { type: 'income', amount: rec.amount, description: rec.description || 'Publicación', date: txDate, icon: '🖼️', id: rec.id };
+                        }
+                        if (rec.type === 'LEVEL_UP') {
+                            return { type: 'income', amount: rec.amount, description: rec.description || 'Bono de Nivel', date: txDate, icon: '✨', id: rec.id };
+                        }
+                        if (rec.type === 'COPY_MILESTONE') {
+                            return { type: 'bonus', amount: rec.amount, description: rec.description || 'Bono de Copias', date: txDate, icon: '🏆', id: rec.id };
+                        }
+                        return { type: isSender ? 'expense' : 'income', amount: isSender ? -rec.amount : rec.amount, description: rec.description || 'Transacción', date: txDate, icon: isSender ? '📉' : '📈', id: rec.id };
+                    });
                 transactions = [...transactions, ...ledgerTxs];
 
                 // B) Activity Logs (Bonuses)
@@ -1067,27 +1084,19 @@ const store = {
                     total_rewards: currentRewards + tokensToAdd
                 });
 
-                // Registro en el Ledger para la publicación (v3.2: de System a null relation)
-                await pb.collection('ledger').create({
-                    from_user: null,
-                    to_user: this.currentUser.id,
-                    amount: BASE_REWARD,
-                    type: 'POST_REWARD',
-                    description: `Publicación: ${data.title}`,
-                    tx_hash: 'PR-' + Date.now().toString(36).toUpperCase()
-                });
+                // Registro en el Ledger — Phase C: Double-Entry via LedgerService
+                await LedgerService.systemReward(
+                    this.currentUser.id, BASE_REWARD, 'POST_REWARD',
+                    `Publicación: ${data.title}`
+                );
 
                 // Registro en el Ledger para subida de nivel (si ocurrió)
                 if (shouldLevelUp) {
                     const bonus = tokensToAdd - BASE_REWARD;
-                    await pb.collection('ledger').create({
-                        from_user: null,
-                        to_user: this.currentUser.id,
-                        amount: bonus,
-                        type: 'LEVEL_UP',
-                        description: `Bono por subir al Nivel ${newLevel}: ${levelName}`,
-                        tx_hash: 'LVLR-' + Date.now().toString(36).toUpperCase()
-                    });
+                    await LedgerService.systemReward(
+                        this.currentUser.id, bonus, 'LEVEL_UP',
+                        `Bono por subir al Nivel ${newLevel}: ${levelName}`
+                    );
                 }
             } catch (err) {
                 console.error("[ECONOMY] Error crítico en auditoría (verifica campos en DB):", err);

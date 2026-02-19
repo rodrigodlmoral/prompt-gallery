@@ -48,8 +48,26 @@ export default async function handler(req, res) {
         const transactions = [];
 
         // A) Ledger
-        ledgerRecords.items.forEach(rec => {
+        // Phase C: Bank User ID — keep in sync with src/lib/constants.js
+        const BANK_USER_ID = 'z44ierjl0thcczd';
+
+        // Phase C: Filter double-entry TIPs to avoid showing duplicates
+        const filteredLedger = ledgerRecords.items.filter(rec => {
+            // Legacy records (no entry_type) always pass through
+            if (!rec.entry_type) return true;
+            // For TIPs/purchases: show DEBIT to sender, CREDIT to receiver
+            if (rec.type === 'TIP' || rec.type === 'PURCHASE' || rec.type === 'FEE') {
+                if (rec.from_user === uid) return rec.entry_type === 'DEBIT';
+                if (rec.to_user === uid) return rec.entry_type === 'CREDIT';
+            }
+            // System rewards (CREDIT) always pass through
+            return true;
+        });
+
+        filteredLedger.forEach(rec => {
             const isSender = rec.from_user === uid;
+            // Recognize both null and BANK_USER_ID as "Sistema"
+            const isSystemSource = !rec.from_user || rec.from_user === BANK_USER_ID;
             const txDate = rec.created || rec.updated;
 
             if (rec.type === 'TIP' || rec.type === 'PURCHASE' || rec.type === 'FEE') {
@@ -94,10 +112,20 @@ export default async function handler(req, res) {
                     id: rec.id,
                     from: 'Sistema'
                 });
+            } else if (rec.type === 'COPY_MILESTONE') {
+                transactions.push({
+                    type: 'bonus',
+                    amount: rec.amount,
+                    description: rec.description || 'Bono de Copias',
+                    date: txDate,
+                    icon: '🏆',
+                    id: rec.id,
+                    from: 'Sistema'
+                });
             } else {
                 const partnerName = isSender
                     ? (rec.expand?.to_user?.username || 'Usuario')
-                    : (rec.expand?.from_user?.username || 'Sistema');
+                    : (isSystemSource ? 'Sistema' : (rec.expand?.from_user?.username || 'Usuario'));
 
                 transactions.push({
                     type: isSender ? 'expense' : 'income',

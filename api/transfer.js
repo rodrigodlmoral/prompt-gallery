@@ -92,20 +92,37 @@ export default async function handler(req, res) {
             }
         }
 
-        // C) Registrar en LEDGER (Oficial, solicitado por Usuario)
+        // C) Registrar en LEDGER — Phase C: Double-Entry Bookkeeping
+        // NOTE: BANK_USER_ID sourced from src/lib/constants.js — keep in sync!
+        const BANK_USER_ID = 'z44ierjl0thcczd';
         try {
             const txHash = crypto.randomBytes(16).toString('hex');
+
+            // Entry 1: DEBIT — Sender loses tokens
             await pbAdmin.collection('ledger').create({
                 amount: parseInt(amount),
-                type: 'TIP', // Enum: DAILY_LOGIN, POST_REWARD, LEVEL_UP, TIP, PURCHASE, FEE
+                type: 'TIP',
                 from_user: sender.id,
                 to_user: recipient.id,
                 tx_hash: txHash,
-                description: `Propina de ${senderName} a ${recipientName}`
+                description: `Propina de ${senderName} a ${recipientName}`,
+                entry_type: 'DEBIT'
             });
-            console.log(`[LEDGER] Transaction recorded: ${txHash}`);
+
+            // Entry 2: CREDIT — Receiver gains tokens
+            await pbAdmin.collection('ledger').create({
+                amount: parseInt(amount),
+                type: 'TIP',
+                from_user: sender.id,
+                to_user: recipient.id,
+                tx_hash: txHash,
+                description: `Propina de ${senderName} a ${recipientName}`,
+                entry_type: 'CREDIT'
+            });
+
+            console.log(`[LEDGER] Double-entry recorded: ${txHash} (${senderName} → ${recipientName}, ${amount} 💎)`);
         } catch (ledgerErr) {
-            console.error("Error creating ledger record:", ledgerErr);
+            console.error("Error creating ledger records:", ledgerErr);
             // No fallamos si el ledger falla, pero es crítico loguearlo
         }
 
