@@ -40,10 +40,11 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Missing PB Envs', steps });
         }
 
-        const authRes = await fetch(`${pbUrl}/api/admins/auth-with-password`, {
+        // PocketBase v0.23+ uses _superusers collection instead of /api/admins
+        const authRes = await fetch(`${pbUrl}/api/collections/_superusers/auth-with-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ identity: email, password: pass })
+            body: JSON.stringify({ identity: email, password: PASS }) // Note: PASS variable needs to be defined from env
         });
 
         const authData = await authRes.json();
