@@ -352,6 +352,7 @@ const store = {
             negative_prompt: p.negative_prompt,
             image: this.getThumbnail(p.image_url || p.image),
             image_raw: p.image_url || p.image, // URL original para detalle
+            image_hd: p.image_hd || '', // PERSIST HD URL FOR UI/QUEUES
             author: p.author_name || p.expand?.author?.username || p.expand?.author?.name || 'Explorador',
             author_id: p.author,
             createdAt: (() => {
