@@ -628,13 +628,32 @@ const store = {
 
         console.log('[FB_SYNC] 🚧 Desviando a Cola de Publicación Automatizada...');
 
+        // --- Resolver imágenes HD para TODOS los tipos de post ---
+        let hdImages = [];
+        const isSequence = promptRecord.type === 'sequence' && promptRecord.content && promptRecord.content.length > 1;
+
+        if (isSequence) {
+            // Multi-image: extraer HD de cada item del content
+            hdImages = promptRecord.content
+                .map(item => (item.image_hd && item.image_hd.startsWith('http')) ? item.image_hd : item.image)
+                .filter(url => url && url.startsWith('http'));
+        } else {
+            // Single post: priorizar image_hd de la RAÍZ del record
+            const bestImage = (promptRecord.image_hd && promptRecord.image_hd.startsWith('http'))
+                ? promptRecord.image_hd
+                : promptRecord.image;
+            if (bestImage && bestImage.startsWith('http')) {
+                hdImages = [bestImage];
+            }
+        }
+
+        console.log(`[FB_SYNC] HD Images resolved: ${hdImages.length} (type: ${isSequence ? 'sequence' : 'single'})`);
+
         try {
             await pb.collection('facebook_queue').create({
                 prompt: promptRecord.id,
                 status: 'pending',
-                allImages: promptRecord.content
-                    .map(item => (item.image_hd && item.image_hd.startsWith('http')) ? item.image_hd : item.image)
-                    .filter(url => url && url.startsWith('http')),
+                allImages: hdImages,
                 added_by: promptRecord.author || this.currentUser?.id
             });
             console.log(`[FB_SYNC] ✅ Añadido a la cola correctamente: ${promptRecord.title}`);
@@ -987,7 +1006,10 @@ const store = {
         const uploadImage = async (base64, isHD = false) => {
             if (isHD) {
                 const compressed = await this._compressImageHD(base64);
-                const file = this._dataURLtoFile(compressed, 'hd_social.jpg');
+                // Detectar formato real del dataURL para extensión correcta
+                const isPng = compressed.startsWith('data:image/png');
+                const ext = isPng ? 'hd_social.png' : 'hd_social.jpg';
+                const file = this._dataURLtoFile(compressed, ext);
                 return await uploadToCloudinaryHD(file);
             }
             const compressed = await this._compressImage(base64);
@@ -2124,22 +2146,24 @@ const store = {
         return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => {
-                const canvas = document.createElement('canvas');
                 let width = img.width;
                 let height = img.height;
 
                 // Estimate size in bytes
                 const estimate = Math.floor((base64.length - 22) * 0.75);
                 const MAX_BYTES = 9.2 * 1024 * 1024; // 9.2 MB for safety
+                const isPng = base64.startsWith('data:image/png');
 
+                // Si la imagen está dentro de los límites, preservar el formato original (PNG o JPEG)
                 if (estimate <= MAX_BYTES && width <= 4500) {
-                    console.log("[HD_PROCESS] Image is within limits, keeping original quality.");
+                    console.log(`[HD_PROCESS] Image within limits (${(estimate / 1024 / 1024).toFixed(2)}MB, ${width}x${height}). Keeping ORIGINAL format (${isPng ? 'PNG' : 'JPEG'}).`);
                     resolve(base64);
                     return;
                 }
 
-                console.log("[HD_PROCESS] Image too large or resolution too high. Starting smart compression...");
-                const MAX_WIDTH = 4500; // Still very high resolution
+                console.log(`[HD_PROCESS] Image too large (${(estimate / 1024 / 1024).toFixed(2)}MB) or resolution too high (${width}px). Smart compression...`);
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 4500;
                 if (width > MAX_WIDTH) {
                     height = (MAX_WIDTH / width) * height;
                     width = MAX_WIDTH;
@@ -2150,6 +2174,19 @@ const store = {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
 
+                // Intentar primero como PNG si la original era PNG y el resultado cabe
+                if (isPng) {
+                    const pngDataUrl = canvas.toDataURL('image/png');
+                    const pngEstimate = Math.floor((pngDataUrl.length - 22) * 0.75);
+                    if (pngEstimate <= MAX_BYTES) {
+                        console.log(`[HD_PROCESS] PNG re-encode fits (${(pngEstimate / 1024 / 1024).toFixed(2)}MB). Using PNG.`);
+                        resolve(pngDataUrl);
+                        return;
+                    }
+                    console.log(`[HD_PROCESS] PNG too heavy (${(pngEstimate / 1024 / 1024).toFixed(2)}MB). Falling back to JPEG.`);
+                }
+
+                // Fallback a JPEG con calidad progresiva
                 let quality = 0.95;
                 let dataUrl = canvas.toDataURL('image/jpeg', quality);
                 let newEstimate = Math.floor((dataUrl.length - 22) * 0.75);
@@ -2158,7 +2195,7 @@ const store = {
                     quality -= 0.05;
                     dataUrl = canvas.toDataURL('image/jpeg', quality);
                     newEstimate = Math.floor((dataUrl.length - 22) * 0.75);
-                    console.log(`[HD_PROCESS] Retrying compression: Quality ${quality.toFixed(2)}, Size: ${(newEstimate / 1024 / 1024).toFixed(2)}MB`);
+                    console.log(`[HD_PROCESS] JPEG compression: Quality ${quality.toFixed(2)}, Size: ${(newEstimate / 1024 / 1024).toFixed(2)}MB`);
                 }
 
                 resolve(dataUrl);

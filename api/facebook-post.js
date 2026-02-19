@@ -142,10 +142,10 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'No valid public image URLs found' });
         }
 
-        // --- APLICAR MARCA DE AGUA (Cloudinary Only) ---
+        // --- APLICAR MARCA DE AGUA (Cloudinary Only) --- Con q_100 para NO re-comprimir
         const applyWatermark = (url) => {
             if (url.includes('cloudinary.com') && url.includes('/upload/')) {
-                const watermarkTransform = 'l_text:Arial_45_bold:PROMPT-GALLERY.APP,co_white,g_south,y_30/';
+                const watermarkTransform = 'q_100,l_text:Arial_45_bold:PROMPT-GALLERY.APP,co_white,g_south,y_30/';
                 return url.replace('/upload/', `/upload/${watermarkTransform}`);
             }
             return url;
