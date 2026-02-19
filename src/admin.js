@@ -636,7 +636,7 @@ const renderFbSourceItems = (prompts, queue) => {
         return `
             <div class="fb-source-item" data-title="${p.title.toLowerCase()}" data-prompt-id="${p.id}" style="display:flex; gap:10px; padding:10px; border-bottom:1px solid #333; align-items:center">
                 <input type="checkbox" class="cb-source-item" data-id="${p.id}" onchange="window.updateSourceSelection()" style="accent-color:#3b82f6; flex-shrink:0">
-                <img src="${p.image}" style="width:50px; height:50px; border-radius:6px; object-fit:cover; background:#000">
+                <img src="${p.image || (p.content && p.content[0] ? p.content[0].image : '')}" style="width:50px; height:50px; border-radius:6px; object-fit:cover; background:#000">
                 <div style="flex:1; overflow:hidden">
                     <div style="font-weight:600; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" title="${p.title}">${p.title}</div>
                     <div style="font-size:0.75rem; color:#666">@${p.author} • ${new Date(p.createdAt).toLocaleDateString()}</div>
@@ -661,7 +661,7 @@ const renderFbQueueItems = (queue) => {
             <div style="display:flex; gap:10px; padding:12px; margin-bottom:8px; background:#1e293b; border-radius:8px; border-left:4px solid ${statusColor}; align-items:center; position:relative">
                 <input type="checkbox" class="cb-queue-item" data-id="${item.id}" onchange="window.updateQueueSelection()" style="accent-color:#ef4444; flex-shrink:0">
                 <div style="position:absolute; top:4px; right:8px; font-size:0.65rem; color:#64748b; font-weight:bold">Pos: ${idx + 1}</div>
-                <img src="${p.image}" style="width:60px; height:60px; border-radius:6px; object-fit:cover; background:#000">
+                <img src="${p.image || (p.content && p.content[0] ? p.content[0].image : '')}" style="width:60px; height:60px; border-radius:6px; object-fit:cover; background:#000">
                 <div style="flex:1; overflow:hidden">
                     <div style="font-weight:bold; font-size:0.9rem; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${p.title}</div>
                     <div style="font-size:0.75rem; color:#94a3b8">
