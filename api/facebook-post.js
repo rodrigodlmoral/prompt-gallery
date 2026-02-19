@@ -28,7 +28,7 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing prompt data' });
         }
 
-        const VERSION = "v4.6-OAUTH-CONNECT";
+        const VERSION = "v4.7.3-DUAL-POST";
         console.log(`[FB_SYNC] Debug Recibido: "${prompt.title}" | Rating: "${prompt.rating}" | ID: ${prompt.id}`);
         console.log(`[FB_SYNC] API Version: ${VERSION} | Time: ${new Date().toISOString()}`);
 
@@ -38,23 +38,19 @@ export default async function handler(req, res) {
         let source = 'ENV_VAR';
 
         try {
-            // Intentar leer de PocketBase fb_settings
-            const { default: PocketBase } = await import('pocketbase'); // Dynamic import for Vercel
+            const { default: PocketBase } = await import('pocketbase');
             const pbUrl = process.env.PB_URL || process.env.VITE_POCKETBASE_URL || 'https://prompt-gallery.pockethost.io';
             const pb = new PocketBase(pbUrl);
 
-            // Auth Admin (PB v0.23+ requires _superusers collection)
             try {
                 await pb.collection('_superusers').authWithPassword(process.env.PB_ADMIN_EMAIL, process.env.PB_ADMIN_PASS);
             } catch (authErr) {
-                // Fallback for older PB versions or if _superusers doesn't exist yet
                 console.warn('[FB_SYNC] _superusers auth failed, trying legacy admins...', authErr.message);
                 await pb.admins.authWithPassword(process.env.PB_ADMIN_EMAIL, process.env.PB_ADMIN_PASS);
             }
 
             const settings = await pb.collection('fb_settings').getList(1, 1, {
                 filter: 'status="active"',
-                // sort: '-created' // REMOVED: Causes 400 error in PB v0.23+ on this collection
             });
 
             if (settings.items.length > 0) {
@@ -75,27 +71,11 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'System not configured for Facebook Auto-Post' });
         }
 
-        // Diagnóstico de formato (debug profundo para "Decryption Error")
-        console.log(`[FB_SYNC] Token Analysis: Length=${ACCESS_TOKEN.length} | Start=${ACCESS_TOKEN.substring(0, 5)}... | End=...${ACCESS_TOKEN.substring(ACCESS_TOKEN.length - 5)}`);
+        console.log(`[FB_SYNC] Token Analysis: Length=${ACCESS_TOKEN.length} | Start=${ACCESS_TOKEN.substring(0, 5)}...`);
         console.log(`[FB_SYNC] Page ID: ${PAGE_ID}`);
-
-        // --- DIAGNÓSTICO DE TOKEN ---
-        try {
-            const meRes = await fetch(`https://graph.facebook.com/me?access_token=${ACCESS_TOKEN}`);
-            const meData = await meRes.json();
-            console.log(`[FB_SYNC] Token Identity: ${meData.name || 'Unknown'} (ID: ${meData.id})`);
-
-            if (meData.id !== PAGE_ID) {
-                console.warn(`[FB_SYNC] WARNING: Token identity (${meData.id}) does not match PAGE_ID (${PAGE_ID}). You might be using a User Token instead of a Page Token.`);
-            }
-        } catch (e) {
-            console.warn('[FB_SYNC] Could not verify token identity:', e.message);
-        }
 
         // 3. Filtrado de Seguridad (SFW y Sugestivo solamente)
         const allowedRatings = ['SFW / Apto', 'Sugestivo'];
-
-        // Normalización básica
         const currentRating = (prompt.rating || '').trim();
 
         if (!allowedRatings.includes(currentRating)) {
@@ -108,10 +88,11 @@ export default async function handler(req, res) {
             });
         }
 
-        // 4. Preparar mensaje (Sin enlaces, solo texto espaciado)
-        // Usamos prompt.author (mapeado en store-final) en lugar de author_name
+        // 4. Preparar mensajes
         const authorDisplay = prompt.author || prompt.author_name || 'Explorador';
-        const message = `✨ ¡Nuevo Prompt! ✨\n\n` +
+
+        // Facebook caption (con prompt completo)
+        const fbMessage = `✨ ¡Nuevo Prompt! ✨\n\n` +
             `📝 Título: ${prompt.title}\n` +
             `👤 Autor: @${authorDisplay}\n` +
             `🛠️ Herramienta: ${prompt.tool}\n` +
@@ -122,36 +103,43 @@ export default async function handler(req, res) {
             `|| WWW. PROMPT-GALLERY . APP ||\n\n` +
             `#PromptGallery #AI #AIArt #Prompts`;
 
-        // 5. Publicar en Facebook
-        let fbResponse;
+        // Instagram caption (más corto, sin prompt completo para engagement)
+        const igCaption = `✨ ${prompt.title}\n\n` +
+            `👤 Por @${authorDisplay}\n` +
+            `🛠️ ${prompt.tool}\n\n` +
+            `¿Quieres el prompt completo? 👉 Link en bio\n` +
+            `🌐 www.prompt-gallery.app\n\n` +
+            `#PromptGallery #AI #AIArt #Prompts #AIGenerated #DigitalArt #CreativeAI`;
+
+        // 5. Preparar imagen
         let targetImg = prompt.image;
 
         if (prompt.type === 'sequence' && prompt.content && prompt.content.length > 0) {
             targetImg = prompt.content[0].image;
         }
 
-        console.log(`[FB_SYNC] Debug Payload: URL=${targetImg}`);
-
-        // Verificación básica de URL para evitar fallos tontos
         if (!targetImg || !targetImg.startsWith('http')) {
             console.error('[FB_SYNC] Error: URL de imagen inválida o local.');
             return res.status(400).json({ error: 'Valid public image URL required', url: targetImg });
         }
 
         // --- APLICAR MARCA DE AGUA (Cloudinary Only) ---
-        // Texto: PROMPT-GALLERY.APP | Fuente: Arial | Tamaño: 45 | Color: Blanco | Posición: Abajo al centro
-        if (targetImg.includes('cloudinary.com') && targetImg.includes('/upload/')) {
-            // Transformación: overlay texto, gravedad sur, margen Y 30, color blanco
+        let fbImg = targetImg;
+        if (fbImg.includes('cloudinary.com') && fbImg.includes('/upload/')) {
             const watermarkTransform = 'l_text:Arial_45_bold:PROMPT-GALLERY.APP,co_white,g_south,y_30/';
-            targetImg = targetImg.replace('/upload/', `/upload/${watermarkTransform}`);
-            console.log(`[FB_SYNC] Watermark applied (Text only): ${targetImg}`);
-        } else {
-            console.log('[FB_SYNC] Skipping watermark (Not a Cloudinary URL or incompatible format)');
+            fbImg = fbImg.replace('/upload/', `/upload/${watermarkTransform}`);
+            console.log(`[FB_SYNC] FB Watermark applied: ${fbImg}`);
         }
 
-        fbResponse = await postToFacebook(PAGE_ID, ACCESS_TOKEN, targetImg, message);
+        // IG usa la imagen original (sin marca de agua de texto, solo visual)
+        const igImg = targetImg;
 
-        console.log(`[FB_SYNC] Graph API raw response status: ${fbResponse.id ? 'Success' : 'Error'}`);
+        // ============================================
+        // 6. PUBLICAR EN FACEBOOK (Existente - No tocar)
+        // ============================================
+        const fbResponse = await postToFacebook(PAGE_ID, ACCESS_TOKEN, fbImg, fbMessage);
+
+        console.log(`[FB_SYNC] FB Graph API response: ${fbResponse.id ? 'Success' : 'Error'}`);
 
         if (fbResponse.error) {
             console.error('[FB_SYNC] Facebook Graph API REJECTED:', JSON.stringify(fbResponse.error));
@@ -163,13 +151,84 @@ export default async function handler(req, res) {
             });
         }
 
-        const finalId = fbResponse.id || fbResponse.post_id;
-        console.log(`[FB_SYNC] SUCCESS! Final ID: ${finalId}`);
+        const fbPostId = fbResponse.id || fbResponse.post_id;
+        console.log(`[FB_SYNC] FB SUCCESS! Post ID: ${fbPostId}`);
 
+        // ============================================
+        // 7. PUBLICAR EN INSTAGRAM (Nuevo - Aislado)
+        //    Si falla, FB ya fue exitoso y se reporta OK
+        // ============================================
+        let igResult = { attempted: false };
+
+        try {
+            // Step 7a: Detect Instagram Business Account linked to this Page
+            const igAccountRes = await fetch(
+                `https://graph.facebook.com/v24.0/${PAGE_ID}?fields=instagram_business_account&access_token=${ACCESS_TOKEN}`
+            );
+            const igAccountData = await igAccountRes.json();
+
+            if (!igAccountData.instagram_business_account?.id) {
+                console.log('[IG_SYNC] No Instagram Business Account linked to this Page. Skipping IG post.');
+                igResult = { attempted: false, reason: 'No IG account linked' };
+            } else {
+                const igUserId = igAccountData.instagram_business_account.id;
+                console.log(`[IG_SYNC] Found IG Account: ${igUserId}. Starting publish flow...`);
+                igResult.attempted = true;
+
+                // Step 7b: Create Media Container
+                const containerParams = new URLSearchParams();
+                containerParams.set('image_url', igImg);
+                containerParams.set('caption', igCaption);
+                containerParams.set('access_token', ACCESS_TOKEN);
+
+                const containerRes = await fetch(
+                    `https://graph.facebook.com/v24.0/${igUserId}/media`,
+                    { method: 'POST', body: containerParams }
+                );
+                const containerData = await containerRes.json();
+
+                if (containerData.error) {
+                    console.error('[IG_SYNC] Container creation FAILED:', JSON.stringify(containerData.error));
+                    igResult.error = containerData.error.message;
+                } else {
+                    const containerId = containerData.id;
+                    console.log(`[IG_SYNC] Container created: ${containerId}. Publishing...`);
+
+                    // Step 7c: Wait briefly for container to be ready (IG processing)
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+
+                    // Step 7d: Publish the container
+                    const publishParams = new URLSearchParams();
+                    publishParams.set('creation_id', containerId);
+                    publishParams.set('access_token', ACCESS_TOKEN);
+
+                    const publishRes = await fetch(
+                        `https://graph.facebook.com/v24.0/${igUserId}/media_publish`,
+                        { method: 'POST', body: publishParams }
+                    );
+                    const publishData = await publishRes.json();
+
+                    if (publishData.error) {
+                        console.error('[IG_SYNC] Publish FAILED:', JSON.stringify(publishData.error));
+                        igResult.error = publishData.error.message;
+                    } else {
+                        igResult.success = true;
+                        igResult.id = publishData.id;
+                        console.log(`[IG_SYNC] SUCCESS! IG Post ID: ${publishData.id}`);
+                    }
+                }
+            }
+        } catch (igErr) {
+            console.warn('[IG_SYNC] Instagram post failed (non-critical):', igErr.message);
+            igResult.error = igErr.message;
+        }
+
+        // 8. Return combined result (FB is always the primary)
         return res.status(200).json({
             success: true,
             message: 'Posted successfully',
-            id: finalId
+            id: fbPostId,
+            instagram: igResult
         });
 
     } catch (error) {
