@@ -927,6 +927,20 @@ window.openDetail = (id) => {
         return;
     }
 
+    // --- VISITOR GATE: Bloquear Sugestivo/NSFW para visitantes ---
+    if (!store.currentUser) {
+        const restrictedRatings = ['Sugestivo', 'NSFW / +18'];
+        if (restrictedRatings.includes(p.rating)) {
+            if (window.toast) {
+                window.toast('🔒 Regístrate o inicia sesión para ver contenido Sugestivo/NSFW', 'warning');
+            }
+            // Intentar abrir modal de auth
+            const authModal = document.getElementById('authModal');
+            if (authModal) authModal.style.display = 'flex';
+            return;
+        }
+    }
+
     // Update URL
     const newUrl = new URL(window.location);
     newUrl.searchParams.set('p', id);

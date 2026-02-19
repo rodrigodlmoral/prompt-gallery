@@ -402,30 +402,39 @@ const store = {
     },
 
     async getPublicStats() {
-        try {
+        const _fetchStats = async () => {
             // 1. Contar usuarios registrados
-            const usersRes = await pb.collection('users').getList(1, 1, { fields: 'id' });
-            this.stats.users = usersRes.totalItems;
+            const usersRes = await pb.collection('users').getList(1, 1, { fields: 'id', requestKey: null });
+            this.stats.users = usersRes.totalItems || 0;
 
             // 2. Contar prompts totales
-            const promptsRes = await pb.collection('prompts').getList(1, 1, { fields: 'id' });
-            this.stats.prompts = promptsRes.totalItems;
+            const promptsRes = await pb.collection('prompts').getList(1, 1, { fields: 'id', requestKey: null });
+            this.stats.prompts = promptsRes.totalItems || 0;
 
             // 3. Obtener visitas totales desde app_stats
             try {
-                const statsRec = await pb.collection('app_stats').getFirstListItem('');
+                const statsRec = await pb.collection('app_stats').getFirstListItem('', { requestKey: null });
                 if (statsRec) this.stats.visits = statsRec.total_visits || 0;
             } catch (e) {
-                console.warn("app_stats record not found. Creating one...");
-                // Si no existe, lo creamos (necesita permisos de creación para público o admin)
-                // Usualmente el admin lo crea manualmente, pero intentamos por robustez
+                console.warn("app_stats record not found or inaccessible.");
             }
+        };
 
-            return this.stats;
+        try {
+            await _fetchStats();
         } catch (err) {
-            console.error("Error fetching stats:", err);
-            return this.stats;
+            console.warn("⚠️ Stats fetch failed, retrying in 2s...", err.message);
+            // Retry once after 2 seconds
+            try {
+                await new Promise(r => setTimeout(r, 2000));
+                await _fetchStats();
+            } catch (retryErr) {
+                console.error("❌ Stats retry also failed:", retryErr.message);
+                // Keep defaults (0, 0, 0) - UI won't crash
+            }
         }
+
+        return this.stats;
     },
 
     async trackVisit() {

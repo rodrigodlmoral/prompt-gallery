@@ -15,6 +15,13 @@ export const initLiveChat = () => {
         return;
     }
 
+    // Idempotencia: Si ya existe el contenedor, no crear duplicado
+    const existingContainer = document.getElementById('live-chat-container');
+    if (existingContainer) {
+        console.log('💬 Chat ya inicializado, ignorando re-init.');
+        return;
+    }
+
     // 1. Create HTML Structure
     const chatContainer = document.createElement('div');
     chatContainer.id = 'live-chat-container';
