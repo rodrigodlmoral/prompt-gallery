@@ -639,7 +639,7 @@ const renderFbSourceItems = (prompts, queue) => {
                 <img src="${p.image || (p.content && p.content[0] ? p.content[0].image : '')}" style="width:50px; height:50px; border-radius:6px; object-fit:cover; background:#000">
                 <div style="flex:1; overflow:hidden">
                     <div style="font-weight:600; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" title="${p.title}">
-                        ${(p.content && p.content.length > 1) ? '<span title="Secuencia/Carrusel">📚</span> ' : ''}${p.title}
+                        ${(p.content && p.content.length > 1) ? '<span title="Secuencia/Carrusel">📚</span> ' : ''}${p.title} ${(p.image_hd || (p.content && p.content[0] && p.content[0].image_hd)) ? '<span style="background:#16a34a;color:#fff;font-size:0.6rem;padding:1px 5px;border-radius:4px;vertical-align:middle;font-weight:bold" title="Tiene versión HD">📀HD</span>' : '<span style="background:#78716c;color:#fff;font-size:0.6rem;padding:1px 5px;border-radius:4px;vertical-align:middle;font-weight:bold" title="Sin versión HD">⚠️SD</span>'}
                     </div>
                     <div style="font-size:0.75rem; color:#666">@${p.author} • ${new Date(p.createdAt).toLocaleDateString()}</div>
                 </div>
@@ -666,7 +666,7 @@ const renderFbQueueItems = (queue) => {
                 <img src="${p.image || (p.content && p.content[0] ? p.content[0].image : '')}" style="width:60px; height:60px; border-radius:6px; object-fit:cover; background:#000">
                 <div style="flex:1; overflow:hidden">
                     <div style="font-weight:bold; font-size:0.9rem; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">
-                         ${(p.content && p.content.length > 1) ? '<span title="Secuencia/Carrusel">📚</span> ' : ''}${p.title}
+                         ${(p.content && p.content.length > 1) ? '<span title="Secuencia/Carrusel">📚</span> ' : ''}${p.title} ${(p.image_hd || (p.content && p.content[0] && p.content[0].image_hd)) ? '<span style="background:#16a34a;color:#fff;font-size:0.6rem;padding:1px 5px;border-radius:4px;vertical-align:middle;font-weight:bold" title="Tiene versión HD">📀HD</span>' : '<span style="background:#78716c;color:#fff;font-size:0.6rem;padding:1px 5px;border-radius:4px;vertical-align:middle;font-weight:bold" title="Sin versión HD">⚠️SD</span>'}
                     </div>
                     <div style="font-size:0.75rem; color:#94a3b8">
                         Status: <span style="color:${statusColor}; text-transform:uppercase; font-weight:bold">${item.status}</span>

@@ -152,7 +152,19 @@ export default async function handler(req, res) {
         };
 
         const fbImages = allImages.map(applyWatermark);
-        const igImages = [...allImages]; // IG uses originals (no text watermark)
+
+        // --- IG: Forzar formato JPEG (IG API no acepta WebP/AVIF de f_auto) ---
+        const normalizeForIG = (url) => {
+            if (url.includes('cloudinary.com') && url.includes('/upload/')) {
+                // 1. Quitar f_auto,q_auto si existe (puede servir WebP que IG rechaza)
+                let clean = url.replace(/\/upload\/f_auto,q_auto\//, '/upload/');
+                // 2. Forzar f_jpg,q_100 para máxima calidad en formato compatible
+                clean = clean.replace('/upload/', '/upload/f_jpg,q_100/');
+                return clean;
+            }
+            return url;
+        };
+        const igImages = allImages.map(normalizeForIG);
 
         // ============================================
         // 6. PUBLICAR EN FACEBOOK
