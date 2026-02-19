@@ -478,7 +478,7 @@ window.connectFacebook = () => {
     // SDK requires a synchronous callback
     window.FB.login((response) => {
         handleFbLoginResponse(response);
-    }, { scope: 'pages_manage_posts,pages_read_engagement,business_management' });
+    }, { scope: 'pages_manage_posts,pages_read_engagement,business_management,instagram_basic,instagram_content_publish' });
 };
 
 const handleFbLoginResponse = async (response) => {
@@ -513,7 +513,8 @@ const handleFbLoginResponse = async (response) => {
 window.disconnectFacebook = async (settingsId) => {
     if (!confirm('¿Desconectar página? Los posts automáticos podrían fallar.')) return;
     try {
-        await store.pb.collection('fb_settings').delete(settingsId);
+        // Use imported 'pb' directly, as store.pb may be inaccessible like this
+        await pb.collection('fb_settings').delete(settingsId);
         window.switchAdminTab('fb-queue'); // Refresh
     } catch (e) {
         alert('Error: ' + e.message);
