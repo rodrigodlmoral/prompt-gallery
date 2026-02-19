@@ -66,11 +66,22 @@ export default async function handler(req, res) {
         steps.push('Step 3: Checking existing settings...');
         let existing;
         try {
-            existing = await pb.collection('fb_settings').getList(1, 1, {
-                filter: 'status="active"',
-                sort: '-created'
+            // Fix: Do NOT use filter param directly to avoid 400 errors if syntax/schema mismatch.
+            // Just fetch latest 10 and filter in memory.
+            const list = await pb.collection('fb_settings').getList(1, 10, {
+                sort: '-created',
+                requestKey: null // Disable auto-cancellation
             });
-            steps.push(`Step 3 OK: Found ${existing.items.length} existing active settings`);
+
+            steps.push(`Step 3 List OK: Fetched ${list.items.length} recent records.`);
+
+            // Filter in memory for 'active'
+            const activeRecord = list.items.find(i => i.status === 'active');
+
+            // Mock the structure expected by Step 5
+            existing = { items: activeRecord ? [activeRecord] : [] };
+
+            steps.push(`Step 3 Filter OK: Found ${existing.items.length} active settings in memory.`);
         } catch (listErr) {
             steps.push(`Step 3 FAILED: List error: ${listErr.message} | Data: ${JSON.stringify(listErr.data || {})}`);
             return res.status(500).json({ error: 'List settings failed: ' + listErr.message, steps });

@@ -173,7 +173,7 @@ export default async function handler(req, res) {
 }
 
 async function postToFacebook(pageId, token, imageUrl, message) {
-    const url = `https://graph.facebook.com/v21.0/${pageId}/photos`;
+    const url = `https://graph.facebook.com/v24.0/${pageId}/photos`;
 
     const params = new URLSearchParams();
     params.set('url', imageUrl);

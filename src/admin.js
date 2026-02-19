@@ -317,7 +317,7 @@ const renderFbQueueTab = async (container) => {
             appId: '1230045182005480',
             cookie: true,
             xfbml: true,
-            version: 'v21.0'
+            version: 'v24.0'
         });
     }
 
