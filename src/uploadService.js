@@ -6,26 +6,34 @@
 const CLOUD_NAME = 'du0oasfjl';
 const UPLOAD_PRESET = 'prompt_gallery';
 
+const CLOUD_NAME_HD = 'dcs9gpbqp';
+const UPLOAD_PRESET_HD = 'prompt_gallery_hd';
+
 /**
- * Sube un archivo a Cloudinary
- * @param {File|Blob} file - El archivo de imagen a subir
- * @returns {Promise<string>} - La URL segura de la imagen
+ * Sube un archivo a Cloudinary (Main Account - Web Optimized)
  */
 export async function uploadToCloudinary(file) {
+    return _upload(file, CLOUD_NAME, UPLOAD_PRESET, true);
+}
+
+/**
+ * Sube un archivo a Cloudinary (HD Account - High Quality for Social)
+ */
+export async function uploadToCloudinaryHD(file) {
+    return _upload(file, CLOUD_NAME_HD, UPLOAD_PRESET_HD, false);
+}
+
+async function _upload(file, cloudName, preset, autoOptimize) {
     if (!file) throw new Error('No se proporcionó ningún archivo');
 
     try {
-
-
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('upload_preset', UPLOAD_PRESET);
-        // Usar timestamp + random para evitar colisiones
+        formData.append('upload_preset', preset);
         const uniqueId = `pg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         formData.append('public_id', uniqueId);
 
-
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
             method: 'POST',
             body: formData
         });
@@ -36,11 +44,15 @@ export async function uploadToCloudinary(file) {
         }
 
         const data = await response.json();
+        let url = data.secure_url;
 
+        if (autoOptimize) {
+            url = url.replace('/upload/', '/upload/f_auto,q_auto/');
+        }
 
-        return data.secure_url.replace('/upload/', '/upload/f_auto,q_auto/');
+        return url;
     } catch (error) {
-        console.error('❌ Error subiendo a Cloudinary:', error);
+        console.error(`❌ Error subiendo a Cloudinary (${cloudName}):`, error);
         throw error;
     }
 }

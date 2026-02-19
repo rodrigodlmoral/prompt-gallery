@@ -1,5 +1,5 @@
 import { pb } from './pocketbase.js';
-import { uploadToCloudinary } from './uploadService.js';
+import { uploadToCloudinary, uploadToCloudinaryHD } from './uploadService.js';
 import { LevelSystem } from './lib/LevelSystem.js';
 import { checkCopyMilestone, getNextMilestone } from './lib/CopyBonusSystem.js';
 import { LedgerService } from './lib/LedgerService.js';
@@ -623,6 +623,9 @@ const store = {
             await pb.collection('facebook_queue').create({
                 prompt: promptRecord.id,
                 status: 'pending',
+                allImages: promptRecord.content
+                    .map(item => (item.image_hd && item.image_hd.startsWith('http')) ? item.image_hd : item.image)
+                    .filter(url => url && url.startsWith('http')),
                 added_by: promptRecord.author || this.currentUser?.id
             });
             console.log(`[FB_SYNC] ✅ Añadido a la cola correctamente: ${promptRecord.title}`);
@@ -972,7 +975,12 @@ const store = {
         }
 
         let imageUrl = '';
-        const uploadImage = async (base64) => {
+        const uploadImage = async (base64, isHD = false) => {
+            if (isHD) {
+                const compressed = await this._compressImageHD(base64);
+                const file = this._dataURLtoFile(compressed, 'hd_social.jpg');
+                return await uploadToCloudinaryHD(file);
+            }
             const compressed = await this._compressImage(base64);
             const file = this._dataURLtoFile(compressed, 'upload.webp');
             return await uploadToCloudinary(file);
@@ -982,14 +990,25 @@ const store = {
         try {
             if (data.image && data.image.startsWith('data:')) {
                 imageUrl = await uploadImage(data.image);
+                // Generar versión HD automáticamente para TODOS los usuarios
+                if (!data.imageHD) {
+                    data.image_hd = await uploadImage(data.image, true);
+                }
+            }
+            if (data.imageHD && data.imageHD.startsWith('data:')) {
+                data.image_hd = await uploadImage(data.imageHD, true);
             }
             if (data.content && Array.isArray(data.content)) {
                 processedContent = await Promise.all(data.content.map(async (step) => {
                     let stepUrl = step.image;
+                    let stepUrlHd = step.image_hd || '';
+
                     if (step.image && step.image.startsWith('data:')) {
                         stepUrl = await uploadImage(step.image);
+                        // Auto HD para secuencias — TODOS los usuarios
+                        stepUrlHd = await uploadImage(step.image, true);
                     }
-                    return { ...step, image: stepUrl };
+                    return { ...step, image: stepUrl, image_hd: stepUrlHd };
                 }));
             }
         } catch (err) {
@@ -1002,16 +1021,17 @@ const store = {
                 prompt: data.prompt,
                 negative_prompt: data.negative_prompt,
                 image: imageUrl,
+                image_hd: data.image_hd || '', // PERSIST HD URL
                 author: this.currentUser.id,
                 author_name: this.currentUser.username,
                 type: data.type || 'single',
                 is_private: data.isPrivate || false,
-                needs_reference: data.needsReference || false, // NEW: Persist reference requirement
+                needs_reference: data.needsReference || false,
                 tool: data.tool,
                 rating: data.rating,
                 content: processedContent,
-                tags: data.tags || [], // NUEVO
-                created_at_custom: new Date().toISOString(), // Usamos ISO para asegurar orden correcto
+                tags: data.tags || [],
+                created_at_custom: new Date().toISOString(),
                 reactions: { like: 0, love: 0, fire: 0, funny: 0 },
                 comments: [],
                 saved_by: []
@@ -2086,6 +2106,53 @@ const store = {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 resolve(canvas.toDataURL('image/webp', 0.8));
+            };
+            img.src = base64;
+        });
+    },
+
+    _compressImageHD(base64) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                // Estimate size in bytes
+                const estimate = Math.floor((base64.length - 22) * 0.75);
+                const MAX_BYTES = 9.2 * 1024 * 1024; // 9.2 MB for safety
+
+                if (estimate <= MAX_BYTES && width <= 4500) {
+                    console.log("[HD_PROCESS] Image is within limits, keeping original quality.");
+                    resolve(base64);
+                    return;
+                }
+
+                console.log("[HD_PROCESS] Image too large or resolution too high. Starting smart compression...");
+                const MAX_WIDTH = 4500; // Still very high resolution
+                if (width > MAX_WIDTH) {
+                    height = (MAX_WIDTH / width) * height;
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                let quality = 0.95;
+                let dataUrl = canvas.toDataURL('image/jpeg', quality);
+                let newEstimate = Math.floor((dataUrl.length - 22) * 0.75);
+
+                while (newEstimate > MAX_BYTES && quality > 0.6) {
+                    quality -= 0.05;
+                    dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    newEstimate = Math.floor((dataUrl.length - 22) * 0.75);
+                    console.log(`[HD_PROCESS] Retrying compression: Quality ${quality.toFixed(2)}, Size: ${(newEstimate / 1024 / 1024).toFixed(2)}MB`);
+                }
+
+                resolve(dataUrl);
             };
             img.src = base64;
         });

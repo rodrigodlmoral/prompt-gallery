@@ -509,13 +509,14 @@ class BatchUploadApp {
                     prompt: row.prompt,
                     negative_prompt: row.negative_prompt,
                     image: row.image,
+                    imageHD: row.image, // NEW: Enviar para procesamiento HD
                     type: 'single',
                     tool: row.tool,
                     rating: row.rating,
                     needsReference: row.needs_reference,
                     isPrivate: row.is_private,
-                    tags: row.tags, // Agregado aquí
-                    extraConfig: row.extraConfig // Pasamos la configuración adicional
+                    tags: row.tags,
+                    extraConfig: row.extraConfig
                 });
 
                 if (result.success) {

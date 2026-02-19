@@ -118,16 +118,19 @@ export default async function handler(req, res) {
         let allImages = [];
 
         if (isSequence) {
-            // Multi-image: extract all valid image URLs from sequence
+            // Multi-image: extract all valid image URLs from sequence (Prefer HD)
             allImages = prompt.content
-                .map(item => item.image)
+                .map(item => (item.image_hd && item.image_hd.startsWith('http')) ? item.image_hd : item.image)
                 .filter(url => url && url.startsWith('http'));
             console.log(`[FB_SYNC] Sequence detected: ${allImages.length} images`);
         } else {
             // Single image (standard or sequence with 1 image)
-            let targetImg = prompt.image;
+            // PRIORIDAD HD: Si existe image_hd, usarla para redes sociales
+            let targetImg = (prompt.image_hd && prompt.image_hd.startsWith('http')) ? prompt.image_hd : prompt.image;
+
             if (prompt.type === 'sequence' && prompt.content && prompt.content.length > 0) {
-                targetImg = prompt.content[0].image;
+                const firstItem = prompt.content[0];
+                targetImg = (firstItem.image_hd && firstItem.image_hd.startsWith('http')) ? firstItem.image_hd : firstItem.image;
             }
             if (targetImg && targetImg.startsWith('http')) {
                 allImages = [targetImg];
