@@ -61,8 +61,8 @@ export default async function handler(req, res) {
         steps.push('Step 3: Checking existing settings...');
         const listQuery = new URLSearchParams({
             page: '1',
-            perPage: '10',
-            sort: '-created'
+            perPage: '10'
+            // sort: '-created' // CAUSES 400 ERROR IN PB v0.23+
         });
 
         const listRes = await fetch(`${pbUrl}/api/collections/fb_settings/records?${listQuery.toString()}`, {
