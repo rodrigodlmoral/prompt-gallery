@@ -317,7 +317,7 @@ const renderFbQueueTab = async (container) => {
             appId: '1230045182005480',
             cookie: true,
             xfbml: true,
-            version: 'v19.0'
+            version: 'v21.0'
         });
     }
 
@@ -437,7 +437,7 @@ window.connectFacebook = () => {
     // SDK requires a synchronous callback
     window.FB.login((response) => {
         handleFbLoginResponse(response);
-    }, { scope: 'pages_manage_posts,pages_read_engagement' });
+    }, { scope: 'pages_manage_posts,pages_read_engagement,business_management' });
 };
 
 const handleFbLoginResponse = async (response) => {

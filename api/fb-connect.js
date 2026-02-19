@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 
         // 1. Exchange for Long-Lived User Token
         console.log('[FB_CONNECT] Exchanging for Long-Lived User Token...');
-        const exchangeUrl = `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${APP_ID}&client_secret=${APP_SECRET}&fb_exchange_token=${shortUserToken}`;
+        const exchangeUrl = `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${APP_ID}&client_secret=${APP_SECRET}&fb_exchange_token=${shortUserToken}`;
 
         const exchangeRes = await fetch(exchangeUrl);
         const exchangeData = await exchangeRes.json();
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
 
         // 2. Fetch Pages (with their tokens)
         console.log('[FB_CONNECT] Fetching Pages...');
-        const pagesUrl = `https://graph.facebook.com/v19.0/me/accounts?access_token=${longLivedUserToken}&limit=100`;
+        const pagesUrl = `https://graph.facebook.com/v21.0/me/accounts?access_token=${longLivedUserToken}&limit=100`;
         const pagesRes = await fetch(pagesUrl);
         const pagesData = await pagesRes.json();
 
