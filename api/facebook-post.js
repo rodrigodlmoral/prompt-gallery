@@ -94,7 +94,7 @@ export default async function handler(req, res) {
         // Facebook caption (con prompt completo)
         const fbMessage = `✨ ¡Nuevo Prompt! ✨\n\n` +
             `📝 Título: ${prompt.title}\n` +
-            `👤 Autor: @${authorDisplay}\n` +
+            `👤 Autor: ${authorDisplay}\n` +
             `🛠️ Herramienta: ${prompt.tool}\n` +
             `📸 Requiere Referencia: ${prompt.needs_reference ? 'SÍ ✅' : 'NO ❌'}\n\n` +
             `💡 PROMPT:\n${prompt.prompt}\n\n` +
@@ -105,7 +105,7 @@ export default async function handler(req, res) {
 
         // Instagram caption (prompt completo incluido)
         const igCaption = `✨ ${prompt.title}\n\n` +
-            `👤 Por @${authorDisplay}\n` +
+            `👤 Por ${authorDisplay}\n` +
             `🛠️ ${prompt.tool}\n` +
             `📸 Requiere Referencia: ${prompt.needs_reference ? 'SÍ ✅' : 'NO ❌'}\n\n` +
             `💡 PROMPT:\n${prompt.prompt}\n\n` +
