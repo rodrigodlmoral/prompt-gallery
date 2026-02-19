@@ -291,16 +291,41 @@ const renderBroadcastTab = async (container) => {
     };
 };
 
-// --- FB QUEUE TAB ---
+// --- FB QUEUE TAB (OAUTH CONNECT v4.5) ---
 const renderFbQueueTab = async (container) => {
     container.innerHTML = `<div style="text-align:center; padding:50px; color:#666"><div class="loading-spinner"></div> Cargando cola de Facebook...</div>`;
 
-    // Load Data
-    const queue = await store.adminGetFbQueue();
-    window.fbQueueCache = queue; // Store for filtering & real-time
+    // 1. Check Connection Status
+    let fbSettings = null;
+    try {
+        const settingsList = await store.pb.collection('fb_settings').getList(1, 1, {
+            filter: 'status="active"',
+            sort: '-created',
+            $autoCancel: false
+        });
+        if (settingsList.items.length > 0) {
+            fbSettings = settingsList.items[0];
+        }
+    } catch (e) {
+        console.warn('Could not fetch fb_settings:', e);
+    }
 
-    // Real-Time Subscription
-    store.unsubscribeFromFbQueue(); // Clean previous
+    // 2. Setup FB SDK (Idempotent)
+    if (window.FB) {
+        window.FB.init({
+            appId: '1230045182005480',
+            cookie: true,
+            xfbml: true,
+            version: 'v19.0'
+        });
+    }
+
+    // 3. Load Queue Data
+    const queue = await store.adminGetFbQueue();
+    window.fbQueueCache = queue;
+
+    // Subscription logic remains...
+    store.unsubscribeFromFbQueue();
     store.subscribeToFbQueue(({ action, record }) => {
         const queueList = document.getElementById('fbQueueList');
         const queueCount = document.getElementById('fbQueueCount');
@@ -331,65 +356,183 @@ const renderFbQueueTab = async (container) => {
             window.fbQueueCache = window.fbQueueCache.filter(i => i.id !== record.id);
         }
 
-        // Sort & Refresh List
         window.fbQueueCache.sort((a, b) => new Date(a.created) - new Date(b.created));
         queueList.innerHTML = renderFbQueueItems(window.fbQueueCache);
         if (queueCount) queueCount.innerText = window.fbQueueCache.length;
     });
 
     // Load source pool (all prompts)
-    if (!store.prompts || store.prompts.length === 0) await store.loadPrompts(true); // Ensure some prompts
-    // Better: load all for admin source
-    // We'll use store.allPrompts if available or fallback to store.prompts
+    if (!store.prompts || store.prompts.length === 0) await store.loadPrompts(true);
     let sourcePrompts = store.allPrompts && store.allPrompts.length > 0 ? store.allPrompts : store.prompts;
-
-    // Filter Source: No NSFW
     sourcePrompts = sourcePrompts.filter(p => p.rating !== 'NSFW / +18');
 
-    // Render Layout
+    // 4. Render Layout
     container.innerHTML = `
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; max-width:1200px; margin:0 auto; height:75vh">
+        <div style="max-width:1200px; margin:0 auto; display:flex; flex-direction:column; height:85vh; gap:20px">
             
-            <!-- LEFT: SOURCE (Discovery) -->
-            <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; display:flex; flex-direction:column; overflow:hidden">
-                <div style="padding:15px; border-bottom:1px solid #333; background:#222">
-                    <h3 style="margin:0; color:#ccc; display:flex; align-items:center; gap:10px">
-                        <span>🗂️ Fuente de Prompts</span>
-                        <span style="font-size:0.7rem; background:#333; padding:2px 6px; border-radius:4px">${sourcePrompts.length}</span>
-                    </h3>
-                    <input type="text" id="fbSourceSearch" placeholder="🔍 Buscar por título..." class="form-input" style="margin-top:10px; padding:6px; font-size:0.8rem" oninput="window.filterFbSource()">
+            <!-- CONNECT HEADER -->
+            <div style="background:#111; border:1px solid #333; padding:15px; border-radius:12px; display:flex; justify-content:space-between; align-items:center">
+                <div style="display:flex; align-items:center; gap:15px">
+                    <span style="font-size:2rem">📘</span>
+                    <div>
+                        <h2 style="margin:0; color:white; font-size:1.2rem">Conexión con Facebook</h2>
+                        <p style="margin:0; color:#888; font-size:0.8rem">
+                            ${fbSettings ? `✅ Conectado a: <strong style="color:#1877F2">${fbSettings.page_name}</strong>` : '⚠️ No hay página conectada. Los posts pueden fallar.'}
+                        </p>
+                    </div>
                 </div>
-                <div id="fbSourceList" style="flex:1; overflow-y:auto; padding:10px">
-                    <!-- Items -->
-                    ${renderFbSourceItems(sourcePrompts, queue)}
+                <div>
+                    ${fbSettings
+            ? `<button onclick="window.disconnectFacebook('${fbSettings.id}')" class="btn" style="background:#333; border:1px solid #555">❌ Desconectar</button>`
+            : `<button onclick="window.connectFacebook()" class="btn" style="background:#1877F2; font-weight:bold">🔗 Conectar Página</button>`
+        }
                 </div>
             </div>
 
-            <!-- RIGHT: QUEUE (Scheduled) -->
-            <div style="background:#0f172a; border:1px solid #1e293b; border-radius:12px; display:flex; flex-direction:column; overflow:hidden">
-                <div style="padding:15px; border-bottom:1px solid #1e293b; background:#1e293b; display:flex; justify-content:space-between; align-items:center">
-                    <div>
-                        <h3 style="margin:0; color:#3b82f6; display:flex; align-items:center; gap:10px">
-                            <span>📘 Cola de Publicación</span>
-                            <span id="fbQueueCount" style="font-size:0.7rem; background:#0f172a; padding:2px 8px; border-radius:10px; border:1px solid #3b82f6">${queue.length}</span>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; flex:1; min-height:0">
+                
+                <!-- LEFT: SOURCE (Discovery) -->
+                <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; display:flex; flex-direction:column; overflow:hidden">
+                    <div style="padding:15px; border-bottom:1px solid #333; background:#222">
+                        <h3 style="margin:0; color:#ccc; display:flex; align-items:center; gap:10px">
+                            <span>🗂️ Fuente de Prompts</span>
+                            <span style="font-size:0.7rem; background:#333; padding:2px 6px; border-radius:4px">${sourcePrompts.length}</span>
                         </h3>
-                        <div id="fbNextRun" style="font-size:0.75rem; color:#64748b; margin-top:4px">⏸️ Esperando inicio...</div>
+                        <input type="text" id="fbSourceSearch" placeholder="🔍 Buscar por título..." class="form-input" style="margin-top:10px; padding:6px; font-size:0.8rem" oninput="window.filterFbSource()">
                     </div>
-                    <div>
-                        <button id="btnStartSmartQueue" class="btn" onclick="window.toggleSmartQueue()" style="background:#3b82f6; font-size:0.8rem; padding:6px 12px">▶️ Iniciar Auto-Post</button>
+                    <div id="fbSourceList" style="flex:1; overflow-y:auto; padding:10px">
+                        <!-- Items -->
+                        ${renderFbSourceItems(sourcePrompts, queue)}
                     </div>
                 </div>
-                <div id="fbQueueList" style="flex:1; overflow-y:auto; padding:10px; background:#0f172a">
-                    ${renderFbQueueItems(queue)}
+
+                <!-- RIGHT: QUEUE (Scheduled) -->
+                <div style="background:#0f172a; border:1px solid #1e293b; border-radius:12px; display:flex; flex-direction:column; overflow:hidden">
+                    <div style="padding:15px; border-bottom:1px solid #1e293b; background:#1e293b; display:flex; justify-content:space-between; align-items:center">
+                        <div>
+                            <h3 style="margin:0; color:#3b82f6; display:flex; align-items:center; gap:10px">
+                                <span>📘 Cola de Publicación</span>
+                                <span id="fbQueueCount" style="font-size:0.7rem; background:#0f172a; padding:2px 8px; border-radius:10px; border:1px solid #3b82f6">${queue.length}</span>
+                            </h3>
+                            <div id="fbNextRun" style="font-size:0.75rem; color:#64748b; margin-top:4px">⏸️ Esperando inicio...</div>
+                        </div>
+                        <div>
+                            <button id="btnStartSmartQueue" class="btn" onclick="window.toggleSmartQueue()" style="background:#3b82f6; font-size:0.8rem; padding:6px 12px">▶️ Iniciar</button>
+                        </div>
+                    </div>
+                    <div id="fbQueueList" style="flex:1; overflow-y:auto; padding:10px; background:#0f172a">
+                        ${renderFbQueueItems(queue)}
+                    </div>
                 </div>
             </div>
-
         </div>
     `;
+};
 
-    // Store for filtering
-    window.fbSourceCache = sourcePrompts;
-    window.fbQueueCache = queue;
+// --- FB CONNECTION HANDLERS ---
+window.connectFacebook = () => {
+    if (!window.FB) return alert('Facebook SDK no cargó. Recarga la página.');
+
+    window.FB.login(async (response) => {
+        if (response.authResponse) {
+            console.log('FB Login Success. Token:', response.authResponse.accessToken);
+            const userToken = response.authResponse.accessToken;
+
+            // Call API to exchange token & list pages via proxy
+            // (Avoid calling Graph API directly from client if possible, but for page listing it's ok via proxy)
+            try {
+                if (window.showToast) window.showToast("Obteniendo páginas...", "info");
+
+                const res = await fetch('/api/fb-connect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shortUserToken: userToken })
+                });
+
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Error al obtener páginas');
+
+                // Show Page Selection Modal
+                renderPageSelectionModal(data.pages);
+
+            } catch (err) {
+                console.error(err);
+                alert('Error conectando: ' + err.message);
+            }
+        } else {
+            console.log('User cancelled login or did not fully authorize.');
+        }
+    }, { scope: 'pages_manage_posts,pages_read_engagement' });
+};
+
+window.disconnectFacebook = async (settingsId) => {
+    if (!confirm('¿Desconectar página? Los posts automáticos podrían fallar.')) return;
+    try {
+        await store.pb.collection('fb_settings').delete(settingsId);
+        window.switchAdminTab('fb-queue'); // Refresh
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+};
+
+const renderPageSelectionModal = (pages) => {
+    const modal = document.createElement('div');
+    modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; display:flex; justify-content:center; align-items:center`;
+
+    let pagesHtml = pages.map(p => `
+        <div onclick="window.selectPage('${p.id}', '${p.name}', '${p.access_token}')" 
+             style="background:#222; padding:15px; margin-bottom:10px; border-radius:8px; cursor:pointer; border:1px solid #333; display:flex; justify-content:space-between; hover:brightness(1.2)">
+            <div>
+                <div style="color:white; font-weight:bold">${p.name}</div>
+                <div style="color:#666; font-size:0.8rem">ID: ${p.id}</div>
+                <div style="color:#888; font-size:0.7rem">${p.category || 'Página'}</div>
+            </div>
+            <div style="font-size:1.5rem">👉</div>
+        </div>
+    `).join('');
+
+    modal.innerHTML = `
+        <div style="background:#111; padding:25px; border-radius:12px; width:400px; max-width:90%; border:1px solid gold">
+            <h3 style="color:gold; margin-top:0">Selecciona tu Página</h3>
+            <p style="color:#bbb; font-size:0.9rem">¿En cuál página quieres publicar los prompts?</p>
+            <div style="max-height:300px; overflow-y:auto; margin:15px 0">
+                ${pagesHtml.length > 0 ? pagesHtml : '<div style="color:#666">No se encontraron páginas administrables.</div>'}
+            </div>
+            <button onclick="document.body.removeChild(this.parentElement.parentElement)" class="btn" style="width:100%; background:#333">Cancelar</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+};
+
+window.selectPage = async (id, name, token) => {
+    try {
+        if (window.showToast) window.showToast("Guardando conexión...", "info");
+
+        // Remove modal
+        const modal = document.querySelector('div[style*="z-index:9999"]');
+        if (modal) modal.remove();
+
+        // Call backend to save
+        const res = await fetch('/api/fb-save-page', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pageId: id,
+                pageName: name,
+                pageAccessToken: token,
+                userId: store.currentUser?.id
+            })
+        });
+
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+
+        alert(`✅ Conectado exitosamente a: ${name}`);
+        window.switchAdminTab('fb-queue'); // Refresh
+
+    } catch (e) {
+        alert('Error guardando página: ' + e.message);
+    }
 };
 
 // --- RENDER HELPERS ---

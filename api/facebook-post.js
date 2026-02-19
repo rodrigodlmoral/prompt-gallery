@@ -28,16 +28,44 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing prompt data' });
         }
 
-        const VERSION = "v4.5-TEXT-POLISH";
+        const VERSION = "v4.6-OAUTH-CONNECT";
         console.log(`[FB_SYNC] Debug Recibido: "${prompt.title}" | Rating: "${prompt.rating}" | ID: ${prompt.id}`);
         console.log(`[FB_SYNC] API Version: ${VERSION} | Time: ${new Date().toISOString()}`);
 
-        // 2. Extraer credenciales desde variables de entorno de Vercel (con limpieza robusta)
-        const PAGE_ID = (process.env.FB_PAGE_ID || '').trim();
-        const ACCESS_TOKEN = (process.env.FB_PAGE_ACCESS_TOKEN || '').trim();
+        // 2. Obtener credenciales (Prioridad: PB > Env Vars)
+        let PAGE_ID = (process.env.FB_PAGE_ID || '').trim();
+        let ACCESS_TOKEN = (process.env.FB_PAGE_ACCESS_TOKEN || '').trim();
+        let source = 'ENV_VAR';
+
+        try {
+            // Intentar leer de PocketBase fb_settings
+            const { default: PocketBase } = await import('pocketbase'); // Dynamic import for Vercel
+            const pbUrl = process.env.VITE_POCKETBASE_URL || 'https://prompt-gallery.pockethost.io';
+            const pb = new PocketBase(pbUrl);
+
+            // Auth Admin (necesario para leer token protegido)
+            await pb.admins.authWithPassword(process.env.PB_ADMIN_EMAIL, process.env.PB_ADMIN_PASS);
+
+            const settings = await pb.collection('fb_settings').getList(1, 1, {
+                filter: 'status="active"',
+                sort: '-created'
+            });
+
+            if (settings.items.length > 0) {
+                const rec = settings.items[0];
+                PAGE_ID = rec.page_id;
+                ACCESS_TOKEN = rec.access_token;
+                source = `POCKETBASE (Page: ${rec.page_name})`;
+                console.log(`[FB_SYNC] Using credentials from: ${source}`);
+            } else {
+                console.log('[FB_SYNC] No active fb_settings found in PB. Falling back to ENV.');
+            }
+        } catch (pbErr) {
+            console.warn('[FB_SYNC] PocketBase credentials fetch failed (Using ENV fallback):', pbErr.message);
+        }
 
         if (!PAGE_ID || !ACCESS_TOKEN) {
-            console.error('[FB_SYNC] Missing FB credentials in environment variables.');
+            console.error('[FB_SYNC] Missing FB credentials everywhere (PB & ENV).');
             return res.status(500).json({ error: 'System not configured for Facebook Auto-Post' });
         }
 
