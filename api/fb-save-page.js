@@ -32,7 +32,7 @@ export default async function handler(req, res) {
         }
 
         // 2. Connect to PocketBase as Admin
-        const pb = new PocketBase(process.env.VITE_POCKETBASE_URL);
+        const pb = new PocketBase(process.env.PB_URL || process.env.VITE_POCKETBASE_URL);
         const email = process.env.PB_ADMIN_EMAIL;
         const pass = process.env.PB_ADMIN_PASS;
 

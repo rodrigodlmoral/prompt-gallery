@@ -40,7 +40,7 @@ export default async function handler(req, res) {
         try {
             // Intentar leer de PocketBase fb_settings
             const { default: PocketBase } = await import('pocketbase'); // Dynamic import for Vercel
-            const pbUrl = process.env.VITE_POCKETBASE_URL || 'https://prompt-gallery.pockethost.io';
+            const pbUrl = process.env.PB_URL || process.env.VITE_POCKETBASE_URL || 'https://prompt-gallery.pockethost.io';
             const pb = new PocketBase(pbUrl);
 
             // Auth Admin (necesario para leer token protegido)
@@ -173,7 +173,7 @@ export default async function handler(req, res) {
 }
 
 async function postToFacebook(pageId, token, imageUrl, message) {
-    const url = `https://graph.facebook.com/v19.0/${pageId}/photos`;
+    const url = `https://graph.facebook.com/v21.0/${pageId}/photos`;
 
     const params = new URLSearchParams();
     params.set('url', imageUrl);
