@@ -529,7 +529,14 @@ window.selectPage = async (id, name, token) => {
         });
 
         const data = await res.json();
-        if (!data.success) throw new Error(data.error + (data.message ? ` (${data.message})` : ''));
+        if (!data.success) {
+            // Log full diagnostic data to console
+            console.error('[FB_SAVE] Server diagnostic:', data);
+            if (data.steps) console.table(data.steps);
+
+            const stepsInfo = data.steps ? '\n\nDiagnóstico:\n' + data.steps.join('\n') : '';
+            throw new Error((data.error || 'Unknown error') + stepsInfo);
+        }
 
         alert(`✅ Conectado exitosamente a: ${name}`);
         window.switchAdminTab('fb-queue'); // Refresh
