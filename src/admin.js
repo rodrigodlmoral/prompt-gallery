@@ -643,7 +643,7 @@ const renderFbSourceItems = (prompts, queue) => {
                     </div>
                     <div style="font-size:0.75rem; color:#666">@${p.author} • ${new Date(p.createdAt).toLocaleDateString()}</div>
                 </div>
-                <button class="btn-sm" onclick="window.addToFbQueue('${p.id}')" style="background:#222; border:1px solid #444">➕</button>
+                <button class="btn-icon-pro btn-add" onclick="window.addToFbQueue('${p.id}')" title="Añadir a la Cola">➕</button>
             </div>
         `;
     }).join('');
@@ -673,12 +673,12 @@ const renderFbQueueItems = (queue) => {
                         ${item.error ? `<br><span style="color:#ef4444">Error: ${item.error}</span>` : ''}
                     </div>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:4px">
+                <div style="display:flex; flex-direction:column; gap:6px">
                     ${item.status === 'pending' || item.status === 'failed' ? `
-                        <button class="btn-sm" onclick="window.processFbItem('${item.id}', '${p.id}')" style="background:#3b82f6; color:white; padding:4px 8px; font-size:0.7rem">🚀 Post</button>
-                        <button class="btn-sm" onclick="window.removeFromFbQueue('${item.id}')" style="background:#ef4444; color:white; padding:4px 8px; font-size:0.7rem">🗑️</button>
+                        <button class="btn-icon-pro btn-publish" onclick="window.processFbItem('${item.id}', '${p.id}')" title="Publicar Ahora">🚀</button>
+                        <button class="btn-icon-pro btn-delete" onclick="window.removeFromFbQueue('${item.id}')" title="Eliminar de la Cola">🗑️</button>
                     ` : ''}
-                    ${item.status === 'published' ? `<button class="btn-sm" onclick="window.removeFromFbQueue('${item.id}')" style="background:#222; color:#666; padding:4px 8px; font-size:0.7rem">Limpiar</button>` : ''}
+                    ${item.status === 'published' ? `<button class="btn-icon-pro btn-clear" onclick="window.removeFromFbQueue('${item.id}')" title="Limpiar de la lista">✨</button>` : ''}
                 </div>
             </div>
         `;
