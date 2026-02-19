@@ -56,7 +56,7 @@ const AdminLayout = () => `
             <button class="profile-tab ${currentTab === 'content' ? 'active' : ''}" onclick="window.switchAdminTab('content')">Moderación</button>
             <button class="profile-tab ${currentTab === 'logs' ? 'active' : ''}" onclick="window.switchAdminTab('logs')">📜 Actividad</button>
             <button class="profile-tab ${currentTab === 'broadcast' ? 'active' : ''}" onclick="window.switchAdminTab('broadcast')">📢 Broadcast</button>
-            <button class="profile-tab ${currentTab === 'fb-queue' ? 'active' : ''}" onclick="window.switchAdminTab('fb-queue')" style="border-color:#1877F2; color:#1877F2">📘 FB Autopost</button>
+            <button class="profile-tab ${currentTab === 'fb-queue' ? 'active' : ''}" onclick="window.switchAdminTab('fb-queue')" style="border-color:#1877F2; color:#1877F2">📘 Autopost</button>
         </div>
 
         <!-- Sub-modal de Gestión de Usuario (Compacto) -->
@@ -390,6 +390,15 @@ const renderFbQueueTab = async (container) => {
                 </div>
             </div>
 
+            <!-- INSTAGRAM STATUS -->
+            <div id="igStatusBox" style="background:#111; border:1px solid #333; padding:12px 15px; border-radius:12px; display:flex; align-items:center; gap:15px">
+                <span style="font-size:1.8rem">📸</span>
+                <div>
+                    <h3 style="margin:0; color:white; font-size:1rem">Conexión con Instagram</h3>
+                    <p id="igStatusText" style="margin:0; color:#888; font-size:0.8rem">⏳ Detectando cuenta...</p>
+                </div>
+            </div>
+
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; flex:1; min-height:0">
                 
                 <!-- LEFT: SOURCE (Discovery) -->
@@ -399,10 +408,16 @@ const renderFbQueueTab = async (container) => {
                             <span>🗂️ Fuente de Prompts</span>
                             <span style="font-size:0.7rem; background:#333; padding:2px 6px; border-radius:4px">${sourcePrompts.length}</span>
                         </h3>
-                        <input type="text" id="fbSourceSearch" placeholder="🔍 Buscar por título..." class="form-input" style="margin-top:10px; padding:6px; font-size:0.8rem" oninput="window.filterFbSource()">
+                        <div style="display:flex; gap:8px; margin-top:10px; align-items:center">
+                            <input type="text" id="fbSourceSearch" placeholder="🔍 Buscar por título..." class="form-input" style="flex:1; padding:6px; font-size:0.8rem" oninput="window.filterFbSource()">
+                            <button id="btnBatchAddSource" class="btn-sm" onclick="window.batchAddToQueue()" style="background:#22c55e; color:white; padding:6px 10px; font-size:0.7rem; white-space:nowrap; display:none">➕ Añadir seleccionados</button>
+                        </div>
+                        <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:0.75rem; color:#888; cursor:pointer">
+                            <input type="checkbox" id="cbSelectAllSource" onchange="window.toggleSelectAllSource(this.checked)" style="accent-color:#3b82f6">
+                            Seleccionar todos
+                        </label>
                     </div>
                     <div id="fbSourceList" style="flex:1; overflow-y:auto; padding:10px">
-                        <!-- Items -->
                         ${renderFbSourceItems(sourcePrompts, queue)}
                     </div>
                 </div>
@@ -417,9 +432,18 @@ const renderFbQueueTab = async (container) => {
                             </h3>
                             <div id="fbNextRun" style="font-size:0.75rem; color:#64748b; margin-top:4px">⏸️ Esperando inicio...</div>
                         </div>
-                        <div>
-                            <button id="btnStartSmartQueue" class="btn" onclick="window.toggleSmartQueue()" style="background:#3b82f6; font-size:0.8rem; padding:6px 12px">▶️ Iniciar</button>
+                        <div style="display:flex; gap:6px; align-items:center">
+                            <button id="btnStartSmartQueue" class="btn" onclick="window.startSmartQueue()" style="background:#3b82f6; font-size:0.8rem; padding:6px 12px">▶️ Iniciar</button>
+                            <button id="btnPauseSmartQueue" class="btn" onclick="window.pauseSmartQueue()" style="background:#eab308; font-size:0.8rem; padding:6px 12px; display:none">⏸️ Pausar</button>
+                            <button id="btnStopSmartQueue" class="btn" onclick="window.stopSmartQueue()" style="background:#ef4444; font-size:0.8rem; padding:6px 12px; display:none">⏹️ Detener</button>
                         </div>
+                    </div>
+                    <div style="padding:8px 15px; border-bottom:1px solid #1e293b; background:#172033; display:flex; gap:8px; align-items:center">
+                        <label style="display:flex; align-items:center; gap:6px; font-size:0.75rem; color:#888; cursor:pointer">
+                            <input type="checkbox" id="cbSelectAllQueue" onchange="window.toggleSelectAllQueue(this.checked)" style="accent-color:#ef4444">
+                            Seleccionar todos
+                        </label>
+                        <button id="btnBatchRemoveQueue" class="btn-sm" onclick="window.batchRemoveFromQueue()" style="background:#ef4444; color:white; padding:4px 10px; font-size:0.7rem; display:none">🗑️ Quitar seleccionados</button>
                     </div>
                     <div id="fbQueueList" style="flex:1; overflow-y:auto; padding:10px; background:#0f172a">
                         ${renderFbQueueItems(queue)}
@@ -428,6 +452,23 @@ const renderFbQueueTab = async (container) => {
             </div>
         </div>
     `;
+
+    // Detect Instagram account (async, non-blocking)
+    if (fbSettings) {
+        fetch('/api/ig-detect').then(r => r.json()).then(igData => {
+            const igStatusText = document.getElementById('igStatusText');
+            if (!igStatusText) return;
+            if (igData.connected) {
+                const username = igData.username ? `@${igData.username}` : `ID: ${igData.id}`;
+                igStatusText.innerHTML = `✅ Conectado: <strong style="color:#E1306C">${username}</strong>`;
+            } else {
+                igStatusText.innerHTML = `⚠️ No vinculada (${igData.reason || 'desconocido'})`;
+            }
+        }).catch(() => {
+            const igStatusText = document.getElementById('igStatusText');
+            if (igStatusText) igStatusText.innerHTML = '❌ Error detectando cuenta';
+        });
+    }
 };
 
 // --- FB CONNECTION HANDLERS ---
@@ -554,15 +595,15 @@ window.selectPage = async (id, name, token) => {
 
 // --- RENDER HELPERS ---
 const renderFbSourceItems = (prompts, queue) => {
-    // Exclude items already in queue
     const queuedIds = new Set(queue.map(q => q.prompt?.id));
 
     return prompts.map(p => {
         const isQueued = queuedIds.has(p.id);
-        if (isQueued) return ''; // Hide if already queued (optional, or show disabled)
+        if (isQueued) return '';
 
         return `
-            <div class="fb-source-item" data-title="${p.title.toLowerCase()}" style="display:flex; gap:10px; padding:10px; border-bottom:1px solid #333; align-items:center">
+            <div class="fb-source-item" data-title="${p.title.toLowerCase()}" data-prompt-id="${p.id}" style="display:flex; gap:10px; padding:10px; border-bottom:1px solid #333; align-items:center">
+                <input type="checkbox" class="cb-source-item" data-id="${p.id}" onchange="window.updateSourceSelection()" style="accent-color:#3b82f6; flex-shrink:0">
                 <img src="${p.image}" style="width:50px; height:50px; border-radius:6px; object-fit:cover; background:#000">
                 <div style="flex:1; overflow:hidden">
                     <div style="font-weight:600; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" title="${p.title}">${p.title}</div>
@@ -586,6 +627,7 @@ const renderFbQueueItems = (queue) => {
 
         return `
             <div style="display:flex; gap:10px; padding:12px; margin-bottom:8px; background:#1e293b; border-radius:8px; border-left:4px solid ${statusColor}; align-items:center; position:relative">
+                <input type="checkbox" class="cb-queue-item" data-id="${item.id}" onchange="window.updateQueueSelection()" style="accent-color:#ef4444; flex-shrink:0">
                 <div style="position:absolute; top:4px; right:8px; font-size:0.65rem; color:#64748b; font-weight:bold">Pos: ${idx + 1}</div>
                 <img src="${p.image}" style="width:60px; height:60px; border-radius:6px; object-fit:cover; background:#000">
                 <div style="flex:1; overflow:hidden">
@@ -654,67 +696,106 @@ window.processFbItem = async (queueId, promptId) => {
 window.smartQueueInterval = null;
 window.smartTimerDisplay = null;
 window.nextRunTime = 0;
+window.smartQueuePaused = false;
 
-window.toggleSmartQueue = () => {
-    const btn = document.getElementById('btnStartSmartQueue');
+window.startSmartQueue = () => {
+    const btnStart = document.getElementById('btnStartSmartQueue');
+    const btnPause = document.getElementById('btnPauseSmartQueue');
+    const btnStop = document.getElementById('btnStopSmartQueue');
     const status = document.getElementById('fbNextRun');
 
-    if (window.smartQueueInterval) {
-        // STOP
-        clearTimeout(window.smartQueueInterval);
-        clearInterval(window.smartTimerDisplay);
-        window.smartQueueInterval = null;
-        btn.innerText = "▶️ Iniciar Auto-Post";
-        btn.style.background = "#3b82f6";
-        status.innerHTML = "⏸️ Pausado";
-        status.style.color = "#64748b";
-        return;
-    }
-
-    // START
-    btn.innerText = "⏸️ Pausar Auto-Post";
-    btn.style.background = "#eab308"; // Amber
-    status.style.color = "#22c55e"; // Green
+    btnStart.style.display = 'none';
+    btnPause.style.display = 'inline-block';
+    btnStop.style.display = 'inline-block';
+    status.style.color = '#22c55e';
+    window.smartQueuePaused = false;
 
     runSmartCycle();
 };
 
+window.pauseSmartQueue = () => {
+    const btnPause = document.getElementById('btnPauseSmartQueue');
+    const status = document.getElementById('fbNextRun');
+
+    if (window.smartQueuePaused) {
+        // RESUME
+        window.smartQueuePaused = false;
+        btnPause.innerHTML = '⏸️ Pausar';
+        btnPause.style.background = '#eab308';
+        status.innerHTML = '▶️ Reanudando...';
+        status.style.color = '#22c55e';
+        runSmartCycle();
+    } else {
+        // PAUSE
+        window.smartQueuePaused = true;
+        clearTimeout(window.smartQueueInterval);
+        clearInterval(window.smartTimerDisplay);
+        window.smartQueueInterval = null;
+        btnPause.innerHTML = '▶️ Reanudar';
+        btnPause.style.background = '#22c55e';
+        status.innerHTML = '⏸️ Pausado (cola activa, esperando reanudar)';
+        status.style.color = '#eab308';
+    }
+};
+
+window.stopSmartQueue = () => {
+    if (!confirm('⏹️ ¿Detener completamente el auto-post?')) return;
+
+    clearTimeout(window.smartQueueInterval);
+    clearInterval(window.smartTimerDisplay);
+    window.smartQueueInterval = null;
+    window.smartQueuePaused = false;
+
+    const btnStart = document.getElementById('btnStartSmartQueue');
+    const btnPause = document.getElementById('btnPauseSmartQueue');
+    const btnStop = document.getElementById('btnStopSmartQueue');
+    const status = document.getElementById('fbNextRun');
+
+    if (btnStart) btnStart.style.display = 'inline-block';
+    if (btnPause) { btnPause.style.display = 'none'; btnPause.innerHTML = '⏸️ Pausar'; btnPause.style.background = '#eab308'; }
+    if (btnStop) btnStop.style.display = 'none';
+    if (status) { status.innerHTML = '⏹️ Detenido'; status.style.color = '#64748b'; }
+};
+
+// Keep legacy toggle as alias
+window.toggleSmartQueue = window.startSmartQueue;
+
 const runSmartCycle = async () => {
     const status = document.getElementById('fbNextRun');
-    if (!status) return; // Tab closed
+    if (!status) return;
+    if (window.smartQueuePaused) return;
 
-    // 1. Check Queue
     const queue = await store.adminGetFbQueue();
     const pending = queue.filter(q => q.status === 'pending');
 
     if (pending.length === 0) {
-        status.innerHTML = "💤 Cola vacía. Esperando...";
-        // Check again in 1 min
+        status.innerHTML = '💤 Cola vacía. Revisando en 1 min...';
         window.smartQueueInterval = setTimeout(runSmartCycle, 60000);
         return;
     }
 
-    // 2. Process Next Item
     const nextItem = pending[0];
     status.innerHTML = `🚀 Publicando: ${nextItem.prompt?.title.substring(0, 20)}...`;
 
-    // Process
     await store.adminProcessFbQueueItem(nextItem.id, nextItem.prompt);
 
-    // Refresh UI
     const container = document.getElementById('admin-main-content');
     if (container) await renderFbQueueTab(container);
 
-    // 3. Schedule Next Run (Random 20-45 min)
-    // Dev Mode: 20-45 seconds for testing? No, stick to real plan: 20-45 min.
-    // Minutes * 60 * 1000
+    // Re-show controls after refresh
+    const btnStart = document.getElementById('btnStartSmartQueue');
+    const btnPause = document.getElementById('btnPauseSmartQueue');
+    const btnStop = document.getElementById('btnStopSmartQueue');
+    if (btnStart) btnStart.style.display = 'none';
+    if (btnPause) { btnPause.style.display = 'inline-block'; btnPause.innerHTML = '⏸️ Pausar'; btnPause.style.background = '#eab308'; }
+    if (btnStop) btnStop.style.display = 'inline-block';
+
     const minTime = 20 * 60 * 1000;
     const maxTime = 45 * 60 * 1000;
     const delay = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
 
     window.nextRunTime = Date.now() + delay;
 
-    // Countdown Display
     if (window.smartTimerDisplay) clearInterval(window.smartTimerDisplay);
     window.smartTimerDisplay = setInterval(() => {
         const now = Date.now();
@@ -724,7 +805,7 @@ const runSmartCycle = async () => {
         if (!statusEl) { clearInterval(window.smartTimerDisplay); return; }
 
         if (diff <= 0) {
-            statusEl.innerHTML = "⚡ Preparando siguiente...";
+            statusEl.innerHTML = '⚡ Preparando siguiente...';
         } else {
             const mins = Math.floor(diff / 60000);
             const secs = Math.floor((diff % 60000) / 1000);
@@ -732,8 +813,72 @@ const runSmartCycle = async () => {
         }
     }, 1000);
 
-    // Schedule actual execution
     window.smartQueueInterval = setTimeout(runSmartCycle, delay);
+};
+
+// --- BATCH SELECTION LOGIC ---
+window.selectedSourceIds = new Set();
+window.selectedQueueIds = new Set();
+
+window.updateSourceSelection = () => {
+    window.selectedSourceIds.clear();
+    document.querySelectorAll('.cb-source-item:checked').forEach(cb => window.selectedSourceIds.add(cb.dataset.id));
+    const btn = document.getElementById('btnBatchAddSource');
+    if (btn) btn.style.display = window.selectedSourceIds.size > 0 ? 'inline-block' : 'none';
+    if (btn) btn.textContent = `➕ Añadir ${window.selectedSourceIds.size} seleccionados`;
+};
+
+window.updateQueueSelection = () => {
+    window.selectedQueueIds.clear();
+    document.querySelectorAll('.cb-queue-item:checked').forEach(cb => window.selectedQueueIds.add(cb.dataset.id));
+    const btn = document.getElementById('btnBatchRemoveQueue');
+    if (btn) btn.style.display = window.selectedQueueIds.size > 0 ? 'inline-block' : 'none';
+    if (btn) btn.textContent = `🗑️ Quitar ${window.selectedQueueIds.size} seleccionados`;
+};
+
+window.toggleSelectAllSource = (checked) => {
+    document.querySelectorAll('.cb-source-item').forEach(cb => {
+        // Only toggle visible items
+        if (cb.closest('.fb-source-item').style.display !== 'none') cb.checked = checked;
+    });
+    window.updateSourceSelection();
+};
+
+window.toggleSelectAllQueue = (checked) => {
+    document.querySelectorAll('.cb-queue-item').forEach(cb => cb.checked = checked);
+    window.updateQueueSelection();
+};
+
+window.batchAddToQueue = async () => {
+    if (window.selectedSourceIds.size === 0) return;
+    const ids = [...window.selectedSourceIds];
+    if (!confirm(`¿Añadir ${ids.length} prompts a la cola?`)) return;
+
+    if (window.showToast) window.showToast(`Añadiendo ${ids.length} prompts...`, 'info');
+    let ok = 0;
+    for (const id of ids) {
+        const res = await store.adminAddToFbQueue(id);
+        if (res.success) ok++;
+    }
+    if (window.showToast) window.showToast(`✅ ${ok}/${ids.length} añadidos a la cola`, 'success');
+    window.selectedSourceIds.clear();
+    await renderFbQueueTab(document.getElementById('admin-main-content'));
+};
+
+window.batchRemoveFromQueue = async () => {
+    if (window.selectedQueueIds.size === 0) return;
+    const ids = [...window.selectedQueueIds];
+    if (!confirm(`¿Quitar ${ids.length} items de la cola?`)) return;
+
+    if (window.showToast) window.showToast(`Quitando ${ids.length} items...`, 'info');
+    let ok = 0;
+    for (const id of ids) {
+        const res = await store.adminRemoveFromFbQueue(id);
+        if (res.success) ok++;
+    }
+    if (window.showToast) window.showToast(`✅ ${ok}/${ids.length} removidos de la cola`, 'success');
+    window.selectedQueueIds.clear();
+    await renderFbQueueTab(document.getElementById('admin-main-content'));
 };
 window.previewBroadcast = () => {
     const html = document.getElementById('broadcastHtml').value;

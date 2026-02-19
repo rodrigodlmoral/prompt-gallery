@@ -103,11 +103,13 @@ export default async function handler(req, res) {
             `|| WWW. PROMPT-GALLERY . APP ||\n\n` +
             `#PromptGallery #AI #AIArt #Prompts`;
 
-        // Instagram caption (más corto, sin prompt completo para engagement)
+        // Instagram caption (prompt completo incluido)
         const igCaption = `✨ ${prompt.title}\n\n` +
             `👤 Por @${authorDisplay}\n` +
-            `🛠️ ${prompt.tool}\n\n` +
-            `¿Quieres el prompt completo? 👉 Link en bio\n` +
+            `🛠️ ${prompt.tool}\n` +
+            `📸 Requiere Referencia: ${prompt.needs_reference ? 'SÍ ✅' : 'NO ❌'}\n\n` +
+            `💡 PROMPT:\n${prompt.prompt}\n\n` +
+            (prompt.negative_prompt ? `🚫 NEGATIVE PROMPT:\n${prompt.negative_prompt}\n\n` : '') +
             `🌐 www.prompt-gallery.app\n\n` +
             `#PromptGallery #AI #AIArt #Prompts #AIGenerated #DigitalArt #CreativeAI`;
 
@@ -234,6 +236,24 @@ export default async function handler(req, res) {
     } catch (error) {
         console.error('[FB_SYNC] CRITICAL SERVER ERROR:', error.message);
         return res.status(500).json({ error: 'Internal server error', message: error.message });
+    }
+}
+
+// --- IG ACCOUNT DETECTION ENDPOINT (GET) ---
+// Used by admin UI to show IG connection status
+export async function detectInstagram(pageId, accessToken) {
+    try {
+        const res = await fetch(
+            `https://graph.facebook.com/v24.0/${pageId}?fields=instagram_business_account{id,username,profile_picture_url,name}&access_token=${accessToken}`
+        );
+        const data = await res.json();
+        if (data.instagram_business_account) {
+            return data.instagram_business_account;
+        }
+        return null;
+    } catch (e) {
+        console.warn('[IG_DETECT] Error:', e.message);
+        return null;
     }
 }
 
