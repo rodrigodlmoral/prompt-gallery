@@ -369,7 +369,7 @@ const renderFbQueueTab = async (container) => {
 
     // 4. Render Layout
     container.innerHTML = `
-        <div style="max-width:1200px; margin:0 auto; display:flex; flex-direction:column; height:85vh; gap:20px">
+        <div style="max-width:1200px; margin:0 auto; display:flex; flex-direction:column; height:1400px; gap:20px">
             
             <!-- CONNECT HEADER -->
             <div style="background:#111; border:1px solid #333; padding:15px; border-radius:12px; display:flex; justify-content:space-between; align-items:center">
