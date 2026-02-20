@@ -1,6 +1,9 @@
 /**
- * Economy Stats API (V5.1 - Balanced & Complete)
- * Restored monthlyData and discrepancy for frontend compatibility.
+ * Economy Stats API (V5.2 - Dynamic Reconciliation)
+ * Refined per user requirements: 
+ * - Tokens without record = Implicit Admin Gift.
+ * - Records without tokens = Audit Adjustment (Legacy).
+ * - System balances dynamically to match user reality.
  */
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -28,7 +31,7 @@ export default async function handler(req, res) {
         const LEGACY_ADMIN_ID = 'rkmrhmgh067x7un';
         const SYSTEM_IDS = [BANK_USER_ID, LEGACY_ADMIN_ID];
 
-        // 1. FETCH BASE DATA
+        // 1. FETCH DATA
         const allUsers = await pbAdmin.collection('users').getFullList({
             fields: 'id,username,name,tokens,level',
             $autoCancel: false
@@ -38,13 +41,15 @@ export default async function handler(req, res) {
             $autoCancel: false
         });
 
-        // 2. CORE METRICS
         const realUsers = allUsers.filter(u => u.id !== BANK_USER_ID);
         const totalInCirculation = realUsers.reduce((sum, u) => sum + (u.tokens || 0), 0);
-        const totalUsers = realUsers.length;
-        const totalUsersWithTokens = realUsers.filter(u => (u.tokens || 0) > 0).length;
 
-        // 3. BREAKDOWNS
+        // 2. USER-BY-USER AUDIT (Detect Gaps)
+        const userStats = {};
+        realUsers.forEach(u => {
+            userStats[u.id] = { actual: u.tokens || 0, ledgerMinted: 0, ledgerSpent: 0 };
+        });
+
         const earnings = {};
         const spending = {};
         const monthlyMinted = {};
@@ -56,11 +61,13 @@ export default async function handler(req, res) {
 
             const fromSystem = SYSTEM_IDS.includes(entry.from_user) || !entry.from_user;
             const toSystem = SYSTEM_IDS.includes(entry.to_user);
-            const toRealUser = entry.to_user && !SYSTEM_IDS.includes(entry.to_user);
-            const fromRealUser = entry.from_user && !SYSTEM_IDS.includes(entry.from_user);
+            const toRealUser = entry.to_user && userStats[entry.to_user];
+            const fromRealUser = entry.from_user && userStats[entry.from_user];
 
             // A) EMISSIONS (System -> User)
             if (fromSystem && toRealUser) {
+                userStats[entry.to_user].ledgerMinted += amount;
+
                 let cleanType = type;
                 if (type === 'PURCHASE' && !hasEntryType) cleanType = 'MIGRACION';
                 if (type === 'TIP') cleanType = 'GIFT';
@@ -69,42 +76,48 @@ export default async function handler(req, res) {
                 earnings[cleanType].count++;
                 earnings[cleanType].total += amount;
 
-                // Monthly aggregation for Emission Chart
+                // Monthly chart data
                 const month = (entry.created || '').substring(0, 7);
-                if (month) {
-                    monthlyMinted[month] = (monthlyMinted[month] || 0) + amount;
-                }
+                if (month) monthlyMinted[month] = (monthlyMinted[month] || 0) + amount;
             }
 
             // B) SPENDING (User -> System)
             if (fromRealUser && (toSystem || ['PURCHASE', 'BOOST', 'FEE'].includes(type))) {
+                userStats[entry.from_user].ledgerSpent += amount;
+
                 if (!spending[type]) spending[type] = { count: 0, total: 0 };
                 spending[type].count++;
                 spending[type].total += amount;
             }
         });
 
-        // 4. RECONCILIATION
-        const accountedEmissions = Object.values(earnings).reduce((s, e) => s + e.total, 0);
-        const accountedSpending = Object.values(spending).reduce((s, e) => s + e.total, 0);
-        const ledgerBalance = accountedEmissions - accountedSpending;
-        const implicitGifts = totalInCirculation - ledgerBalance;
+        // 3. DYNAMIC RECONCILIATION Per User
+        let totalImplicitGifts = 0;
+        let totalAuditAdjustments = 0;
 
-        if (implicitGifts > 0) {
+        Object.values(userStats).forEach(s => {
+            const expected = s.ledgerMinted - s.ledgerSpent;
+            const diff = s.actual - expected;
+            if (diff > 0) totalImplicitGifts += diff;
+            if (diff < 0) totalAuditAdjustments += Math.abs(diff);
+        });
+
+        // 4. APPLY GAPS TO BREAKDOWNS
+        if (totalImplicitGifts > 0) {
             if (!earnings['UNRECORDED_GIFT']) earnings['UNRECORDED_GIFT'] = { count: 0, total: 0 };
-            earnings['UNRECORDED_GIFT'].total += implicitGifts;
-            earnings['UNRECORDED_GIFT'].count = (earnings['UNRECORDED_GIFT'].count || 0) + 1;
-        } else if (implicitGifts < 0) {
+            earnings['UNRECORDED_GIFT'].total += totalImplicitGifts;
+            earnings['UNRECORDED_GIFT'].count = (earnings['UNRECORDED_GIFT'].count || 0) + ' users';
+        }
+        if (totalAuditAdjustments > 0) {
             if (!spending['AUDIT_ADJUSTMENT']) spending['AUDIT_ADJUSTMENT'] = { count: 0, total: 0 };
-            spending['AUDIT_ADJUSTMENT'].total += Math.abs(implicitGifts);
-            spending['AUDIT_ADJUSTMENT'].count = (spending['AUDIT_ADJUSTMENT'].count || 0) + 1;
+            spending['AUDIT_ADJUSTMENT'].total += totalAuditAdjustments;
+            spending['AUDIT_ADJUSTMENT'].count = (spending['AUDIT_ADJUSTMENT'].count || 0) + ' users';
         }
 
+        // 5. FINAL BALANCED METRICS
         const finalMinted = Object.values(earnings).reduce((s, e) => s + e.total, 0);
         const finalSpent = Object.values(spending).reduce((s, e) => s + e.total, 0);
-        const finalCirculation = finalMinted - finalSpent;
 
-        // 5. TOP HOLDERS & CHART
         const topHolders = realUsers
             .filter(u => (u.tokens || 0) > 0)
             .sort((a, b) => (b.tokens || 0) - (a.tokens || 0))
@@ -123,10 +136,10 @@ export default async function handler(req, res) {
             summary: {
                 totalMinted: finalMinted,
                 totalBurned: finalSpent,
-                totalInCirculation: finalCirculation,
-                discrepancy: 0, // Perfectly balanced now
-                totalUsers,
-                totalUsersWithTokens,
+                totalInCirculation,
+                discrepancy: 0, // 100% balanced by design
+                totalUsers: realUsers.length,
+                totalUsersWithTokens: realUsers.filter(u => u.tokens > 0).length,
                 totalLedgerEntries: ledgerEntries.length
             },
             earnings,
