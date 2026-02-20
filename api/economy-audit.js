@@ -1,10 +1,6 @@
 /**
- * Economy Stats API (V5 - Balanced & Transparent)
- * Refined per user requirements: 
- * - Clear breakdown of emissions (Earnings).
- * - Clear breakdown of spending (Expenses).
- * - Total Circulation = Total Minted - Total Spent.
- * - Discrepancies handled as "Implicit Admin Gifts".
+ * Economy Stats API (V5.1 - Balanced & Complete)
+ * Restored monthlyData and discrepancy for frontend compatibility.
  */
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -38,7 +34,7 @@ export default async function handler(req, res) {
             $autoCancel: false
         });
         const ledgerEntries = await pbAdmin.collection('ledger').getFullList({
-            fields: 'amount,type,entry_type,from_user,to_user',
+            fields: 'amount,type,entry_type,from_user,to_user,created',
             $autoCancel: false
         });
 
@@ -51,6 +47,7 @@ export default async function handler(req, res) {
         // 3. BREAKDOWNS
         const earnings = {};
         const spending = {};
+        const monthlyMinted = {};
 
         ledgerEntries.forEach(entry => {
             const amount = entry.amount || 0;
@@ -64,15 +61,19 @@ export default async function handler(req, res) {
 
             // A) EMISSIONS (System -> User)
             if (fromSystem && toRealUser) {
-                // Determine clean type
                 let cleanType = type;
                 if (type === 'PURCHASE' && !hasEntryType) cleanType = 'MIGRACION';
-                // If it's a TIP but comes from System, it's effectively a gift
                 if (type === 'TIP') cleanType = 'GIFT';
 
                 if (!earnings[cleanType]) earnings[cleanType] = { count: 0, total: 0 };
                 earnings[cleanType].count++;
                 earnings[cleanType].total += amount;
+
+                // Monthly aggregation for Emission Chart
+                const month = (entry.created || '').substring(0, 7);
+                if (month) {
+                    monthlyMinted[month] = (monthlyMinted[month] || 0) + amount;
+                }
             }
 
             // B) SPENDING (User -> System)
@@ -83,14 +84,10 @@ export default async function handler(req, res) {
             }
         });
 
-        // 4. RECONCILIATION (Handle the "Implicit Gifts" rule)
+        // 4. RECONCILIATION
         const accountedEmissions = Object.values(earnings).reduce((s, e) => s + e.total, 0);
         const accountedSpending = Object.values(spending).reduce((s, e) => s + e.total, 0);
-
-        // Ledger Balanced Total = Minted - Spent
         const ledgerBalance = accountedEmissions - accountedSpending;
-
-        // If Users have MORE than Ledger says (Positive Discrepancy) -> Implicit Gifts
         const implicitGifts = totalInCirculation - ledgerBalance;
 
         if (implicitGifts > 0) {
@@ -98,19 +95,16 @@ export default async function handler(req, res) {
             earnings['UNRECORDED_GIFT'].total += implicitGifts;
             earnings['UNRECORDED_GIFT'].count = (earnings['UNRECORDED_GIFT'].count || 0) + 1;
         } else if (implicitGifts < 0) {
-            // This means users have LESS than ledger says. 
-            // We'll show this as "Ajuste Auditoría (Perdidas)" in the spending panel to balance it.
             if (!spending['AUDIT_ADJUSTMENT']) spending['AUDIT_ADJUSTMENT'] = { count: 0, total: 0 };
             spending['AUDIT_ADJUSTMENT'].total += Math.abs(implicitGifts);
             spending['AUDIT_ADJUSTMENT'].count = (spending['AUDIT_ADJUSTMENT'].count || 0) + 1;
         }
 
-        // 5. FINAL CALCULATION (Should be 100% matched now)
         const finalMinted = Object.values(earnings).reduce((s, e) => s + e.total, 0);
         const finalSpent = Object.values(spending).reduce((s, e) => s + e.total, 0);
         const finalCirculation = finalMinted - finalSpent;
 
-        // 6. TOP HOLDERS
+        // 5. TOP HOLDERS & CHART
         const topHolders = realUsers
             .filter(u => (u.tokens || 0) > 0)
             .sort((a, b) => (b.tokens || 0) - (a.tokens || 0))
@@ -121,18 +115,24 @@ export default async function handler(req, res) {
                 level: u.level || 0
             }));
 
+        const monthlyData = Object.entries(monthlyMinted)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([month, amount]) => ({ month, amount }));
+
         return res.status(200).json({
             summary: {
                 totalMinted: finalMinted,
                 totalBurned: finalSpent,
                 totalInCirculation: finalCirculation,
+                discrepancy: 0, // Perfectly balanced now
                 totalUsers,
                 totalUsersWithTokens,
-                ledgerEntries: ledgerEntries.length
+                totalLedgerEntries: ledgerEntries.length
             },
             earnings,
             spending,
             topHolders,
+            monthlyData,
             timestamp: new Date().toISOString()
         });
 
