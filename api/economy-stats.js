@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
         // 2. Fetch ALL users (for circulation calc + top holders)
         const allUsers = await pbAdmin.collection('users').getFullList({
-            fields: 'id,username,tokens,total_earned,total_spent,total_rewards,level,created',
+            fields: 'id,username,name,tokens,total_earned,total_spent,total_rewards,level,created',
             $autoCancel: false
         });
 
@@ -42,27 +42,43 @@ export default async function handler(req, res) {
         const breakdown = {};
         const monthlyMinted = {};
 
+        const BURN_TYPES = ['PURCHASE', 'BOOST', 'FEE'];
+
         ledgerEntries.forEach(entry => {
             const amount = entry.amount || 0;
             const type = entry.type || 'UNKNOWN';
+            const hasEntryType = !!entry.entry_type;
 
-            // Minted = CREDIT entries where from_user is the bank
-            if (entry.from_user === BANK_USER_ID && entry.entry_type === 'CREDIT') {
-                totalMinted += amount;
+            if (hasEntryType) {
+                // Modern double-entry records
+                if (entry.from_user === BANK_USER_ID && entry.entry_type === 'CREDIT') {
+                    totalMinted += amount;
+                }
+                if (entry.to_user === BANK_USER_ID && entry.entry_type === 'DEBIT') {
+                    totalBurned += amount;
+                }
+            } else {
+                // Legacy single-entry records (no entry_type)
+                if (entry.from_user === BANK_USER_ID) {
+                    // Bank → User = minting
+                    totalMinted += amount;
+                } else if (BURN_TYPES.includes(type)) {
+                    // PURCHASE/BOOST/FEE without entry_type = user paying bank
+                    totalBurned += amount;
+                }
+            }
 
-                // Monthly aggregation
-                const month = (entry.created || '').substring(0, 7); // YYYY-MM
+            // Monthly minting aggregation
+            const isMinting = (hasEntryType && entry.from_user === BANK_USER_ID && entry.entry_type === 'CREDIT')
+                || (!hasEntryType && entry.from_user === BANK_USER_ID);
+            if (isMinting) {
+                const month = (entry.created || '').substring(0, 7);
                 if (month) {
                     monthlyMinted[month] = (monthlyMinted[month] || 0) + amount;
                 }
             }
 
-            // Burned = DEBIT entries where to_user is the bank (purchases, boosts)
-            if (entry.to_user === BANK_USER_ID && entry.entry_type === 'DEBIT') {
-                totalBurned += amount;
-            }
-
-            // Type breakdown (only count CREDIT entries to avoid double-counting)
+            // Type breakdown (CREDIT + legacy, skip DEBIT to avoid double-counting)
             if (entry.entry_type === 'CREDIT' || !entry.entry_type) {
                 if (!breakdown[type]) {
                     breakdown[type] = { count: 0, total: 0 };
@@ -78,7 +94,7 @@ export default async function handler(req, res) {
             .sort((a, b) => (b.tokens || 0) - (a.tokens || 0))
             .slice(0, 10)
             .map(u => ({
-                username: u.username || 'N/A',
+                username: u.name || u.username || 'N/A',
                 tokens: u.tokens || 0,
                 level: u.level || 0,
                 total_earned: u.total_earned || 0
