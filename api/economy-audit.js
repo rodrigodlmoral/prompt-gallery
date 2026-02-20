@@ -60,7 +60,13 @@ export default async function handler(req, res) {
 
         ledgerEntries.forEach(entry => {
             const amount = entry.amount || 0;
-            const type = entry.type || 'UNKNOWN';
+            let type = entry.type || 'UNKNOWN';
+            const desc = entry.description || '';
+
+            // Detectar ajustes contables por descripción
+            if (desc.includes('AJUSTE CONTABLE')) {
+                type = 'AUDIT_ADJUSTMENT';
+            }
 
             const fromSystem = SYSTEM_IDS.includes(entry.from_user) || !entry.from_user;
             const toSystem = SYSTEM_IDS.includes(entry.to_user);

@@ -1408,7 +1408,7 @@ const renderEconomyTab = async (container) => {
             FEE: '💸 Comisiones',
             DAILY_LOGIN: '📅 Login Diario',
             DEPOSIT: '💳 Depósitos',
-            AUDIT_ADJUSTMENT: '📥 Migración Enero'
+            AUDIT_ADJUSTMENT: '⚖️ Ajuste Contable Enero'
         };
 
         const renderBreakdownTable = (map, title, emptyMsg) => {
