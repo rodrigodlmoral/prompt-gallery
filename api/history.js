@@ -47,6 +47,7 @@ export default async function handler(req, res) {
         let totalSent = 0;     // P2P Outgoing (Tips)
         let totalBonuses = 0;  // Specifically Copy Milestones
         let totalGifts = 0;    // System Rewards (Registration, Level Up, Reboot, Gifts)
+        let totalPurchased = 0; // Real money purchases
 
         const transactions = [];
         const BANK_USER_ID = 'z44ierjl0thcczd';

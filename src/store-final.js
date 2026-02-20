@@ -727,7 +727,7 @@ const store = {
 
                 // Estimates based on available data
                 totalReceived = Math.max(0, totalEarned - (user.total_rewards || 0)); // Simplified
-                transactionCount = (user.prompts_count || 0) + (user.total_copies || 0); // Placeholder if no real count
+                transactionCount = 0; // Initialize at 0
             }
         } catch (e) {
             console.error('[ECONOMY] Error getting user stats:', e);
