@@ -1,9 +1,7 @@
 /**
- * Economy Stats API (V5.3 - Pure Audit)
- * Refined per user requirements: 
- * - NO auto-balancing or hiding gaps.
- * - Report exact Ledger vs balance per user.
- * - Categorize reasons but keep the raw mismatch visible.
+ * Economy Stats API (V5.4 - Final Reconciled)
+ * - Raw Ledger reporting (No on-the-fly balancing).
+ * - Since fixed with final_ledger_fix_v3.cjs, discrepancy should be 0.
  */
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -37,14 +35,14 @@ export default async function handler(req, res) {
             $autoCancel: false
         });
         const ledgerEntries = await pbAdmin.collection('ledger').getFullList({
-            fields: 'amount,type,entry_type,from_user,to_user,created',
+            fields: 'amount,type,entry_type,from_user,to_user,created,description',
             $autoCancel: false
         });
 
         const realUsers = allUsers.filter(u => u.id !== BANK_USER_ID);
         const totalInCirculation = realUsers.reduce((sum, u) => sum + (u.tokens || 0), 0);
 
-        // 2. RAW AUDIT Per User
+        // 2. AUDIT Per User
         const userStats = {};
         realUsers.forEach(u => {
             userStats[u.id] = {
@@ -62,8 +60,7 @@ export default async function handler(req, res) {
 
         ledgerEntries.forEach(entry => {
             const amount = entry.amount || 0;
-            let type = entry.type || 'UNKNOWN';
-            const hasEntryType = !!entry.entry_type;
+            const type = entry.type || 'UNKNOWN';
 
             const fromSystem = SYSTEM_IDS.includes(entry.from_user) || !entry.from_user;
             const toSystem = SYSTEM_IDS.includes(entry.to_user);
@@ -74,13 +71,9 @@ export default async function handler(req, res) {
             if (fromSystem && toRealUser) {
                 userStats[entry.to_user].minted += amount;
 
-                let cleanType = type;
-                if (type === 'PURCHASE' && !hasEntryType) cleanType = 'MIGRACION';
-                if (type === 'TIP') cleanType = 'GIFT';
-
-                if (!earnings[cleanType]) earnings[cleanType] = { count: 0, total: 0 };
-                earnings[cleanType].count++;
-                earnings[cleanType].total += amount;
+                if (!earnings[type]) earnings[type] = { count: 0, total: 0 };
+                earnings[type].count++;
+                earnings[type].total += amount;
 
                 const month = (entry.created || '').substring(0, 7);
                 if (month) monthlyMinted[month] = (monthlyMinted[month] || 0) + amount;
@@ -96,23 +89,18 @@ export default async function handler(req, res) {
             }
         });
 
-        // 3. IDENTIFY RAW DISCREPANCIES
+        // 3. IDENTIFY DISCREPANCIES (Should be 0 now after fix)
         const rawDiscrepancies = [];
         Object.values(userStats).forEach(s => {
             const expected = s.minted - s.spent;
             const diff = s.actual - expected;
-            if (diff !== 0) {
-                let reason = "Discrepancia de flujo / Faltan registros";
-                if (diff === -50) reason = "Duplicado Ledger (Backfill Error)";
-                if (diff > 0) reason = "Tokens sin respaldo Ledger (Legacy/Regalo)";
-
+            if (Math.abs(diff) > 0.1) { // Floating point safety
                 rawDiscrepancies.push({
                     username: s.username,
-                    id: s.id,
                     actual: s.actual,
                     expected: expected,
                     diff: diff,
-                    reason: reason
+                    reason: "Desviación detectada tras reconciliación"
                 });
             }
         });
