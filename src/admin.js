@@ -1408,11 +1408,16 @@ const renderEconomyTab = async (container) => {
             FEE: '💸 Comisiones',
             DAILY_LOGIN: '📅 Login Diario',
             DEPOSIT: '💳 Depósitos',
-            AUDIT_ADJUSTMENT: '⚖️ Ajuste Contable Enero'
+            AUDIT_ADJUSTMENT: '📥 Migración Enero'
         };
 
         const renderBreakdownTable = (map, title, emptyMsg) => {
-            const entries = Object.entries(map).sort(([, a], [, b]) => b.total - a.total);
+            const entries = Object.entries(map).sort(([typeA, a], [typeB, b]) => {
+                // Forzar Migración Enero al principio
+                if (typeA === 'PURCHASE' || typeA === 'AUDIT_ADJUSTMENT') return -1;
+                if (typeB === 'PURCHASE' || typeB === 'AUDIT_ADJUSTMENT') return 1;
+                return b.total - a.total;
+            });
             if (entries.length === 0) return `<div style="padding:20px; text-align:center; color:#666; font-style:italic">${emptyMsg}</div>`;
 
             return `
