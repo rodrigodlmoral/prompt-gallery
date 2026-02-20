@@ -1,35 +1,30 @@
 /**
- * Economy Stats API (Hyper-Robust Version)
- * Returns aggregated economy metrics for the Admin Economy tab.
+ * Economy Stats API (V5 - Balanced & Transparent)
+ * Refined per user requirements: 
+ * - Clear breakdown of emissions (Earnings).
+ * - Clear breakdown of spending (Expenses).
+ * - Total Circulation = Total Minted - Total Spent.
+ * - Discrepancies handled as "Implicit Admin Gifts".
  */
 export default async function handler(req, res) {
-    // 1. CORS Headers
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') { res.status(200).end(); return; }
-    if (req.method !== 'GET') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        // 2. Dynamic Import (matches working ig-detect pattern)
         const { default: PocketBase } = await import('pocketbase');
-
-        // 3. Robust Config
         const PB_URL = process.env.VITE_POCKETBASE_URL || process.env.PB_URL || 'https://prompt-gallery.pockethost.io';
         const PB_EMAIL = process.env.PB_ADMIN_EMAIL;
         const PB_PASS = process.env.PB_ADMIN_PASS;
 
         const pbAdmin = new PocketBase(PB_URL);
-
-        // 4. Fallback Authentication
         try {
             await pbAdmin.admins.authWithPassword(PB_EMAIL, PB_PASS);
         } catch (authErr) {
-            console.warn('[ECONOMY-AUDIT] Admin auth failed, trying collection auth...');
             await pbAdmin.collection('_superusers').authWithPassword(PB_EMAIL, PB_PASS);
         }
 
@@ -37,75 +32,85 @@ export default async function handler(req, res) {
         const LEGACY_ADMIN_ID = 'rkmrhmgh067x7un';
         const SYSTEM_IDS = [BANK_USER_ID, LEGACY_ADMIN_ID];
 
-        // 5. Fetch Data
+        // 1. FETCH BASE DATA
         const allUsers = await pbAdmin.collection('users').getFullList({
-            fields: 'id,username,name,tokens,total_earned,total_spent,total_rewards,level,created',
+            fields: 'id,username,name,tokens,level',
+            $autoCancel: false
+        });
+        const ledgerEntries = await pbAdmin.collection('ledger').getFullList({
+            fields: 'amount,type,entry_type,from_user,to_user',
             $autoCancel: false
         });
 
+        // 2. CORE METRICS
         const realUsers = allUsers.filter(u => u.id !== BANK_USER_ID);
         const totalInCirculation = realUsers.reduce((sum, u) => sum + (u.tokens || 0), 0);
-        const totalUsersWithTokens = realUsers.filter(u => (u.tokens || 0) > 0).length;
         const totalUsers = realUsers.length;
+        const totalUsersWithTokens = realUsers.filter(u => (u.tokens || 0) > 0).length;
 
-        const ledgerEntries = await pbAdmin.collection('ledger').getFullList({
-            fields: 'amount,type,entry_type,from_user,to_user,created',
-            $autoCancel: false
-        });
-
-        // 6. Aggregation
-        let totalMinted = 0;
-        let totalBurned = 0;
-        const breakdown = {};
-        const monthlyMinted = {};
+        // 3. BREAKDOWNS
+        const earnings = {};
+        const spending = {};
 
         ledgerEntries.forEach(entry => {
             const amount = entry.amount || 0;
             let type = entry.type || 'UNKNOWN';
             const hasEntryType = !!entry.entry_type;
 
-            // Reclassify legacy 'PURCHASE' marker (no accent for safety)
-            if (type === 'PURCHASE' && !hasEntryType) {
-                type = 'MIGRACION';
+            const fromSystem = SYSTEM_IDS.includes(entry.from_user) || !entry.from_user;
+            const toSystem = SYSTEM_IDS.includes(entry.to_user);
+            const toRealUser = entry.to_user && !SYSTEM_IDS.includes(entry.to_user);
+            const fromRealUser = entry.from_user && !SYSTEM_IDS.includes(entry.from_user);
+
+            // A) EMISSIONS (System -> User)
+            if (fromSystem && toRealUser) {
+                // Determine clean type
+                let cleanType = type;
+                if (type === 'PURCHASE' && !hasEntryType) cleanType = 'MIGRACION';
+                // If it's a TIP but comes from System, it's effectively a gift
+                if (type === 'TIP') cleanType = 'GIFT';
+
+                if (!earnings[cleanType]) earnings[cleanType] = { count: 0, total: 0 };
+                earnings[cleanType].count++;
+                earnings[cleanType].total += amount;
             }
 
-            if (hasEntryType) {
-                // Modern double-entry records
-                if (SYSTEM_IDS.includes(entry.from_user) && !SYSTEM_IDS.includes(entry.to_user) && entry.entry_type === 'CREDIT') {
-                    totalMinted += amount;
-                }
-                if (!SYSTEM_IDS.includes(entry.from_user) && SYSTEM_IDS.includes(entry.to_user) && entry.entry_type === 'DEBIT') {
-                    totalBurned += amount;
-                }
-            } else {
-                // Legacy single-entry
-                if ((SYSTEM_IDS.includes(entry.from_user) || !entry.from_user) && !SYSTEM_IDS.includes(entry.to_user)) {
-                    totalMinted += amount;
-                } else if (!SYSTEM_IDS.includes(entry.from_user) && (SYSTEM_IDS.includes(entry.to_user) || type === 'PURCHASE' || type === 'BOOST' || type === 'FEE')) {
-                    totalBurned += amount;
-                }
-            }
-
-            // Monthly aggregation
-            const isMinting = (hasEntryType && SYSTEM_IDS.includes(entry.from_user) && entry.entry_type === 'CREDIT')
-                || (!hasEntryType && SYSTEM_IDS.includes(entry.from_user));
-
-            if (isMinting) {
-                const month = (entry.created || '').substring(0, 7);
-                if (month) {
-                    monthlyMinted[month] = (monthlyMinted[month] || 0) + amount;
-                }
-            }
-
-            // Type breakdown
-            if (entry.entry_type === 'CREDIT' || !entry.entry_type) {
-                if (!breakdown[type]) breakdown[type] = { count: 0, total: 0 };
-                breakdown[type].count++;
-                breakdown[type].total += amount;
+            // B) SPENDING (User -> System)
+            if (fromRealUser && (toSystem || ['PURCHASE', 'BOOST', 'FEE'].includes(type))) {
+                if (!spending[type]) spending[type] = { count: 0, total: 0 };
+                spending[type].count++;
+                spending[type].total += amount;
             }
         });
 
-        // 7. Sort & Format
+        // 4. RECONCILIATION (Handle the "Implicit Gifts" rule)
+        const accountedEmissions = Object.values(earnings).reduce((s, e) => s + e.total, 0);
+        const accountedSpending = Object.values(spending).reduce((s, e) => s + e.total, 0);
+
+        // Ledger Balanced Total = Minted - Spent
+        const ledgerBalance = accountedEmissions - accountedSpending;
+
+        // If Users have MORE than Ledger says (Positive Discrepancy) -> Implicit Gifts
+        const implicitGifts = totalInCirculation - ledgerBalance;
+
+        if (implicitGifts > 0) {
+            if (!earnings['UNRECORDED_GIFT']) earnings['UNRECORDED_GIFT'] = { count: 0, total: 0 };
+            earnings['UNRECORDED_GIFT'].total += implicitGifts;
+            earnings['UNRECORDED_GIFT'].count = (earnings['UNRECORDED_GIFT'].count || 0) + 1;
+        } else if (implicitGifts < 0) {
+            // This means users have LESS than ledger says. 
+            // We'll show this as "Ajuste Auditoría (Perdidas)" in the spending panel to balance it.
+            if (!spending['AUDIT_ADJUSTMENT']) spending['AUDIT_ADJUSTMENT'] = { count: 0, total: 0 };
+            spending['AUDIT_ADJUSTMENT'].total += Math.abs(implicitGifts);
+            spending['AUDIT_ADJUSTMENT'].count = (spending['AUDIT_ADJUSTMENT'].count || 0) + 1;
+        }
+
+        // 5. FINAL CALCULATION (Should be 100% matched now)
+        const finalMinted = Object.values(earnings).reduce((s, e) => s + e.total, 0);
+        const finalSpent = Object.values(spending).reduce((s, e) => s + e.total, 0);
+        const finalCirculation = finalMinted - finalSpent;
+
+        // 6. TOP HOLDERS
         const topHolders = realUsers
             .filter(u => (u.tokens || 0) > 0)
             .sort((a, b) => (b.tokens || 0) - (a.tokens || 0))
@@ -113,31 +118,21 @@ export default async function handler(req, res) {
             .map(u => ({
                 username: u.name || u.username || 'Usuario',
                 tokens: u.tokens || 0,
-                level: u.level || 0,
-                total_earned: u.total_earned || 0
+                level: u.level || 0
             }));
-
-        const expectedCirculation = totalMinted - totalBurned;
-        const discrepancy = totalInCirculation - expectedCirculation;
-
-        const monthlyData = Object.entries(monthlyMinted)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([month, amount]) => ({ month, amount }));
 
         return res.status(200).json({
             summary: {
-                totalMinted,
-                totalBurned,
-                totalInCirculation,
-                expectedCirculation,
-                discrepancy,
+                totalMinted: finalMinted,
+                totalBurned: finalSpent,
+                totalInCirculation: finalCirculation,
                 totalUsers,
                 totalUsersWithTokens,
-                totalLedgerEntries: ledgerEntries.length
+                ledgerEntries: ledgerEntries.length
             },
-            breakdown,
+            earnings,
+            spending,
             topHolders,
-            monthlyData,
             timestamp: new Date().toISOString()
         });
 

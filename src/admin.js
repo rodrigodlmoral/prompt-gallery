@@ -1394,7 +1394,6 @@ const renderEconomyTab = async (container) => {
                 ? `Hay ${Math.abs(s.discrepancy)} 💎 menos en billeteras de lo esperado. Posible error contable.`
                 : 'La contabilidad cuadra perfectamente. Todo en orden.';
 
-        // --- TYPE BREAKDOWN TABLE ---
         const typeLabels = {
             POST_REWARD: '🖼️ Recompensa por Post',
             LEVEL_UP: '✨ Bono de Nivel',
@@ -1402,23 +1401,42 @@ const renderEconomyTab = async (container) => {
             COPY_MILESTONE: '🏆 Milestone de Copias',
             REGISTRATION_BONUS: '🎁 Bono de Registro',
             GIFT: '🎀 Regalos Admin',
-            PURCHASE: '🛒 Migración (Legacy)',
+            UNRECORDED_GIFT: '💝 Regalos Admin (No registrados)',
+            PURCHASE: '🛒 Compras / Inversión',
             MIGRACION: '📦 Migración Sistema',
-            BOOST: '🚀 Boosts',
+            BOOST: '🚀 Boosts / Impulsos',
             FEE: '💸 Comisiones',
             DAILY_LOGIN: '📅 Login Diario',
-            DEPOSIT: '💳 Depósitos'
+            DEPOSIT: '💳 Depósitos',
+            AUDIT_ADJUSTMENT: '⚖️ Ajuste de Auditoría'
         };
 
-        const breakdownRows = Object.entries(data.breakdown)
-            .sort(([, a], [, b]) => b.total - a.total)
-            .map(([type, info]) => `
-                <tr style="border-bottom:1px solid #333">
-                    <td style="padding:8px 12px; font-size:0.85rem">${typeLabels[type] || type}</td>
-                    <td style="padding:8px 12px; text-align:center; color:#888">${info.count}</td>
-                    <td style="padding:8px 12px; text-align:right; font-weight:bold; color:#a29bfe">${info.total.toLocaleString()} 💎</td>
-                </tr>
-            `).join('');
+        const renderBreakdownTable = (map, title, emptyMsg) => {
+            const entries = Object.entries(map).sort(([, a], [, b]) => b.total - a.total);
+            if (entries.length === 0) return `<div style="padding:20px; text-align:center; color:#666; font-style:italic">${emptyMsg}</div>`;
+
+            return `
+                <table style="width:100%; border-collapse:collapse">
+                    <thead><tr style="border-bottom:2px solid #444">
+                        <th style="text-align:left; padding:8px 12px; font-size:0.75rem; color:#888">Concepto</th>
+                        <th style="text-align:center; padding:8px 12px; font-size:0.75rem; color:#888">Txns</th>
+                        <th style="text-align:right; padding:8px 12px; font-size:0.75rem; color:#888">Total</th>
+                    </tr></thead>
+                    <tbody>
+                        ${entries.map(([type, info]) => `
+                            <tr style="border-bottom:1px solid #333">
+                                <td style="padding:8px 12px; font-size:0.85rem">${typeLabels[type] || type}</td>
+                                <td style="padding:8px 12px; text-align:center; color:#888">${info.count || '-'}</td>
+                                <td style="padding:8px 12px; text-align:right; font-weight:bold; color:#a29bfe">${info.total.toLocaleString()} 💎</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        };
+
+        const earningsHtml = renderBreakdownTable(data.earnings, 'Emisiones', 'No hay registros de emisión');
+        const spendingHtml = renderBreakdownTable(data.spending, 'Gastos', 'No hay registros de gastos (Todo en billeteras)');
 
         // --- TOP HOLDERS TABLE ---
         const holdersRows = data.topHolders.map((u, i) => `
@@ -1480,35 +1498,33 @@ const renderEconomyTab = async (container) => {
                     ${discIcon} <strong>Auditoría Contable:</strong> ${discExpl}
                 </div>
 
-                <!-- TWO COLUMN LAYOUT -->
+                <!-- TWO COLUMN LAYOUT (Earnings vs Spending) -->
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:25px">
-
-                    <!-- LEFT: TYPE BREAKDOWN -->
+                    <!-- LEFT: EARNINGS -->
                     <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:20px">
-                        <h3 style="color:#ccc; margin-top:0; font-size:1rem">📊 Desglose por Tipo</h3>
-                        <table style="width:100%; border-collapse:collapse">
-                            <thead><tr style="border-bottom:2px solid #444">
-                                <th style="text-align:left; padding:8px 12px; font-size:0.75rem; color:#888">Tipo</th>
-                                <th style="text-align:center; padding:8px 12px; font-size:0.75rem; color:#888">Txns</th>
-                                <th style="text-align:right; padding:8px 12px; font-size:0.75rem; color:#888">Total</th>
-                            </tr></thead>
-                            <tbody>${breakdownRows || '<tr><td colspan="3" style="padding:20px; text-align:center; color:#666">Sin datos</td></tr>'}</tbody>
-                        </table>
+                        <h3 style="color:#16a34a; margin-top:0; font-size:1rem">📈 Emisiones (¿Cómo se ganaron?)</h3>
+                        ${earningsHtml}
                     </div>
 
-                    <!-- RIGHT: TOP HOLDERS -->
+                    <!-- RIGHT: SPENDING -->
                     <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:20px">
-                        <h3 style="color:#ccc; margin-top:0; font-size:1rem">🏅 Top 10 Holders</h3>
-                        <table style="width:100%; border-collapse:collapse">
-                            <thead><tr style="border-bottom:2px solid #444">
-                                <th style="padding:6px 10px; font-size:0.75rem; color:#888">#</th>
-                                <th style="text-align:left; padding:6px 10px; font-size:0.75rem; color:#888">Usuario</th>
-                                <th style="text-align:center; padding:6px 10px; font-size:0.75rem; color:#888">Nivel</th>
-                                <th style="text-align:right; padding:6px 10px; font-size:0.75rem; color:#888">Saldo</th>
-                            </tr></thead>
-                            <tbody>${holdersRows || '<tr><td colspan="4" style="padding:20px; text-align:center; color:#666">Sin datos</td></tr>'}</tbody>
-                        </table>
+                        <h3 style="color:#ef4444; margin-top:0; font-size:1rem">📉 Gastos (¿Cómo se gastaron?)</h3>
+                        ${spendingHtml}
                     </div>
+                </div>
+
+                <!-- TOP HOLDERS -->
+                <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:20px; margin-bottom:25px">
+                    <h3 style="color:#ccc; margin-top:0; font-size:1rem">🏅 Top 10 Holders</h3>
+                    <table style="width:100%; border-collapse:collapse">
+                        <thead><tr style="border-bottom:2px solid #444">
+                            <th style="padding:6px 10px; font-size:0.75rem; color:#888">#</th>
+                            <th style="text-align:left; padding:6px 10px; font-size:0.75rem; color:#888">Usuario</th>
+                            <th style="text-align:center; padding:6px 10px; font-size:0.75rem; color:#888">Nivel</th>
+                            <th style="text-align:right; padding:6px 10px; font-size:0.75rem; color:#888">Saldo</th>
+                        </tr></thead>
+                        <tbody>${holdersRows || '<tr><td colspan="4" style="padding:20px; text-align:center; color:#666">Sin datos</td></tr>'}</tbody>
+                    </table>
                 </div>
 
                 <!-- MONTHLY CHART -->
