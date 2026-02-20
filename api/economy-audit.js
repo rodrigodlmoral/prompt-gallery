@@ -13,8 +13,12 @@ export default async function handler(req, res) {
 
     try {
         // 1. Connect as Admin
-        const pbAdmin = new PocketBase(process.env.PB_URL);
-        await pbAdmin.collection('_superusers').authWithPassword(process.env.PB_ADMIN_EMAIL, process.env.PB_ADMIN_PASS);
+        const PB_URL = process.env.VITE_POCKETBASE_URL || process.env.PB_URL || 'https://prompt-gallery.pockethost.io';
+        const PB_EMAIL = process.env.PB_ADMIN_EMAIL;
+        const PB_PASS = process.env.PB_ADMIN_PASS;
+
+        const pbAdmin = new PocketBase(PB_URL);
+        await pbAdmin.collection('_superusers').authWithPassword(PB_EMAIL, PB_PASS);
 
         const BANK_USER_ID = 'z44ierjl0thcczd';
         const LEGACY_ADMIN_ID = 'rkmrhmgh067x7un';
