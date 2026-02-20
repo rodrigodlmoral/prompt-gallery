@@ -18,7 +18,7 @@ export default async function handler(req, res) {
         const PB_PASS = process.env.PB_ADMIN_PASS;
 
         const pbAdmin = new PocketBase(PB_URL);
-        await pbAdmin.collection('_superusers').authWithPassword(PB_EMAIL, PB_PASS);
+        await pbAdmin.admins.authWithPassword(PB_EMAIL, PB_PASS);
 
         const BANK_USER_ID = 'z44ierjl0thcczd';
         const LEGACY_ADMIN_ID = 'rkmrhmgh067x7un';
