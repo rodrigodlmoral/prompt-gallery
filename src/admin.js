@@ -58,6 +58,7 @@ const AdminLayout = () => `
             <button class="profile-tab ${currentTab === 'broadcast' ? 'active' : ''}" onclick="window.switchAdminTab('broadcast')">📢 Broadcast</button>
             <button class="profile-tab ${currentTab === 'fb-queue' ? 'active' : ''}" onclick="window.switchAdminTab('fb-queue')" style="border-color:#1877F2; color:#1877F2">📘 Autopost</button>
             <button class="profile-tab ${currentTab === 'economy' ? 'active' : ''}" onclick="window.switchAdminTab('economy')" style="border-color:#a29bfe; color:#a29bfe">💰 Economía</button>
+            <button class="profile-tab ${currentTab === 'discrepancies' ? 'active' : ''}" onclick="window.switchAdminTab('discrepancies')" style="border-color:#ef4444; color:#ef4444">🚨 Discrepancias</button>
         </div>
 
         <!-- Sub-modal de Gestión de Usuario (Compacto) -->
@@ -133,6 +134,8 @@ const renderAdmin = async () => {
         await renderFbQueueTab(container);
     } else if (currentTab === 'economy') {
         await renderEconomyTab(container);
+    } else if (currentTab === 'discrepancies') {
+        await renderDiscrepanciesTab(container);
     }
 };
 
@@ -1550,6 +1553,67 @@ const renderEconomyTab = async (container) => {
                 <button class="btn" onclick="window.switchAdminTab('economy')" style="margin-top:15px">🔄 Reintentar</button>
             </div>
         `;
+    }
+};
+
+const renderDiscrepanciesTab = async (container) => {
+    container.innerHTML = `<div style="text-align:center; padding:50px; color:#666"><div class="loading-spinner"></div> Analizando integridad de billeteras...</div>`;
+
+    try {
+        const res = await fetch('/api/economy-audit');
+        const data = await res.json();
+        const items = data.discrepancies || [];
+
+        if (items.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:100px; background:#111; border-radius:20px; border:1px solid #16a34a">
+                    <div style="font-size:4rem; margin-bottom:20px">✅</div>
+                    <h2 style="color:#16a34a">Integridad Total</h2>
+                    <p style="color:#888">Todas las billeteras coinciden al 100% con el Ledger.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const rows = items.map(d => `
+            <tr style="border-bottom:1px solid #333">
+                <td style="padding:12px; font-weight:bold; color:#fff">@${window.escapeHTML(d.username)}</td>
+                <td style="padding:12px; text-align:center; color:#a29bfe; font-weight:bold">${d.actual.toLocaleString()} 💎</td>
+                <td style="padding:12px; text-align:center; color:#888">${d.expected.toLocaleString()} 💎</td>
+                <td style="padding:12px; text-align:center; color:${d.diff > 0 ? '#16a34a' : '#ef4444'}; font-weight:bold">
+                    ${d.diff > 0 ? '+' : ''}${d.diff.toLocaleString()} 💎
+                </td>
+                <td style="padding:12px; font-size:0.8rem; color:#aaa">${window.escapeHTML(d.reason)}</td>
+            </tr>
+        `).join('');
+
+        container.innerHTML = `
+            <div style="max-width:1100px; margin:0 auto">
+                <div style="background:#ef444415; border:1px solid #ef4444; border-radius:12px; padding:20px; margin-bottom:30px">
+                    <h2 style="color:#ef4444; margin:0 0 10px 0; font-size:1.5rem">🚨 Auditoría de Discrepancias</h2>
+                    <p style="margin:0; font-size:0.9rem; color:#fff">Se han detectado <strong>${items.length} usuarios</strong> cuya billetera real no coincide con el historial contable del Ledger.</p>
+                </div>
+
+                <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; overflow:hidden">
+                    <table style="width:100%; border-collapse:collapse">
+                        <thead><tr style="background:#222; border-bottom:2px solid #333">
+                            <th style="padding:12px; text-align:left; font-size:0.75rem; color:#888">Usuario</th>
+                            <th style="padding:12px; text-align:center; font-size:0.75rem; color:#888">Saldo Real</th>
+                            <th style="padding:12px; text-align:center; font-size:0.75rem; color:#888">Esperado (Ledger)</th>
+                            <th style="padding:12px; text-align:center; font-size:0.75rem; color:#888">Desviación</th>
+                            <th style="padding:12px; text-align:left; font-size:0.75rem; color:#888">Causa Probable</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top:20px; padding:15px; background:#111; border-radius:8px; border:1px solid #222; font-size:0.8rem; color:#666">
+                    <strong>Nota:</strong> Estas discrepancias surgen principalmente de la fase anterior al Ledger (Legacy) o por errores técnicos en scripts de backfill. El objetivo es que esta lista sea 0.
+                </div>
+            </div>
+        `;
+    } catch (err) {
+        container.innerHTML = `<div style="padding:50px; text-align:center; color:#ef4444">Error: ${err.message}</div>`;
     }
 };
 

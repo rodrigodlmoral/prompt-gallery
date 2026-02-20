@@ -1,9 +1,9 @@
 /**
- * Economy Stats API (V5.2 - Dynamic Reconciliation)
+ * Economy Stats API (V5.3 - Pure Audit)
  * Refined per user requirements: 
- * - Tokens without record = Implicit Admin Gift.
- * - Records without tokens = Audit Adjustment (Legacy).
- * - System balances dynamically to match user reality.
+ * - NO auto-balancing or hiding gaps.
+ * - Report exact Ledger vs balance per user.
+ * - Categorize reasons but keep the raw mismatch visible.
  */
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -44,10 +44,16 @@ export default async function handler(req, res) {
         const realUsers = allUsers.filter(u => u.id !== BANK_USER_ID);
         const totalInCirculation = realUsers.reduce((sum, u) => sum + (u.tokens || 0), 0);
 
-        // 2. USER-BY-USER AUDIT (Detect Gaps)
+        // 2. RAW AUDIT Per User
         const userStats = {};
         realUsers.forEach(u => {
-            userStats[u.id] = { actual: u.tokens || 0, ledgerMinted: 0, ledgerSpent: 0 };
+            userStats[u.id] = {
+                id: u.id,
+                username: u.name || u.username || 'Usuario',
+                actual: u.tokens || 0,
+                minted: 0,
+                spent: 0
+            };
         });
 
         const earnings = {};
@@ -66,7 +72,7 @@ export default async function handler(req, res) {
 
             // A) EMISSIONS (System -> User)
             if (fromSystem && toRealUser) {
-                userStats[entry.to_user].ledgerMinted += amount;
+                userStats[entry.to_user].minted += amount;
 
                 let cleanType = type;
                 if (type === 'PURCHASE' && !hasEntryType) cleanType = 'MIGRACION';
@@ -76,14 +82,13 @@ export default async function handler(req, res) {
                 earnings[cleanType].count++;
                 earnings[cleanType].total += amount;
 
-                // Monthly chart data
                 const month = (entry.created || '').substring(0, 7);
                 if (month) monthlyMinted[month] = (monthlyMinted[month] || 0) + amount;
             }
 
             // B) SPENDING (User -> System)
             if (fromRealUser && (toSystem || ['PURCHASE', 'BOOST', 'FEE'].includes(type))) {
-                userStats[entry.from_user].ledgerSpent += amount;
+                userStats[entry.from_user].spent += amount;
 
                 if (!spending[type]) spending[type] = { count: 0, total: 0 };
                 spending[type].count++;
@@ -91,32 +96,30 @@ export default async function handler(req, res) {
             }
         });
 
-        // 3. DYNAMIC RECONCILIATION Per User
-        let totalImplicitGifts = 0;
-        let totalAuditAdjustments = 0;
-
+        // 3. IDENTIFY RAW DISCREPANCIES
+        const rawDiscrepancies = [];
         Object.values(userStats).forEach(s => {
-            const expected = s.ledgerMinted - s.ledgerSpent;
+            const expected = s.minted - s.spent;
             const diff = s.actual - expected;
-            if (diff > 0) totalImplicitGifts += diff;
-            if (diff < 0) totalAuditAdjustments += Math.abs(diff);
+            if (diff !== 0) {
+                let reason = "Discrepancia de flujo / Faltan registros";
+                if (diff === -50) reason = "Duplicado Ledger (Backfill Error)";
+                if (diff > 0) reason = "Tokens sin respaldo Ledger (Legacy/Regalo)";
+
+                rawDiscrepancies.push({
+                    username: s.username,
+                    id: s.id,
+                    actual: s.actual,
+                    expected: expected,
+                    diff: diff,
+                    reason: reason
+                });
+            }
         });
 
-        // 4. APPLY GAPS TO BREAKDOWNS
-        if (totalImplicitGifts > 0) {
-            if (!earnings['UNRECORDED_GIFT']) earnings['UNRECORDED_GIFT'] = { count: 0, total: 0 };
-            earnings['UNRECORDED_GIFT'].total += totalImplicitGifts;
-            earnings['UNRECORDED_GIFT'].count = (earnings['UNRECORDED_GIFT'].count || 0) + ' users';
-        }
-        if (totalAuditAdjustments > 0) {
-            if (!spending['AUDIT_ADJUSTMENT']) spending['AUDIT_ADJUSTMENT'] = { count: 0, total: 0 };
-            spending['AUDIT_ADJUSTMENT'].total += totalAuditAdjustments;
-            spending['AUDIT_ADJUSTMENT'].count = (spending['AUDIT_ADJUSTMENT'].count || 0) + ' users';
-        }
-
-        // 5. FINAL BALANCED METRICS
-        const finalMinted = Object.values(earnings).reduce((s, e) => s + e.total, 0);
-        const finalSpent = Object.values(spending).reduce((s, e) => s + e.total, 0);
+        const totalMinted = Object.values(earnings).reduce((s, e) => s + e.total, 0);
+        const totalSpent = Object.values(spending).reduce((s, e) => s + e.total, 0);
+        const totalDiscrepancy = totalInCirculation - (totalMinted - totalSpent);
 
         const topHolders = realUsers
             .filter(u => (u.tokens || 0) > 0)
@@ -134,16 +137,17 @@ export default async function handler(req, res) {
 
         return res.status(200).json({
             summary: {
-                totalMinted: finalMinted,
-                totalBurned: finalSpent,
+                totalMinted,
+                totalBurned: totalSpent,
                 totalInCirculation,
-                discrepancy: 0, // 100% balanced by design
+                discrepancy: totalDiscrepancy,
                 totalUsers: realUsers.length,
                 totalUsersWithTokens: realUsers.filter(u => u.tokens > 0).length,
                 totalLedgerEntries: ledgerEntries.length
             },
             earnings,
             spending,
+            discrepancies: rawDiscrepancies,
             topHolders,
             monthlyData,
             timestamp: new Date().toISOString()
