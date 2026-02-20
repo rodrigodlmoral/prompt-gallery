@@ -876,7 +876,6 @@ header nav {
 
 .spotlight-media {
   width: 140px;
-  /* +5% roughly */
   height: 190px;
   border-radius: 12px;
   overflow: hidden;
@@ -886,7 +885,8 @@ header nav {
   transition: transform 0.5s ease;
   flex-shrink: 0;
   background: #000;
-  /* Placeholder while loading */
+  position: relative;
+  /* Fixed: Contain the blur-overlay */
 }
 
 .spotlight-media img {
@@ -1206,6 +1206,37 @@ header nav {
   content: "•";
   margin-left: 8px;
   opacity: 0.3;
+}
+
+/* --- SKELETON LOADING --- */
+.skeleton-card {
+  background: linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s infinite linear;
+  border: 1px solid #333;
+}
+
+@keyframes skeleton-pulse {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.fade-in-up {
+  opacity: 0;
+  transform: translateY(15px);
+  animation: fadeInUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* --- AD BANNER --- */
@@ -2390,6 +2421,12 @@ header nav {
   animation: fadeIn 0.2s ease-out;
 }
 
+/* Hide Mobile Elements Globally (Only show in Media Query) */
+.mobile-menu-btn,
+.mobile-nav-overlay {
+  display: none;
+}
+
 /* 3. Modal & Post Fixes */
 @media (max-width: 500px) {
 
@@ -2402,8 +2439,109 @@ header nav {
   .search-mobile-btn {
     display: block;
     margin-left: auto;
-    /* Push to right */
-    margin-right: 15px;
+    /* Push to right pivot */
+    margin-right: 10px;
+  }
+
+  /* Hide Top Bar and Header Desktop Nav */
+  .top-bar {
+    display: none !important;
+  }
+
+  header nav {
+    display: none !important;
+  }
+
+  /* Mobile Unified Menu Button */
+  .mobile-menu-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 1.4rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .mobile-menu-btn:active {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(0.95);
+  }
+
+  /* Mobile Navigation Overlay */
+  .mobile-nav-overlay {
+    position: fixed;
+    top: 72px;
+    left: 0;
+    width: 100%;
+    height: calc(100vh - 72px);
+    background: #0b0b0b;
+    /* Solid black to block background content */
+    z-index: 999999;
+    display: none;
+    flex-direction: column;
+    padding: 25px;
+    gap: 12px;
+    animation: mobileNavFadeIn 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    overflow-y: auto;
+    /* Allow scrolling if items are many */
+  }
+
+  .mobile-nav-overlay.active {
+    display: flex;
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 18px 20px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .mobile-nav-item i {
+    font-size: 1.2rem;
+    width: 24px;
+    text-align: center;
+    opacity: 0.8;
+  }
+
+  .mobile-nav-item:active {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--accent);
+    transform: translateX(5px);
+  }
+
+  .mobile-nav-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.05);
+    margin: 8px 0;
+  }
+
+  @keyframes mobileNavFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   /* Fix Post content visibility */
@@ -2438,6 +2576,67 @@ header nav {
     height: auto !important;
     min-height: 50vh;
     max-height: 60vh;
+  }
+
+  /* Filters Bar Optimization */
+  .filters-bar {
+    justify-content: flex-start !important;
+    /* Start from left to show first filters */
+    gap: 10px !important;
+    padding: 10px 15px !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .filters-bar::-webkit-scrollbar {
+    display: none;
+    /* Chrome/Safari */
+  }
+
+  .filters-bar select,
+  .filters-bar .btn-outline {
+    flex-shrink: 0 !important;
+    /* Prevent squashing */
+    max-width: 150px;
+    text-overflow: ellipsis;
+  }
+
+  /* Profile Responsiveness */
+  .profile-content {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 20px !important;
+  }
+
+  .profile-avatar-xl {
+    width: 100px !important;
+    height: 100px !important;
+  }
+
+  .profile-info {
+    align-items: center !important;
+    width: 100% !important;
+  }
+
+  .profile-username {
+    font-size: 1.8rem !important;
+  }
+
+  .profile-name-row,
+  .profile-meta-row,
+  .profile-stats-row,
+  .profile-actions {
+    justify-content: center !important;
+    width: 100% !important;
+  }
+
+  .profile-stats-row {
+    gap: 15px !important;
+    font-size: 0.85rem !important;
   }
 
   .view-img-side img {
@@ -2767,4 +2966,90 @@ header nav {
   background: rgba(255, 255, 255, 0.1);
   color: white;
   border-color: rgba(255, 255, 255, 0.3);
+}
+/* --- HEADER REFINEMENT (Desktop) - LAST VISUAL FIX --- */
+@media (min-width: 900px) {
+    
+    /* 1. Flex Container Alignment */
+    header nav {
+        display: flex;
+        align-items: center;
+        gap: 12px; /* Consistent gap between elements */
+        height: 100%;
+    }
+
+    /* 2. Unified Height & Base Styles for All Actions */
+    header nav .btn, 
+    header nav .btn-outline, 
+    header nav .user-info {
+        height: 42px; /* Fixed robust height for all */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        font-weight: 700;
+        border-radius: 8px; /* Consistent geometry */
+        box-sizing: border-box;
+        transition: all 0.2s ease;
+        margin: 0; /* Remove potential margins */
+    }
+
+    /* 3. COMPARTIR PROMPT (Primary Action) */
+    header nav .btn#addBtn {
+        background: var(--accent); /* Keep vivid blue */
+        color: white;
+        padding: 0 24px; /* Generous padding */
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); /* Subtle glow */
+        border: 1px solid transparent; /* No border */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.85rem;
+    }
+    header nav .btn#addBtn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
+        background: #3b82f6;
+    }
+
+    /* 4. USER PROFILE (Middle Element) */
+    header nav .user-info {
+        background: transparent;
+        color: #ddd;
+        padding: 0 12px 0 6px; /* Optimized padding */
+        gap: 10px;
+        cursor: pointer;
+        border: 1px solid transparent; /* Invisible border to match height calculation */
+        min-width: 140px; /* Minimum width for stability */
+        justify-content: flex-start; /* Align left */
+    }
+    header nav .user-info:hover {
+        background: rgba(255,255,255,0.05); /* Slight highlight on hover */
+        border-radius: 21px; /* Pill shape hover effect */
+        color: white;
+    }
+    
+    /* Specific Avatar Style in Header */
+    header nav .user-info .user-avatar-sm {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.1);
+        background-size: cover;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    /* 5. SALIR (Logout - Secondary Action) */
+    header nav .btn-outline {
+        padding: 0 20px;
+        border: 1px solid rgba(255,255,255,0.15);
+        color: #aaa;
+        background: transparent;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    header nav .btn-outline:hover {
+        background: rgba(255, 60, 60, 0.1); /* Subtle red tint */
+        border-color: rgba(255, 60, 60, 0.4);
+        color: #ff6b6b;
+    }
 }

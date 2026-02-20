@@ -1,7 +1,8 @@
 import { pb } from './pocketbase.js';
-import { uploadToCloudinary } from './uploadService.js';
+import { uploadToCloudinary, uploadToCloudinaryHD } from './uploadService.js';
 import { LevelSystem } from './lib/LevelSystem.js';
 import { checkCopyMilestone, getNextMilestone } from './lib/CopyBonusSystem.js';
+import { LedgerService } from './lib/LedgerService.js';
 
 // --- GOOGLE ANALYTICS HELPER ---
 window.trackEvent = (name, params = {}) => {
@@ -18,7 +19,7 @@ window.normalizeProfile = (p) => {
     let avatarUrl = p.avatar_url;
     if (!avatarUrl && p.avatar) {
         // PocketBase standard file URL
-        avatarUrl = pb.files.getUrl(p, p.avatar);
+        avatarUrl = pb.files.getURL(p, p.avatar);
     }
 
     if (!avatarUrl) {
@@ -133,19 +134,57 @@ export const INFO_ICON = `<span title='${RATING_INFO}' style="text-decoration:no
 // STORE (Estado global simple)
 const store = {
     prompts: [],
+    allPrompts: [], // LISTA MAESTRA GLOBAL (Calculando tops, semanales, diarios)
+    userAllPrompts: [], // LISTA MAESTRA DEL PERFIL (Para stats del usuario que se está viendo)
     currentUser: null,
     usersCache: {}, // { username: { ...profileData } }
     users: [],      // Admin list
-    nuclearCache: { items: [], lastFetch: 0 }, // Cache for mass user search
+    nuclearCache: { items: [], lastFetch: 0 },
     stats: { users: 0, prompts: 0, visits: 0 },
+
+    // --- INFINITE SCROLL STATE (PAGINACIÓN MANUAL) ---
+    currentPage: 1,
+    hasMore: true,
+    isLoadingMore: false,
+    batchSize: 60,
+    isInitialized: false,
 
     async init() {
         if (pb.authStore.isValid && pb.authStore.model) {
-            await this._loadUserProfile(pb.authStore.model.id);
+            // Carga de perfil no bloquea el inicio
+            this._loadUserProfile(pb.authStore.model.id);
         }
-        await this.loadPrompts();
+
+        console.log("[STORE] ⚡ Iniciando Carga Optimizada...");
+
+        // Lanzamos procesos en paralelo
+        const [galleryResult, analysisResult] = await Promise.allSettled([
+            this.loadPrompts(true), // Prioridad 1: Que el usuario vea posts
+            this.loadAllPromptsForAnalysis() // Prioridad 2: Cálculo de Tops en background
+        ]);
+
+        if (galleryResult.status === 'rejected') console.error("❌ Gallery Load Error:", galleryResult.reason);
+        if (analysisResult.status === 'rejected') console.warn("⚠️ Analysis Load Error:", analysisResult.reason);
+
         await this.getPublicStats();
         this.trackVisit();
+        this.isInitialized = true;
+    },
+
+    async loadAllPromptsForAnalysis() {
+        try {
+            console.log("[STORE] 🧠 Cargando Lista Maestra para Análisis (Calculando Tops...)");
+            const all = await pb.collection('prompts').getFullList({
+                sort: '-created_at_custom',
+                expand: 'author',
+                $autoCancel: false
+            });
+            this.allPrompts = this._mapPrompts(all);
+            console.log(`[STORE] ✅ Lista Maestra cargada: ${this.allPrompts.length} items detectados.`);
+        } catch (err) {
+            console.error("[STORE] Error cargando lista de análisis:", err);
+            this.allPrompts = [];
+        }
     },
 
     async _loadUserProfile(userId) {
@@ -212,57 +251,96 @@ const store = {
         }
     },
 
-    async loadPrompts() {
+    async loadPrompts(reset = false, customFilter = '') {
+        if (this.isLoadingMore || (!this.hasMore && !reset)) return [];
+
         try {
-            const stats = await pb.collection('prompts').getList(1, 1);
-            const total = stats.totalItems;
-
-            let records = { items: [] };
-            if (total > 0) {
-                const limit = 200;
-                const lastPage = Math.ceil(total / limit);
-                // Obtenemos los más recientes con expand del autor para evitar 'Exploradores'
-                const batch1 = await pb.collection('prompts').getList(lastPage, limit, { expand: 'author' });
-                records.items = batch1.items;
-
-                if (records.items.length < limit && lastPage > 1) {
-                    const batch2 = await pb.collection('prompts').getList(lastPage - 1, limit, { expand: 'author' });
-                    records.items = [...batch2.items, ...records.items].slice(-limit);
-                }
+            this.isLoadingMore = true;
+            if (reset) {
+                this.currentPage = 1;
+                this.hasMore = true;
+                this.prompts = [];
             }
-            this.prompts = this._mapPrompts(records.items);
-            if (window.render) window.render();
+
+            console.log(`[STORE] 📦 Loading Batch (Filter: ${customFilter || 'none'}): Page ${this.currentPage} (Size ${this.batchSize})`);
+
+            let records;
+            try {
+                // EL ÚNICO MAESTRO ES created_at_custom
+                records = await pb.collection('prompts').getList(this.currentPage, this.batchSize, {
+                    sort: '-created_at_custom',
+                    filter: customFilter || '',
+                    expand: 'author',
+                    $autoCancel: false
+                });
+            } catch (sortErr) {
+                console.error("[STORE] ❌ Error crítico: created_at_custom falló.", sortErr);
+                records = { items: [], totalItems: 0 };
+            }
+
+            const newPrompts = this._mapPrompts(records.items);
+
+            let result = [];
+            let filteredNew = [];
+            if (reset) {
+                this.prompts = newPrompts;
+                window._isIncrementalRender = false;
+                result = newPrompts;
+            } else {
+                // Evitar duplicados por ID de forma estricta
+                const existingIds = new Set(this.prompts.map(p => p.id));
+                filteredNew = newPrompts.filter(p => !existingIds.has(p.id));
+                this.prompts = [...this.prompts, ...filteredNew];
+                window._isIncrementalRender = true; // Prevenir scroll a arriba
+                result = filteredNew;
+            }
+
+            console.log(`[STORE] ✅ Batch Loaded (Page ${this.currentPage}): ${records.items.length} items. New: ${result.length}. Total In-Memory: ${this.prompts.length}`);
+
+            this.hasMore = records.items.length === this.batchSize;
+            if (this.hasMore) this.currentPage++;
+
+            if (window.render && reset) window.render();
+            return result;
         } catch (error) {
-            console.error("Error loading prompts:", error);
-            this.prompts = [];
+            console.error("Error loading prompts batch:", error);
+            if (reset) this.prompts = [];
+            this.hasMore = false;
+            return [];
+        } finally {
+            this.isLoadingMore = false;
         }
-        return this.prompts;
     },
 
-    async loadUserPrompts(userId) {
+    async loadUserPromptsForAnalysis(userId) {
         try {
-            console.log(`[STORE] 🔍 Cargando galería completa del servidor para ID: ${userId}`);
-            // Quitamos 'sort' que causa 400 en PocketHost con filtros complejos
+            console.log(`[STORE] 🧠 Cargando Lista Maestra del Perfil (ID: ${userId}) para Análisis...`);
             const records = await pb.collection('prompts').getFullList({
                 filter: `author = "${userId}"`,
-                expand: 'author'
+                expand: 'author',
+                $autoCancel: false
             });
 
-            const mapped = this._mapPrompts(records);
-            // Ordenamos en cliente por seguridad
-            mapped.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            this.userAllPrompts = this._mapPrompts(records);
+            // Ordenamos en cliente para asegurar el maestro
+            this.userAllPrompts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-            // Fusionar con los prompts globales para evitar duplicados en memoria
-            const existingIds = new Set(this.prompts.map(p => p.id));
-            const newOnes = mapped.filter(p => !existingIds.has(p.id));
-            this.prompts = [...this.prompts, ...newOnes];
-
-            if (window.render) window.render();
-            return mapped;
+            console.log(`[STORE] ✅ Lista Maestra de Perfil cargada: ${this.userAllPrompts.length} items.`);
+            return this.userAllPrompts;
         } catch (error) {
-            console.error("Error loading user prompts:", error);
+            console.error("[STORE] Error cargando lista de perfil:", error);
+            this.userAllPrompts = [];
             return [];
         }
+    },
+
+    // Helper centralizado para buscar un prompt en cualquier lista de memoria
+    findPrompt(id) {
+        if (!id) return null;
+        const targetId = String(id);
+        return (this.prompts || []).find(p => String(p.id) === targetId) ||
+            (this.allPrompts || []).find(p => String(p.id) === targetId) ||
+            (this.userAllPrompts || []).find(p => String(p.id) === targetId);
     },
 
     // Helper para no repetir el mapeo
@@ -272,7 +350,9 @@ const store = {
             title: p.title,
             prompt: p.prompt,
             negative_prompt: p.negative_prompt,
-            image: p.image_url || p.image,
+            image: this.getThumbnail(p.image_url || p.image),
+            image_raw: p.image_url || p.image, // URL original para detalle
+            image_hd: p.image_hd || '', // PERSIST HD URL FOR UI/QUEUES
             author: p.author_name || p.expand?.author?.username || p.expand?.author?.name || 'Explorador',
             author_id: p.author,
             createdAt: (() => {
@@ -287,7 +367,11 @@ const store = {
             savedBy: p.saved_by || [],
             saved_by: p.saved_by || [],
             type: p.type || 'single',
-            content: p.content || [],
+            content: (p.content || []).map(step => ({
+                ...step,
+                image: this.getThumbnail(step.image),
+                image_raw: step.image
+            })),
             tokens_received: p.tokens_received || 0,
             rating: p.rating || 'SFW / Apto',
             is_private: p.is_private === true || p.isPrivate === true,
@@ -302,37 +386,56 @@ const store = {
             tags: p.tags || [],
             profiles: p.expand?.author ? {
                 username: p.expand.author.username,
-                avatar_url: p.expand.author.avatar ? pb.files.getUrl(p.expand.author, p.expand.author.avatar) : null,
+                avatar_url: p.expand.author.avatar ? pb.files.getURL(p.expand.author, p.expand.author.avatar) : null,
                 level: p.expand.author.level
             } : null
         }));
     },
 
+    // --- CLOUDINARY THUMBNAIL HELPER ---
+    getThumbnail(url) {
+        if (!url || typeof url !== 'string' || !url.includes('cloudinary.com')) return url;
+        // Transform: w_400,c_scale,q_auto,f_auto
+        if (url.includes('/upload/')) {
+            return url.replace('/upload/', '/upload/w_500,c_fill,g_auto,q_auto,f_auto/');
+        }
+        return url;
+    },
+
     async getPublicStats() {
-        try {
+        const _fetchStats = async () => {
             // 1. Contar usuarios registrados
-            const usersRes = await pb.collection('users').getList(1, 1, { fields: 'id' });
-            this.stats.users = usersRes.totalItems;
+            const usersRes = await pb.collection('users').getList(1, 1, { fields: 'id', requestKey: null });
+            this.stats.users = usersRes.totalItems || 0;
 
             // 2. Contar prompts totales
-            const promptsRes = await pb.collection('prompts').getList(1, 1, { fields: 'id' });
-            this.stats.prompts = promptsRes.totalItems;
+            const promptsRes = await pb.collection('prompts').getList(1, 1, { fields: 'id', requestKey: null });
+            this.stats.prompts = promptsRes.totalItems || 0;
 
             // 3. Obtener visitas totales desde app_stats
             try {
-                const statsRec = await pb.collection('app_stats').getFirstListItem('');
+                const statsRec = await pb.collection('app_stats').getFirstListItem('', { requestKey: null });
                 if (statsRec) this.stats.visits = statsRec.total_visits || 0;
             } catch (e) {
-                console.warn("app_stats record not found. Creating one...");
-                // Si no existe, lo creamos (necesita permisos de creación para público o admin)
-                // Usualmente el admin lo crea manualmente, pero intentamos por robustez
+                console.warn("app_stats record not found or inaccessible.");
             }
+        };
 
-            return this.stats;
+        try {
+            await _fetchStats();
         } catch (err) {
-            console.error("Error fetching stats:", err);
-            return this.stats;
+            console.warn("⚠️ Stats fetch failed, retrying in 2s...", err.message);
+            // Retry once after 2 seconds
+            try {
+                await new Promise(r => setTimeout(r, 2000));
+                await _fetchStats();
+            } catch (retryErr) {
+                console.error("❌ Stats retry also failed:", retryErr.message);
+                // Keep defaults (0, 0, 0) - UI won't crash
+            }
         }
+
+        return this.stats;
     },
 
     async trackVisit() {
@@ -359,6 +462,7 @@ const store = {
         const lowerQuery = query.toLowerCase();
 
         // 1. Check Cache (Normalized) with 60s TTL
+        // NOTE: We do NOT rely solely on cache if we need to force a refresh, but for profile view it's fine.
         if (this.usersCache[lowerQuery] && (Date.now() - this.usersCache[lowerQuery]._fetchedAt < 60000)) {
             return this.usersCache[lowerQuery];
         }
@@ -400,16 +504,8 @@ const store = {
             // STRATEGY 4: NUCLEAR FALLBACK (Total Registry)
             if (!found) {
                 console.log("[ST_DEBUG] Engaging NUCLEAR search...");
-                let items = [];
-                const CACHE_TTL = 300000;
-                if (this.nuclearCache.items.length > 0 && (Date.now() - this.nuclearCache.lastFetch < CACHE_TTL)) {
-                    items = this.nuclearCache.items;
-                } else {
-                    const res = await pb.collection('users').getList(1, 1000, { $autoCancel: false });
-                    items = res.items;
-                    this.nuclearCache.items = items;
-                    this.nuclearCache.lastFetch = Date.now();
-                }
+                const items = await this.loadGlobalUsers(); // REFACTORED: Use shared method
+
                 found = items.find(u =>
                     (u.name && u.name.toLowerCase() === lowerQuery) ||
                     (u.username && u.username.toLowerCase() === lowerQuery)
@@ -443,6 +539,24 @@ const store = {
             console.error(`[CRITICAL] Error fetching profile for ${query}: ${err.message}`);
         }
         return null;
+    },
+
+    async loadGlobalUsers() {
+        const CACHE_TTL = 300000; // 5 Minutes
+        if (this.nuclearCache.items.length > 0 && (Date.now() - this.nuclearCache.lastFetch < CACHE_TTL)) {
+            return this.nuclearCache.items;
+        }
+
+        try {
+            console.log("[STORE] 🌍 Loading Global Users (Nuclear Cache)...");
+            const res = await pb.collection('users').getList(1, 1000, { $autoCancel: false });
+            this.nuclearCache.items = res.items;
+            this.nuclearCache.lastFetch = Date.now();
+            return res.items;
+        } catch (err) {
+            console.error("[STORE] ❌ Error loading global users:", err);
+            return [];
+        }
     },
 
     _cacheUser(key, record) {
@@ -503,6 +617,49 @@ const store = {
         } catch (err) {
             console.error("Error fetching user logs:", err);
             return [];
+        }
+    },
+
+    async _bridgeToFacebook(promptRecord) {
+        if (!promptRecord) return;
+
+        // Solo intentar si es SFW (Sugestivo excluido por petición del usuario)
+        const allowed = ['SFW / Apto'];
+        if (!allowed.includes(promptRecord.rating)) return;
+
+        console.log('[FB_SYNC] 🚧 Desviando a Cola de Publicación Automatizada...');
+
+        // --- Resolver imágenes HD para TODOS los tipos de post ---
+        let hdImages = [];
+        const isSequence = promptRecord.type === 'sequence' && promptRecord.content && promptRecord.content.length > 1;
+
+        if (isSequence) {
+            // Multi-image: extraer HD de cada item del content
+            hdImages = promptRecord.content
+                .map(item => (item.image_hd && item.image_hd.startsWith('http')) ? item.image_hd : item.image)
+                .filter(url => url && url.startsWith('http'));
+        } else {
+            // Single post: priorizar image_hd de la RAÍZ del record
+            const bestImage = (promptRecord.image_hd && promptRecord.image_hd.startsWith('http'))
+                ? promptRecord.image_hd
+                : promptRecord.image;
+            if (bestImage && bestImage.startsWith('http')) {
+                hdImages = [bestImage];
+            }
+        }
+
+        console.log(`[FB_SYNC] HD Images resolved: ${hdImages.length} (type: ${isSequence ? 'sequence' : 'single'})`);
+
+        try {
+            await pb.collection('facebook_queue').create({
+                prompt: promptRecord.id,
+                status: 'pending',
+                allImages: hdImages,
+                added_by: promptRecord.author || this.currentUser?.id
+            });
+            console.log(`[FB_SYNC] ✅ Añadido a la cola correctamente: ${promptRecord.title}`);
+        } catch (error) {
+            console.error('[FB_SYNC] ❌ Error al encolar:', error);
         }
     },
 
@@ -583,14 +740,24 @@ const store = {
             // Priority: Use Secure API Proxy (Bypasses ACLs on Vercel)
             const token = pb.authStore.token;
             if (token) {
-                const res = await fetch('/api/history', {
+                // Add timestamp to bypass browser cache
+                const res = await fetch(`/api/history?v=${Date.now()}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (res.ok) {
                     const data = await res.json();
                     if (data.items && Array.isArray(data.items)) {
-                        transactions = data.items;
+                        // Pre-process items to ensure consistent icons even if API is older
+                        transactions = data.items.map(tx => {
+                            if (!tx.icon) {
+                                if (tx.type === 'sent') tx.icon = '📤';
+                                else if (tx.type === 'received') tx.icon = '📥';
+                                else if (tx.type === 'bonus') tx.icon = '🏆';
+                                else tx.icon = tx.amount >= 0 ? '📈' : '📉';
+                            }
+                            return tx;
+                        });
                         fetchedViaApi = true;
                     }
                 }
@@ -607,24 +774,46 @@ const store = {
                 // Removed 'expand' to avoid 400 Bad Request if relation data is inconsistent
                 // Removed 'sort' as it caused 400 Bad Request in backfill logs previously
                 // Sorting is handled client-side anyway.
-                const ledgerRecords = await pb.collection('ledger').getList(1, 20, {
+                const ledgerRecords = await pb.collection('ledger').getList(1, 40, {
                     filter: `from_user="${uid}" || to_user="${uid}"`,
+                    sort: '-updated',
                     $autoCancel: false
                 });
 
-                const ledgerTxs = ledgerRecords.items.map(rec => {
-                    const isSender = rec.from_user === uid;
-                    if (rec.type === 'TIP' || rec.type === 'PURCHASE') {
-                        if (isSender) {
-                            // Without expand, we fallback to generic 'Usuario' or try to use cached profiles if available
-                            // This ensures the list at least LOADS.
-                            return { type: 'sent', amount: -rec.amount, description: rec.description || `Enviado`, date: rec.created, icon: '📤', id: rec.id };
-                        } else {
-                            return { type: 'received', amount: rec.amount, description: rec.description || `Recibido`, date: rec.created, icon: '📥', id: rec.id };
+                const ledgerTxs = ledgerRecords.items
+                    // Phase C: Filter double-entry TIPs to avoid duplicates
+                    .filter(rec => {
+                        // Legacy records (no entry_type) always pass through
+                        if (!rec.entry_type) return true;
+                        // For TIPs with double-entry: show DEBIT to sender, CREDIT to receiver
+                        if (rec.type === 'TIP' || rec.type === 'PURCHASE' || rec.type === 'FEE') {
+                            if (rec.from_user === uid) return rec.entry_type === 'DEBIT';
+                            if (rec.to_user === uid) return rec.entry_type === 'CREDIT';
                         }
-                    }
-                    return { type: isSender ? 'expense' : 'income', amount: isSender ? -rec.amount : rec.amount, description: rec.description || 'Transacción', date: rec.created, icon: isSender ? '📉' : '📈', id: rec.id };
-                });
+                        // System rewards (CREDIT) always pass through
+                        return true;
+                    })
+                    .map(rec => {
+                        const isSender = rec.from_user === uid;
+                        const txDate = rec.created || rec.updated;
+                        if (rec.type === 'TIP' || rec.type === 'PURCHASE') {
+                            if (isSender) {
+                                return { type: 'sent', amount: -rec.amount, description: rec.description || `Enviado`, date: txDate, icon: '📤', id: rec.id };
+                            } else {
+                                return { type: 'received', amount: rec.amount, description: rec.description || `Recibido`, date: txDate, icon: '📥', id: rec.id };
+                            }
+                        }
+                        if (rec.type === 'POST_REWARD') {
+                            return { type: 'income', amount: rec.amount, description: rec.description || 'Publicación', date: txDate, icon: '🖼️', id: rec.id };
+                        }
+                        if (rec.type === 'LEVEL_UP') {
+                            return { type: 'income', amount: rec.amount, description: rec.description || 'Bono de Nivel', date: txDate, icon: '✨', id: rec.id };
+                        }
+                        if (rec.type === 'COPY_MILESTONE') {
+                            return { type: 'bonus', amount: rec.amount, description: rec.description || 'Bono de Copias', date: txDate, icon: '🏆', id: rec.id };
+                        }
+                        return { type: isSender ? 'expense' : 'income', amount: isSender ? -rec.amount : rec.amount, description: rec.description || 'Transacción', date: txDate, icon: isSender ? '📉' : '📈', id: rec.id };
+                    });
                 transactions = [...transactions, ...ledgerTxs];
 
                 // B) Activity Logs (Bonuses)
@@ -632,18 +821,20 @@ const store = {
                 // Removed 'sort' to prevent 400 Bad Request
                 const logRecords = await pb.collection('activity_logs').getList(1, 40, {
                     filter: `user="${uid}" || details.recipientId="${uid}"`,
+                    sort: '-updated',
                     $autoCancel: false
                 });
 
                 const logTxs = logRecords.items.map(log => {
                     const details = log.details || {};
+                    const logDate = log.created || log.updated;
                     if (log.action === 'copy_milestone_bonus') {
-                        return { type: 'bonus', amount: details.bonus || 0, description: `🎉 Milestone: ${details.copies} copias`, date: log.created, icon: '🏆', id: log.id };
+                        return { type: 'bonus', amount: details.bonus || 0, description: `🎉 Milestone: ${details.copies} copias`, date: logDate, icon: '🏆', id: log.id };
                     }
                     if (log.action === 'send_tip') {
                         const isSender = log.user === uid;
-                        if (isSender) return { type: 'sent', amount: -(details.amount || 0), description: `Enviado a @${details.recipient || 'Usuario'}`, date: log.created, icon: '📤', id: log.id };
-                        else return { type: 'received', amount: details.amount || 0, description: `Recibido de @${log.expand?.user?.username || 'Usuario'}`, date: log.created, icon: '📥', id: log.id };
+                        if (isSender) return { type: 'sent', amount: -(details.amount || 0), description: `Enviado a @${details.recipient || 'Usuario'}`, date: logDate, icon: '📤', id: log.id };
+                        else return { type: 'received', amount: details.amount || 0, description: `Recibido de @${log.expand?.user?.username || 'Usuario'}`, date: logDate, icon: '📥', id: log.id };
                     }
                     return null;
                 }).filter(Boolean);
@@ -683,6 +874,7 @@ const store = {
 
     async getTopCreators() {
         try {
+            // Unico criterio: Cantidad de prompts creados (DESC)
             const records = await pb.collection('users').getList(1, 10, {
                 sort: '-prompts_count'
             });
@@ -692,43 +884,135 @@ const store = {
         }
     },
 
+    // --- ANALYTICAL RANKING (CEREBRO) ---
+
+    _getPopularityScore(p) {
+        // Simple but effective score: copies are worth 2, reactions are worth 1
+        const reactions = p.reactions || {};
+        const reactionCount = Object.keys(reactions)
+            .filter(k => k !== '_u')
+            .reduce((sum, key) => sum + (reactions[key] || 0), 0);
+
+        return (p.copy_count * 2) + reactionCount;
+    },
+
+    getTopWeeklyPrompts() {
+        if (!this.allPrompts || this.allPrompts.length === 0) return [];
+
+        const now = Date.now();
+        const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
+
+        // 1. Prioritize explicitly "featured" prompts that haven't expired
+        const featured = this.allPrompts.filter(p =>
+            !p.is_private &&
+            (p.is_featured || p.admin_featured) &&
+            (!p.featured_until || new Date(p.featured_until) > now)
+        ).sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0)); // Paid first, then admin
+
+        // 2. Take recent prompts (last 7 days) and sort by score
+        const recent = this.allPrompts.filter(p =>
+            !p.is_private &&
+            !p.is_featured &&
+            !p.admin_featured &&
+            p.createdAt >= weekAgo
+        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
+
+        // 3. Fallback: If not enough recent, take the all-time best
+        const fallbacks = this.allPrompts.filter(p =>
+            !p.is_private &&
+            !p.is_featured &&
+            !p.admin_featured &&
+            p.createdAt < weekAgo
+        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
+
+        const result = [...featured, ...recent, ...fallbacks].slice(0, 20);
+        console.log(`[CEREBRO] 🧠 Top Semanal calculado: ${result.length} items (Featured: ${featured.length})`);
+        return result;
+    },
+
+    getTopDailyPrompts() {
+        if (!this.allPrompts || this.allPrompts.length === 0) return [];
+
+        const now = Date.now();
+        const dayAgo = now - (24 * 60 * 60 * 1000);
+
+        // 1. Prioritize featured prompts (Spotlight)
+        const featured = this.allPrompts.filter(p =>
+            !p.is_private &&
+            (p.is_featured || p.admin_featured) &&
+            (!p.featured_until || new Date(p.featured_until) > now)
+        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
+
+        // 2. Take prompts from last 24h sorted by score
+        const recent = this.allPrompts.filter(p =>
+            !p.is_private &&
+            !p.is_featured &&
+            !p.admin_featured &&
+            p.createdAt >= dayAgo
+        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
+
+        // 3. Fallback: If very few recent, use the top from the week
+        if (featured.length + recent.length < 3) {
+            const weekly = this.getTopWeeklyPrompts();
+            return [...featured, ...recent, ...weekly].slice(0, 5);
+        }
+
+        const result = [...featured, ...recent].slice(0, 5);
+        console.log(`[CEREBRO] 🔥 Top Diario calculado: ${result.length} items.`);
+        return result;
+    },
+
     // --- CONTENT ACTIONS ---
 
     async addPrompt(data) {
         if (!this.currentUser) return { success: false, msg: "Inicia sesión para publicar" };
 
         // --- CHECK DAILY POST LIMIT (V3 LEVEL-BASED RESTRICTION) ---
-        const levelSystem = new LevelSystem(pb);
-        const userLevel = this.currentUser.level || 0;
-        const levelInfo = levelSystem.getLevelInfo(userLevel);
+        const isBatchUser = this.currentUser.batch_access === true;
 
-        // Count posts published today
-        const today = new Date().toISOString().split('T')[0];
-        const todayStart = `${today} 00:00:00`;
-        const todayEnd = `${today} 23:59:59`;
+        if (!isBatchUser) {
+            const levelSystem = new LevelSystem(pb);
+            const userLevel = this.getEffectiveLevel(this.currentUser);
+            const levelInfo = levelSystem.getLevelInfo(userLevel);
 
-        try {
-            const todayPosts = await pb.collection('prompts').getList(1, 1, {
-                filter: `author = "${this.currentUser.id}" && created >= "${todayStart}" && created <= "${todayEnd}"`,
-                fields: 'id'
-            });
+            // Count posts published today
+            const today = new Date().toISOString().split('T')[0];
+            const todayStart = `${today} 00:00:00`;
+            const todayEnd = `${today} 23:59:59`;
 
-            const postsToday = todayPosts.totalItems || 0;
-            const maxPerDay = levelInfo.benefits.find(b => b.includes('diarios'))?.match(/\d+/)?.[0] || 3;
+            try {
+                const todayPosts = await pb.collection('prompts').getList(1, 1, {
+                    filter: `author = "${this.currentUser.id}" && created >= "${todayStart}" && created <= "${todayEnd}"`,
+                    fields: 'id'
+                });
 
-            if (postsToday >= parseInt(maxPerDay)) {
-                return {
-                    success: false,
-                    msg: `Has alcanzado tu límite diario de ${maxPerDay} prompts (Nivel ${userLevel}: ${levelInfo.name}). ¡Sube de nivel para publicar más!`
-                };
+                const postsToday = todayPosts.totalItems || 0;
+                const maxPerDay = levelInfo.benefits.find(b => b.includes('diarios'))?.match(/\d+/)?.[0] || 3;
+
+                if (postsToday >= parseInt(maxPerDay)) {
+                    return {
+                        success: false,
+                        msg: `Has alcanzado tu límite diario de ${maxPerDay} prompts (Nivel ${userLevel}: ${levelInfo.name}). ¡Sube de nivel para publicar más!`
+                    };
+                }
+            } catch (err) {
+                console.error('[DAILY LIMIT CHECK] Error:', err);
+                // Continue on error (don't block user if check fails)
             }
-        } catch (err) {
-            console.error('[DAILY LIMIT CHECK] Error:', err);
-            // Continue on error (don't block user if check fails)
+        } else {
+            console.log(`[BATCH] 🚀 Usuario con acceso Batch detectado (@${this.currentUser.username}). Omitiendo límites diarios.`);
         }
 
         let imageUrl = '';
-        const uploadImage = async (base64) => {
+        const uploadImage = async (base64, isHD = false) => {
+            if (isHD) {
+                const compressed = await this._compressImageHD(base64);
+                // Detectar formato real del dataURL para extensión correcta
+                const isPng = compressed.startsWith('data:image/png');
+                const ext = isPng ? 'hd_social.png' : 'hd_social.jpg';
+                const file = this._dataURLtoFile(compressed, ext);
+                return await uploadToCloudinaryHD(file);
+            }
             const compressed = await this._compressImage(base64);
             const file = this._dataURLtoFile(compressed, 'upload.webp');
             return await uploadToCloudinary(file);
@@ -738,14 +1022,25 @@ const store = {
         try {
             if (data.image && data.image.startsWith('data:')) {
                 imageUrl = await uploadImage(data.image);
+                // Generar versión HD automáticamente para TODOS los usuarios
+                if (!data.imageHD) {
+                    data.image_hd = await uploadImage(data.image, true);
+                }
+            }
+            if (data.imageHD && data.imageHD.startsWith('data:')) {
+                data.image_hd = await uploadImage(data.imageHD, true);
             }
             if (data.content && Array.isArray(data.content)) {
                 processedContent = await Promise.all(data.content.map(async (step) => {
                     let stepUrl = step.image;
+                    let stepUrlHd = step.image_hd || '';
+
                     if (step.image && step.image.startsWith('data:')) {
                         stepUrl = await uploadImage(step.image);
+                        // Auto HD para secuencias — TODOS los usuarios
+                        stepUrlHd = await uploadImage(step.image, true);
                     }
-                    return { ...step, image: stepUrl };
+                    return { ...step, image: stepUrl, image_hd: stepUrlHd };
                 }));
             }
         } catch (err) {
@@ -758,16 +1053,17 @@ const store = {
                 prompt: data.prompt,
                 negative_prompt: data.negative_prompt,
                 image: imageUrl,
+                image_hd: data.image_hd || '', // PERSIST HD URL
                 author: this.currentUser.id,
                 author_name: this.currentUser.username,
                 type: data.type || 'single',
                 is_private: data.isPrivate || false,
-                needs_reference: data.needsReference || false, // NEW: Persist reference requirement
+                needs_reference: data.needsReference || false,
                 tool: data.tool,
                 rating: data.rating,
                 content: processedContent,
-                tags: data.tags || [], // NUEVO
-                created_at_custom: new Date().toISOString(), // Usamos ISO para asegurar orden correcto
+                tags: data.tags || [],
+                created_at_custom: new Date().toISOString(),
                 reactions: { like: 0, love: 0, fire: 0, funny: 0 },
                 comments: [],
                 saved_by: []
@@ -818,21 +1114,55 @@ const store = {
             });
             const totalCopies = allPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
 
+            console.log(`[ECONOMY] Calculated reward for post: ${tokensToAdd} tokens (Level ${oldLevel} -> ${newLevel})`);
+
             // Calculate progress for UI
             const progress = levelSystem.calculateProgress(newLevel, totalPosts, totalCopies);
 
-            // Update User
-            await pb.collection('users').update(this.currentUser.id, {
-                level: newLevel,
-                level_progress: progress,
-                prompts_count: totalPosts,
-                total_copies: totalCopies,
-                tokens: (this.currentUser.tokens || 0) + tokensToAdd
-            });
+            // === Auditoría Económica (v3.2: DB Schema Patched) ===
+            try {
+                // Sincronizar balance y estadísticas del perfil
+                const currentTokens = this.currentUser.tokens || 0;
+                const currentEarned = this.currentUser.total_earned || 0;
+                const currentRewards = this.currentUser.total_rewards || 0;
+
+                await pb.collection('users').update(this.currentUser.id, {
+                    level: newLevel,
+                    level_progress: progress,
+                    prompts_count: totalPosts,
+                    total_copies: totalCopies,
+                    tokens: currentTokens + tokensToAdd,
+                    total_earned: currentEarned + tokensToAdd,
+                    total_rewards: currentRewards + tokensToAdd
+                });
+
+                // Registro en el Ledger — Phase C: Double-Entry via LedgerService
+                await LedgerService.systemReward(
+                    this.currentUser.id, BASE_REWARD, 'POST_REWARD',
+                    `Publicación: ${data.title}`
+                );
+
+                // Registro en el Ledger para subida de nivel (si ocurrió)
+                if (shouldLevelUp) {
+                    const bonus = tokensToAdd - BASE_REWARD;
+                    await LedgerService.systemReward(
+                        this.currentUser.id, bonus, 'LEVEL_UP',
+                        `Bono por subir al Nivel ${newLevel}: ${levelName}`
+                    );
+                }
+            } catch (err) {
+                console.error("[ECONOMY] Error crítico en auditoría (verifica campos en DB):", err);
+                // No bloqueamos la publicación si el ledger falla, pero avisamos
+                if (window.showToast) window.showToast("Dificultades al registrar en el historial", "info");
+            }
 
             await this._loadUserProfile(this.currentUser.id);
             await this.loadPrompts();
             this.logActivity('publish', { postId: data.title, type: data.type });
+
+            // --- AUTO-POST TO FACEBOOK ---
+            // Lo hacemos de forma asíncrona para no bloquear el UI del usuario
+            this._bridgeToFacebook(record);
 
             return {
                 success: true,
@@ -891,7 +1221,6 @@ const store = {
                 is_private: data.isPrivate,
                 needs_reference: data.needsReference,
                 tool: data.tool,
-                rating: data.rating,
                 rating: data.rating,
                 content: data.content,
                 extra_config: data.extraConfig,
@@ -1070,7 +1399,8 @@ const store = {
                 },
                 body: JSON.stringify({
                     recipientId: actualRecipientId,
-                    amount: amount
+                    amount: amount,
+                    postId: postId || null
                 })
             });
 
@@ -1099,37 +1429,92 @@ const store = {
     },
 
 
-    async followUser(targetUsername) {
-        if (!this.currentUser) return { success: false };
+    async followUser(targetIdentifier) {
+        if (!this.currentUser) return { success: false, msg: "Login requerido" };
         try {
-            // Find target user by username or name (identificador real post-migración)
-            const target = await pb.collection('users').getFirstListItem(`username="${targetUsername}" || name="${targetUsername}"`);
-            if (!target) return { success: false };
+            console.log(`[FOLLOW] Procesando: ${targetIdentifier}`);
+            let target = null;
+            const lowerTarget = targetIdentifier.toLowerCase();
+
+            // 1. Intentar por ID (15 caracteres típicos de PB)
+            if (targetIdentifier.length === 15) {
+                try {
+                    target = await pb.collection('users').getOne(targetIdentifier);
+                    console.log("[FOLLOW] Encontrado por ID");
+                } catch (e) { }
+            }
+
+            // 2. Intentar por NAME (Campo verificado en auditoría)
+            if (!target) {
+                try {
+                    // Solo filtramos por name ya que username no existe en el esquema y da error 400
+                    target = await pb.collection('users').getFirstListItem(`name="${targetIdentifier}"`);
+                    console.log("[FOLLOW] Encontrado por NAME");
+                } catch (e) { }
+            }
+
+            if (!target) {
+                console.warn(`[FOLLOW] No se halló usuario para: ${targetIdentifier}`);
+                return { success: false, msg: `Usuario no identificado (${targetIdentifier})` };
+            }
+
+            if (target.id === this.currentUser.id) return { success: false, msg: "No puedes seguirte a ti mismo" };
 
             const following = [...(this.currentUser.following || [])];
             const followers = [...(target.followers || [])];
 
             const idx = following.indexOf(target.id);
+            let action = 'follow';
             if (idx > -1) {
                 // Unfollow
                 following.splice(idx, 1);
                 const fIdx = followers.indexOf(this.currentUser.id);
                 if (fIdx > -1) followers.splice(fIdx, 1);
+                action = 'unfollow';
             } else {
                 // Follow
                 following.push(target.id);
                 followers.push(this.currentUser.id);
             }
 
-            const batch = pb.createBatch();
-            batch.collection('users').update(this.currentUser.id, { following });
-            batch.collection('users').update(target.id, { followers });
-            await batch.send();
+            // A. Actualizar Perfil Propio (Prioridad)
+            try {
+                await pb.collection('users').update(this.currentUser.id, { following });
+                this.currentUser.following = following;
+            } catch (myErr) {
+                console.error("[FOLLOW] Error perfil propio:", myErr);
+                return { success: false, msg: "Error al actualizar tu lista de seguidos" };
+            }
 
-            this.currentUser.following = following;
-            this.logActivity('follow', { target: targetUsername });
-            return { success: true };
-        } catch (err) { return { success: false }; }
+            // B. Actualizar Perfil Objetivo (Opcional, puede fallar por RLS)
+            try {
+                await pb.collection('users').update(target.id, { followers });
+            } catch (targetErr) {
+                console.warn("[FOLLOW] Error perfil objetivo (RLS?):", targetErr);
+            }
+
+            // C. Sync Cache
+            target.followers = followers;
+            this.usersCache[lowerTarget] = { ...target, _fetchedAt: Date.now() };
+            // También cachear por ID para consistencia
+            this.usersCache[target.id] = this.usersCache[lowerTarget];
+
+            this.logActivity(action, { target: targetIdentifier });
+            // 5. AUTO-ADD TO FB QUEUE (Silent)
+            // Solo si es SFW o Sugestivo
+            if (['SFW / Apto', 'Sugestivo'].includes(data.rating)) {
+                pb.collection('facebook_queue').create({
+                    prompt: record.id,
+                    status: 'pending',
+                    added_by: this.currentUser.id
+                }).catch(e => console.warn("[FB_AUTO] Failed to auto-queue:", e));
+            }
+
+            return { success: true, id: record.id };
+        } catch (err) {
+            console.error("[FOLLOW] CRITICAL FAULT:", err);
+            return { success: false, msg: "Fallo crítico en el sistema de seguimiento" };
+        }
     },
 
 
@@ -1220,8 +1605,31 @@ const store = {
     },
 
     /**
+     * Get the effective level of a user, considering unique badges.
+     * CREADOR FUNDADOR and CREADOR VIP get Level 2 benefits automatically.
+     * @param {object} user 
+     * @returns {number}
+     */
+    getEffectiveLevel(user) {
+        if (!user) return 0;
+        const baseLevel = user.level || 0;
+        const badges = (user.unique_badges || []).map(b => b.toUpperCase());
+
+        const isVIP = badges.some(b =>
+            b.includes('FUNDADOR') ||
+            b.includes('V.I.P') ||
+            b.includes('VIP')
+        );
+
+        // Grant Level 2 benefits if VIP/Founder
+        if (isVIP && baseLevel < 2) return 2;
+
+        return baseLevel;
+    },
+
+    /**
      * Check if current user has access to a level-gated feature
-     * @param {string} feature - Feature name (e.g., 'comment', 'favorite', 'transfer', 'boost', 'avatar', 'socials')
+     * @param {string} feature - Feature name (e.g., 'comment', 'favorite', 'transfer', 'boost', 'avatar', 'socials', 'sequence')
      * @returns {object} { hasAccess: boolean, requiredLevel: number, message: string }
      */
     checkLevelFeature(feature) {
@@ -1229,7 +1637,7 @@ const store = {
             return { hasAccess: false, requiredLevel: 1, message: "Inicia sesión para continuar" };
         }
 
-        const userLevel = this.currentUser.level || 0;
+        const effectiveLevel = this.getEffectiveLevel(this.currentUser);
         const featureRequirements = {
             'comment': { level: 1, name: 'Novato', message: 'Necesitas ser Nivel 1 (Novato) para comentar. ¡Publica 5 prompts para subir!' },
             'favorite': { level: 1, name: 'Novato', message: 'Necesitas ser Nivel 1 (Novato) para guardar favoritos. ¡Publica 5 prompts!' },
@@ -1240,19 +1648,18 @@ const store = {
             'sequence': { level: 2, name: 'Creador Jr', message: 'Necesitas ser Nivel 2 (Creador Jr) para publicar secuencias. ¡Publica 25 prompts!' }
         };
 
-        // EXCEPCIÓN: Creadores Fundadores se saltan el nivel para AVATAR y SOCIALS
-        const founderBypass = ['avatar', 'socials'];
-        if (founderBypass.includes(feature) && this.hasBadge('CREADOR FUNDADOR')) {
-            return { hasAccess: true, requiredLevel: 0, message: '💎 Beneficio de Creador Fundador activado' };
-        }
-
         const requirement = featureRequirements[feature];
         if (!requirement) {
             return { hasAccess: true, requiredLevel: 0, message: '' };
         }
 
-        if (userLevel >= requirement.level) {
-            return { hasAccess: true, requiredLevel: requirement.level, message: '' };
+        if (effectiveLevel >= requirement.level) {
+            // Check if it's a VIP bypass for messaging
+            const badges = (this.currentUser.unique_badges || []).map(b => b.toUpperCase());
+            const isVIP = badges.some(b => b.includes('FUNDADOR') || b.includes('VIP') || b.includes('V.I.P'));
+            const msg = isVIP && this.currentUser.level < requirement.level ? `💎 Beneficio de VIP/Fundador activado` : '';
+
+            return { hasAccess: true, requiredLevel: requirement.level, message: msg };
         }
 
         return {
@@ -1288,13 +1695,120 @@ const store = {
         } catch (err) { return { success: false, msg: err.message }; }
     },
 
-    async adminDeleteUser(userId) {
+    async adminDeletePrompt(promptId) {
         if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false };
         try {
-            await pb.collection('users').delete(userId);
-            await this.adminLoadAllUsers();
+            await pb.collection('prompts').delete(promptId);
+            this.prompts = this.prompts.filter(p => p.id !== promptId);
             return { success: true };
         } catch (err) { return { success: false, msg: err.message }; }
+    },
+
+
+    // --- FB AUTOPOST QUEUE ---
+
+    async adminGetFbQueue() {
+        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral')) return [];
+        try {
+            // Pending items first (FIFO) - removed sort: 'created' due to 400 error
+            // Added prompt.author to nested expand to fix @undefined bug
+            const records = await pb.collection('facebook_queue').getFullList({
+                expand: 'prompt,prompt.author,added_by',
+                $autoCancel: false
+            });
+            // Manual sort locally for safety
+            records.sort((a, b) => new Date(a.created) - new Date(b.created));
+
+            return records.map(r => ({
+                id: r.id,
+                status: r.status,
+                prompt: r.expand?.prompt ? this._mapPrompts([r.expand.prompt])[0] : null,
+                addedBy: r.expand?.added_by?.username || 'System',
+                created: r.created,
+                error: r.error_log
+            }));
+        } catch (e) {
+            console.error("Error fetching FB Queue:", e);
+            return [];
+        }
+    },
+
+    async adminAddToFbQueue(promptId) {
+        if (!this.currentUser) return { success: false, msg: "No user" };
+        try {
+            // Check if already exists
+            const existing = await pb.collection('facebook_queue').getList(1, 1, {
+                filter: `prompt = "${promptId}" && status = "pending"`
+            });
+            if (existing.totalItems > 0) return { success: false, msg: "Ya está en la cola." };
+
+            await pb.collection('facebook_queue').create({
+                prompt: promptId,
+                status: 'pending',
+                added_by: this.currentUser.id
+            });
+            return { success: true };
+        } catch (e) {
+            console.error("[FB QUEUE ERROR]", e);
+            // Return detailed error for toast
+            return { success: false, msg: e.data?.message || e.message };
+        }
+    },
+
+    async adminRemoveFromFbQueue(queueId) {
+        try {
+            await pb.collection('facebook_queue').delete(queueId);
+            return { success: true };
+        } catch (e) { return { success: false, msg: e.message }; }
+    },
+
+    async adminProcessFbQueueItem(queueId, prompt) {
+        try {
+            await pb.collection('facebook_queue').update(queueId, { status: 'processing' });
+
+            const res = await fetch('/api/facebook-post', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, adminSecret: 'PG_ROBOT_SECRET' })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                await pb.collection('facebook_queue').update(queueId, { status: 'published' });
+                return { success: true };
+            } else {
+                await pb.collection('facebook_queue').update(queueId, { status: 'failed', error_log: data.message || data.error });
+                return { success: false, msg: data.message || data.error };
+            }
+        } catch (e) {
+            await pb.collection('facebook_queue').update(queueId, {
+                status: 'failed',
+                error_log: e.message
+            });
+            return { success: false, msg: e.message };
+        }
+    },
+
+    subscribeToFbQueue(callback) {
+        pb.collection('facebook_queue').subscribe('*', async ({ action, record }) => {
+            // Expansion logic for real-time item
+            if (action === 'create' || action === 'update') {
+                try {
+                    const expanded = await pb.collection('facebook_queue').getOne(record.id, {
+                        expand: 'prompt,prompt.author,added_by'
+                    });
+                    callback({ action, record: expanded });
+                } catch (e) {
+                    callback({ action, record });
+                }
+            } else {
+                callback({ action, record });
+            }
+        });
+    },
+
+    unsubscribeFromFbQueue() {
+        pb.collection('facebook_queue').unsubscribe('*');
     },
 
     async giftTokens(userId, amount) {
@@ -1515,6 +2029,17 @@ const store = {
                     batch.collection('users').update(adminId, { followers });
                     await batch.send();
                     console.log("[REGISTER] Auto-follow completo.");
+
+                    // 4. REGISTRAR BONO DE REGISTRO EN LEDGER (fire-and-forget)
+                    try {
+                        await LedgerService.systemReward(
+                            newUser.id, 50, 'REGISTRATION_BONUS',
+                            `Bono de bienvenida para @${username}`
+                        );
+                        console.log(`[REGISTER] ✅ Ledger: +50💎 registro para ${newUser.id}`);
+                    } catch (ledgerErr) {
+                        console.warn('[REGISTER] Ledger entry failed (non-blocking):', ledgerErr.message);
+                    }
                 }
             } catch (fErr) {
                 console.warn("[REGISTER] Error en auto-follow (no crítico):", fErr);
@@ -1552,8 +2077,18 @@ const store = {
         catch (err) { return { success: false, msg: "Error al enviar correo." }; }
     },
 
-    // MÉTODO CANÓNICO para activación de cuenta Y password reset
-    // Ambos usan el mismo endpoint de PocketBase: confirmPasswordReset
+    // MÉTODO para PASSWORD RESET (Hotfix Feb 11)
+    async confirmPasswordReset(token, password, userOrEmail) {
+        try {
+            await pb.collection('users').confirmPasswordReset(token, password, password);
+        } catch (err) {
+            console.error("Token Reset Error:", err);
+            return { success: false, msg: "El link de recuperación es inválido o ha expirado." };
+        }
+        return await this.login(userOrEmail, password);
+    },
+
+    // MÉTODO para ACTIVACIÓN DE CUENTA (Password inicial)
     async confirmResetPassword(token, password, userOrEmail) {
         // 1. Confirmar el cambio de contraseña via PocketBase
         try {
@@ -1614,6 +2149,68 @@ const store = {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 resolve(canvas.toDataURL('image/webp', 0.8));
+            };
+            img.src = base64;
+        });
+    },
+
+    _compressImageHD(base64) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+
+                // Estimate size in bytes
+                const estimate = Math.floor((base64.length - 22) * 0.75);
+                const MAX_BYTES = 9.2 * 1024 * 1024; // 9.2 MB for safety
+                const isPng = base64.startsWith('data:image/png');
+
+                // Si la imagen está dentro de los límites, preservar el formato original (PNG o JPEG)
+                if (estimate <= MAX_BYTES && width <= 4500) {
+                    console.log(`[HD_PROCESS] Image within limits (${(estimate / 1024 / 1024).toFixed(2)}MB, ${width}x${height}). Keeping ORIGINAL format (${isPng ? 'PNG' : 'JPEG'}).`);
+                    resolve(base64);
+                    return;
+                }
+
+                console.log(`[HD_PROCESS] Image too large (${(estimate / 1024 / 1024).toFixed(2)}MB) or resolution too high (${width}px). Smart compression...`);
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 4500;
+                if (width > MAX_WIDTH) {
+                    height = (MAX_WIDTH / width) * height;
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Intentar primero como PNG si la original era PNG y el resultado cabe
+                if (isPng) {
+                    const pngDataUrl = canvas.toDataURL('image/png');
+                    const pngEstimate = Math.floor((pngDataUrl.length - 22) * 0.75);
+                    if (pngEstimate <= MAX_BYTES) {
+                        console.log(`[HD_PROCESS] PNG re-encode fits (${(pngEstimate / 1024 / 1024).toFixed(2)}MB). Using PNG.`);
+                        resolve(pngDataUrl);
+                        return;
+                    }
+                    console.log(`[HD_PROCESS] PNG too heavy (${(pngEstimate / 1024 / 1024).toFixed(2)}MB). Falling back to JPEG.`);
+                }
+
+                // Fallback a JPEG con calidad progresiva
+                let quality = 0.95;
+                let dataUrl = canvas.toDataURL('image/jpeg', quality);
+                let newEstimate = Math.floor((dataUrl.length - 22) * 0.75);
+
+                while (newEstimate > MAX_BYTES && quality > 0.6) {
+                    quality -= 0.05;
+                    dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    newEstimate = Math.floor((dataUrl.length - 22) * 0.75);
+                    console.log(`[HD_PROCESS] JPEG compression: Quality ${quality.toFixed(2)}, Size: ${(newEstimate / 1024 / 1024).toFixed(2)}MB`);
+                }
+
+                resolve(dataUrl);
             };
             img.src = base64;
         });
@@ -1766,7 +2363,7 @@ const store = {
     },
 
     openDetail(id) {
-        const p = this.prompts.find(x => String(x.id) === String(id));
+        const p = this.findPrompt(id);
         if (!p) return;
         this.activePostId = id;
         this.currentSeqStep = 0;
@@ -1915,14 +2512,14 @@ const store = {
     },
 
     prevSeqStep() {
-        const p = this.prompts.find(x => String(x.id) === String(this.activePostId));
+        const p = this.findPrompt(this.activePostId);
         if (!p || p.type !== 'sequence') return;
         this.currentSeqStep = (this.currentSeqStep - 1 + p.content.length) % p.content.length;
         this.updateSeqDisplay(p);
     },
 
     nextSeqStep() {
-        const p = this.prompts.find(x => String(x.id) === String(this.activePostId));
+        const p = this.findPrompt(this.activePostId);
         if (!p || p.type !== 'sequence') return;
         this.currentSeqStep = (this.currentSeqStep + 1) % p.content.length;
         this.updateSeqDisplay(p);
@@ -1934,7 +2531,7 @@ const store = {
             else { const am = document.getElementById('authModal'); if (am) am.style.display = 'flex'; }
             return;
         }
-        const p = this.prompts.find(x => String(x.id) === String(this.activePostId));
+        const p = this.findPrompt(this.activePostId);
         if (!p) return;
 
         const myOldReaction = (p.userReactions) ? p.userReactions[this.currentUser.username] : null;
@@ -2149,15 +2746,71 @@ const store = {
             // 2. Add to User
             const u = await pb.collection('users').getOne(userId);
             await pb.collection('users').update(userId, {
-                tokens: (u.tokens || 0) + amount
+                tokens: (u.tokens || 0) + amount,
+                total_earned: (u.total_earned || 0) + amount
             });
 
-            // 3. Log
+            // 3. Record in Ledger — Phase M: Economy Audit
+            try {
+                await LedgerService.transfer(
+                    this.currentUser.id, userId, amount,
+                    `Regalo Admin de @${this.currentUser.username} a @${u.username || 'Usuario'}`
+                );
+                console.log(`[GIFT] ✅ Ledger: ${amount}💎 ${this.currentUser.id} → ${userId}`);
+            } catch (ledgerErr) {
+                console.warn('[GIFT] Ledger entry failed (non-blocking):', ledgerErr.message);
+            }
+
+            // 4. Activity Log (legacy compatibility)
             await this.logActivity('tip', { recipient: u.username, amount: amount, postId: 'ADMIN_GIFT' });
 
             return { success: true };
         } catch (e) {
             return { success: false, msg: e.message };
+        }
+    },
+
+    // --- MIGRATION UTILITY (Restored) ---
+    async migrateOldImages(onProgress, ignoredIds = []) {
+        try {
+            // Buscamos posts con imágenes de Firebase (storage.googleapis.com)
+            const records = await pb.collection('prompts').getFullList({
+                filter: 'image ~ "storage.googleapis.com"',
+                $autoCancel: false
+            });
+
+            const pending = records.filter(r => !ignoredIds.includes(r.id));
+            if (pending.length === 0) return { done: true, totalPending: 0 };
+
+            let count = 0;
+            const batch = pending.slice(0, 5); // Procesar de 5 en 5 para no saturar
+
+            for (const r of batch) {
+                if (onProgress) onProgress(count, batch.length, r.title, pending.length - count);
+
+                try {
+                    // 1. Descargar imagen de Firebase
+                    const imgRes = await fetch(r.image);
+                    const blob = await imgRes.blob();
+                    const file = new File([blob], `migrated_${r.id}.webp`, { type: 'image/webp' });
+
+                    // 2. Subir a Cloudinary
+                    const cloudUrl = await window.uploadToCloudinary(file);
+
+                    // 3. Actualizar en PocketBase
+                    await pb.collection('prompts').update(r.id, {
+                        image: cloudUrl
+                    });
+                    count++;
+                } catch (err) {
+                    console.error(`Error migrando post ${r.id}:`, err);
+                    ignoredIds.push(r.id);
+                }
+            }
+
+            return { done: false, count, totalPending: pending.length - count, failedIds: ignoredIds };
+        } catch (e) {
+            return { fatal: e.message };
         }
     }
 };

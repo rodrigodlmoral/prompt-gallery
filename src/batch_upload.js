@@ -509,13 +509,14 @@ class BatchUploadApp {
                     prompt: row.prompt,
                     negative_prompt: row.negative_prompt,
                     image: row.image,
+                    imageHD: row.image, // NEW: Enviar para procesamiento HD
                     type: 'single',
                     tool: row.tool,
                     rating: row.rating,
                     needsReference: row.needs_reference,
                     isPrivate: row.is_private,
-                    tags: row.tags, // Agregado aquí
-                    extraConfig: row.extraConfig // Pasamos la configuración adicional
+                    tags: row.tags,
+                    extraConfig: row.extraConfig
                 });
 
                 if (result.success) {
@@ -758,11 +759,18 @@ async function init() {
         return;
     }
 
-    // 2. Redirigir si no tiene permiso de batch (batch_access column)
-    // Nota: El usuario debe crear esta columna en PocketBase manualmente
-    if (store.currentUser.batch_access !== true) {
-        console.warn("[ACCESS] User does not have batch_access permission. Redirecting...");
-        alert("⚠️ Acceso Restringido: No tienes permisos para usar el Batch Upload.");
+    // 2. Redirigir si no tiene permiso de batch (batch_access column u otros roles)
+    const ALLOWED_USERNAMES = ['rodrigodlmoral', 'rodridomrock', 'cyra.m1', 'promptgallery.app'];
+
+    // Check various permissions: DB flag, Admin role, or Whitelist
+    const hasAccess = store.currentUser.batch_access === true
+        || store.currentUser.role === 'admin'
+        || ALLOWED_USERNAMES.includes(store.currentUser.username)
+        || ALLOWED_USERNAMES.includes(store.currentUser.email);
+
+    if (!hasAccess) {
+        console.warn(`[ACCESS] User ${store.currentUser.username} (${store.currentUser.email}) denied batch access. Role: ${store.currentUser.role}, BatchAccess: ${store.currentUser.batch_access}`);
+        alert("⚠️ Acceso Restringido: No tienes permisos para usar el Batch Upload. Contacta al administrador.");
         window.location.href = 'index.html';
         return;
     }

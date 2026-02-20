@@ -1,0 +1,695 @@
+{
+  "timestamp": "2026-02-19T06:48:19.739Z",
+  "totalLedgerRecords": 107,
+  "legacyRecords": 107,
+  "modernRecords": 0,
+  "byType": {
+    "LEVEL_UP": 3,
+    "POST_REWARD": 51,
+    "TIP": 7,
+    "PURCHASE": 46
+  },
+  "byEntryType": {
+    "LEGACY": 107
+  },
+  "users": {
+    "total": 305,
+    "withTokens": 121,
+    "totalCirculating": 8967
+  },
+  "bank": {
+    "id": "z44ierjl0thcczd",
+    "balance": 0,
+    "ledgerBalance": 0
+  },
+  "discrepancies": [
+    {
+      "userId": "skv9nch5fehjnyq",
+      "name": "valentine",
+      "storedTokens": 248,
+      "ledgerBalance": 213,
+      "difference": 35,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "rkmrhmgh067x7un",
+      "name": "rodrigodlmoral",
+      "storedTokens": 455,
+      "ledgerBalance": -3834,
+      "difference": 4289,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "0wj3ndw3v3wp4b2",
+      "name": "Cyra_Modelone",
+      "storedTokens": 143,
+      "ledgerBalance": 128,
+      "difference": 15,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "5vdkh65xvoaj1y1",
+      "name": "Night9203",
+      "storedTokens": 125,
+      "ledgerBalance": 111,
+      "difference": 14,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "y6y1rwvkvt4p2bx",
+      "name": "E-Commerce Prompts",
+      "storedTokens": 31,
+      "ledgerBalance": 22,
+      "difference": 9,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "dkfos6tc4nd4wba",
+      "name": "Herrcast",
+      "storedTokens": 100,
+      "ledgerBalance": 0,
+      "difference": 100,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "3ybazalcjvfvpq8",
+      "name": "alex marin",
+      "storedTokens": 100,
+      "ledgerBalance": 0,
+      "difference": 100,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "t7s92944zg9t6hp",
+      "name": "zgue7",
+      "storedTokens": 100,
+      "ledgerBalance": 0,
+      "difference": 100,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "ab9vligbucjmmhf",
+      "name": "Alonso",
+      "storedTokens": 100,
+      "ledgerBalance": 0,
+      "difference": 100,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "26h4d2o9ibj7l7p",
+      "name": "ElSahir",
+      "storedTokens": 100,
+      "ledgerBalance": 0,
+      "difference": 100,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "oivzh7br1x61w7x",
+      "name": "vladiCure",
+      "storedTokens": 100,
+      "ledgerBalance": 0,
+      "difference": 100,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "nug6fnwuav0uqlj",
+      "name": "Hasael aragon",
+      "storedTokens": 100,
+      "ledgerBalance": 0,
+      "difference": 100,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "k6nhl0sju4w5f7w",
+      "name": "algelvez",
+      "storedTokens": 100,
+      "ledgerBalance": 0,
+      "difference": 100,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "n5ke59szdv17hb5",
+      "name": "MineARG",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "kkjhzeiejaey8uf",
+      "name": "Mipi2022",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "rkx52je802pejtd",
+      "name": "Aluxcore",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "pltytne4zr0c942",
+      "name": "Bmonrru",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "soy30i57oiyejna",
+      "name": "Alex502",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "esfswwaann0ppav",
+      "name": "DIGITMPX",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "fzuxa9vnzf6etj0",
+      "name": "Broock69",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "epupoof7feflfaa",
+      "name": "Jesukio",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "4gxbyce60ko738q",
+      "name": "presente12",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "7uakj9lsgp0rcg7",
+      "name": "Clodia",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "g4oytka8170m6er",
+      "name": "migueljlz",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "ndulmk0x7nyyz87",
+      "name": "Dulce_Harin",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "1q032htxik2o684",
+      "name": "Yupa2712",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "ubdjkj0figa0rsy",
+      "name": "xhrobuan",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "npiwvxd9fm8errk",
+      "name": "Betan.charles",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "z9oblht9v0nzit1",
+      "name": "Urek",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "s5obzigq0armol2",
+      "name": "Dnke88 ",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "2djxajiutr4npu9",
+      "name": "Tumamacalata",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "q7uuljatibgf4jg",
+      "name": "tutumeme",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "d365dw3r7taxziz",
+      "name": "Dersmartinez",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "38auson66x3yexd",
+      "name": "SofiaVill",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "4xw3osh4d5wuhrz",
+      "name": "Ajens1",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "blqe42k1otrl0yn",
+      "name": "30046704",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "n561dmp3gknp7mr",
+      "name": "swaychat25",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "3cs5tz0v0wgkc00",
+      "name": "draperdigital",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "up1hy9mcxqoxodf",
+      "name": "Ianf26",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "2xeojp0z3a3hvg6",
+      "name": "MythicBloodHound",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "o1nzs1kaj9itenj",
+      "name": "Raizska",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "msiesfis5v4llat",
+      "name": "juan.elcaballo",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "p2mvcxz4cvo8kjg",
+      "name": "Bavaria768",
+      "storedTokens": 51,
+      "ledgerBalance": 0,
+      "difference": 51,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "3hvs8h3lltdvvtl",
+      "name": "madoharra",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "4cw02ingcv2ri6t",
+      "name": "Crazyart",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "abh74us79zp2wtk",
+      "name": "freik08",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "gdc0f857ha3k8vu",
+      "name": "Magoo Panda",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "siolps287vyvbk2",
+      "name": "Rocha",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "sayuxwwbanq7vvr",
+      "name": "briefbot",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "fyi2phal9sbcjzv",
+      "name": "mluna.guevara@gmail.com",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "vd0jv4bbdhh2wqd",
+      "name": "julianlupe2",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "yzivrbbrof563b7",
+      "name": "jctm2902",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "efr6z55mkmz63i3",
+      "name": "kiisnsnsn",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "1ilsol2wvlve4wx",
+      "name": "Txito73",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "aexue85yn5yvxa5",
+      "name": "Cup",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "wlcg0gwx87swky7",
+      "name": "savageman",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "i9p1zwix67cdqst",
+      "name": "bilovg7",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "p8c11cukotvpuoc",
+      "name": "santanapro6",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "15o02tv98v0fmlr",
+      "name": "savageman",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "pnd2x0g5a360yp2",
+      "name": "Engel",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "p7q62nl1ub9jcyf",
+      "name": "Foxy IA",
+      "storedTokens": 56,
+      "ledgerBalance": 5,
+      "difference": 51,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "63e3qv11wbk61tc",
+      "name": "correoparamisias",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "gvoebza1ywx4anq",
+      "name": "Ariel",
+      "storedTokens": 61,
+      "ledgerBalance": 10,
+      "difference": 51,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "wbtt3o2dtl0e5mu",
+      "name": "gitanornr",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "vq1n8auz3rrbzdt",
+      "name": "alvarotorr",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "ct195s29a8n85mq",
+      "name": "juanito23",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "2wxnt6q5li6u8g6",
+      "name": "ailyin",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "bpw2houi62up7bo",
+      "name": "Ronpeseto",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "y3qcex24sps85lo",
+      "name": "NightWovenai ",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "vigkhk97aodzast",
+      "name": "jgln1404@gmail.com",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "mjvvv1i0xf87tqc",
+      "name": "smangel971",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "4mbgv7bhyt9zhwh",
+      "name": "programacionprogramacion80",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "ywtcsgfbkqqqg8m",
+      "name": "buckethead1472",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "gqvlp624a5h4hsc",
+      "name": "maestrej7",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "g8z12uk4funhpxq",
+      "name": "Freddy ",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "sopzqz18vaqtker",
+      "name": "ibarra70",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "z73n1fi32na25hj",
+      "name": "Creador2035",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "ok5d9vthmw8faqh",
+      "name": "maldo666",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "n77kkli8viyv5hb",
+      "name": "alegabycol",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "irgfjnf7k99078q",
+      "name": "alexzorrilla",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "hkeuxzz3me371qs",
+      "name": "Icaro",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "vxahqws07z0iqde",
+      "name": "ShiinGhonn",
+      "storedTokens": 70,
+      "ledgerBalance": 20,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    },
+    {
+      "userId": "iehgymf6q0u1qkx",
+      "name": "meupromptbox",
+      "storedTokens": 50,
+      "ledgerBalance": 0,
+      "difference": 50,
+      "note": "User has MORE tokens than ledger shows (unrecorded income?)"
+    }
+  ],
+  "orphanRecords": [],
+  "duplicateTxHashes": [],
+  "warnings": [],
+  "status": "83 ISSUES FOUND"
+}

@@ -8,6 +8,7 @@
  */
 
 import { LEVEL_REQS } from '../store-final.js';
+import { LedgerService } from './LedgerService.js';
 
 export class LevelSystem {
     constructor(pb) {
@@ -202,6 +203,78 @@ export class LevelSystem {
         } catch (error) {
             console.error('[LevelSystem] Error checking level up:', error);
             return null;
+        }
+    }
+
+    /**
+     * Execute the level up transaction in the database
+     * @param {string} userId - User ID
+     * @returns {Promise<{success: boolean, msg: string, newLevel: number, bonus: number}>}
+     */
+    async executeLevelUp(userId) {
+        try {
+            const check = await this.checkLevelUp(userId);
+            if (!check || !check.shouldLevelUp) {
+                return { success: false, msg: "No cumples los requisitos para subir de nivel aún." };
+            }
+
+            const { newLevel, oldLevel, levelName } = check;
+            const lvlInfo = LEVEL_REQS[newLevel];
+            const bonusMatch = lvlInfo.benefits.find(b => b.includes('Bonus: +'))?.match(/\d+/);
+            const bonusTokens = bonusMatch ? parseInt(bonusMatch[0]) : 0;
+
+            // ⚠️ Auditoría Económica (v3.2)
+            try {
+                const user = await this.pb.collection('users').getOne(userId);
+                const currentTokens = user.tokens || 0;
+                const currentEarned = user.total_earned || 0;
+                const currentRewards = user.total_rewards || 0;
+
+                // 1. Update User (Level + Tokens + Rewards)
+                await this.pb.collection('users').update(userId, {
+                    level: newLevel,
+                    tokens: currentTokens + bonusTokens,
+                    total_earned: currentEarned + bonusTokens,
+                    total_rewards: currentRewards + bonusTokens
+                });
+
+                // 2. Record in Ledger — Phase C: Double-Entry via LedgerService
+                await LedgerService.systemReward(
+                    userId, bonusTokens, 'LEVEL_UP',
+                    `Bono: Subida al Nivel ${newLevel} (${levelName})`
+                );
+
+                // 3. Activity Log
+                try {
+                    await this.pb.collection('activity_logs').create({
+                        user: userId,
+                        action: 'level_up',
+                        details: {
+                            oldLevel,
+                            newLevel,
+                            levelName,
+                            bonusTokens
+                        }
+                    });
+                } catch (logErr) {
+                    console.warn("[LevelSystem] Activity log failed.", logErr);
+                }
+            } catch (err) {
+                console.error("[LevelSystem] Critical economic update failure:", err);
+            }
+
+            console.log(`[LevelSystem] 🎉 User ${userId} promoted to Level ${newLevel} (+${bonusTokens} 💎)`);
+
+            return {
+                success: true,
+                msg: `¡Felicidades! Has subido al Nivel ${newLevel} (${levelName}).`,
+                newLevel,
+                bonus: bonusTokens
+            };
+
+        } catch (err) {
+            console.error('[LevelSystem] Error executes level up:', err);
+            return { success: false, msg: "Error al procesar la subida de nivel: " + err.message };
         }
     }
 }

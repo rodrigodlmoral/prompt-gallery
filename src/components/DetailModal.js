@@ -27,6 +27,7 @@ export const DetailModalTemplate = () => `
                             <button class="btn-icon" onclick="window.toggleOptionsMenu()" style="font-size:1.5rem">⋮</button>
                             <div id="optionsMenu" class="dropdown-menu" style="right:0; left:auto; display:none">
                                 <div class="dropdown-item" onclick="window.doSavePrompt()">💾 Guardar</div>
+                                <div class="dropdown-item" style="color:#3b82f6; font-weight:700" onclick="window.sharePromptInChat(store.activePostId)">💬 Compartir en Chat</div>
                                 <div class="dropdown-item" onclick="window.doCopyPrompt('main')">📋 Copiar Prompt</div>
                                 <div class="dropdown-item" id="optReport" onclick="window.doReportPrompt()">⚠️ Reportar</div>
                                 <div class="dropdown-item" id="optHide" onclick="window.doHidePrompt()">🚫 Ocultar Post</div>
@@ -50,6 +51,7 @@ export const DetailModalTemplate = () => `
                         <div id="detNegPrompt" class="prompt-area" style="display:none; margin-top:10px; border-color:#ff4444; background:rgba(255,0,0,0.05); color:#ff6666"></div>
                         <div id="copyButtonsWrap" style="display:flex; flex-direction:column; gap:8px; margin-top:10px">
                             <button class="btn-outline" onclick="window.doCopyPrompt('main')" style="width:100%">📋 Copiar Prompt</button>
+                            <button class="btn" onclick="window.sharePromptInChat(store.activePostId)" style="width:100%; background:#3b82f6; border:none">💬 Compartir en Chat Global</button>
                             <button id="btnCopyNeg" class="btn-outline" onclick="window.doCopyPrompt('negative')" style="width:100%; display:none; border-color:rgba(255,68,68,0.4); color:#ff6666">❌ Copiar Neg. Prompt</button>
                         </div>
                     </div>
@@ -91,17 +93,7 @@ export const DetailModalTemplate = () => `
 
 // --- LOGIC ---
 
-window.openDetail = (id) => {
-    const p = store.prompts.find(x => x.id === id);
-    if (!p) return;
-    const { applyBlur } = store.getModeration(p);
-    if (!store.currentUser && applyBlur) {
-        if (toast) toast("⚠️ Regístrate para visualizar contenido +18", "error");
-        else alert("Regístrate para visualizar contenido +18");
-        return;
-    }
-    store.openDetail(id);
-};
+// La lógica de apertura (renderizado) vive en main.js via DetailModalTemplate
 
 window.toggleOptionsMenu = () => {
     const menu = document.getElementById('optionsMenu');
@@ -111,7 +103,7 @@ window.toggleOptionsMenu = () => {
     if (optAdmin) {
         optAdmin.style.display = isAdmin ? 'block' : 'none';
         if (isAdmin) {
-            const p = store.prompts.find(x => String(x.id) === String(store.activePostId || currentId)); // Handle global currentId if needed
+            const p = store.findPrompt(store.activePostId);
             // NOTE: currentId might be undefined here if strictly modular, but store.activePostId is reliable
             if (p) optAdmin.innerText = p.is_featured ? '⭐ Quitar Destacado' : '🌟 Marcar Destacado';
         }
@@ -135,7 +127,7 @@ window.doAdminFeaturePrompt = async () => {
 };
 
 window.doCopyPrompt = async (type = 'main') => {
-    const p = store.prompts.find(x => String(x.id) === String(store.activePostId));
+    const p = store.findPrompt(store.activePostId);
     if (!p) return;
 
     let text = '';
@@ -210,7 +202,7 @@ window.doUnsavePrompt = (id) => {
 
 window.doReportPrompt = () => {
     if (!store.currentUser) return alert("Inicia sesión para reportar");
-    const p = store.prompts.find(x => x.id === store.activePostId);
+    const p = store.findPrompt(store.activePostId);
     if (p && p.author === store.currentUser.username) return alert("No puedes reportar tu propio post.");
 
     const reason = prompt("¿Por qué reportas este contenido?\n1. Contenido ilegal\n2. Spam\n3. Acoso\n4. Otro");
@@ -231,7 +223,7 @@ window.doHidePrompt = () => {
 
 window.doBlockUser = () => {
     if (!store.currentUser) return alert("Inicia sesión");
-    const p = store.prompts.find(x => x.id === store.activePostId);
+    const p = store.findPrompt(store.activePostId);
     if (!p) return;
     if (p.author === store.currentUser.username) return alert("No puedes bloquearte a ti mismo.");
 

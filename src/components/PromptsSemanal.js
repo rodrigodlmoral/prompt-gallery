@@ -4,17 +4,8 @@ import { getModeration } from '../utils/security.js';
 export const PromptsSemanal = ({ currentView, prompts }) => {
     if (currentView !== 'home') return '';
 
-    // Filter prompts that have a weekly boost
-    let featuredList = prompts.filter(p => {
-        if (p.is_private) return false;
-        return p.is_featured && p.featured_until && new Date(p.featured_until) > new Date();
-    });
-
-    // MOCK DATA FOR TESTING: Pick 3 as requested
-    if (featuredList.length === 0 && prompts.length > 0) {
-        const publicPrompts = prompts.filter(p => !p.is_private);
-        featuredList = publicPrompts.sort(() => 0.5 - Math.random()).slice(0, 3);
-    }
+    // Use provided prompts directly (already filtered and ranked by CEREBRO in the store)
+    let featuredList = prompts;
 
     if (featuredList.length === 0) return '';
 

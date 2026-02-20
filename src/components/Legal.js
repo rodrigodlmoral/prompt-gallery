@@ -48,26 +48,25 @@ export const LEGAL_TEXTS = {
         </div>
 
         <div class="tos-section">
-            <h3>5. Propiedad intelectual del contenido</h3>
-            <p>Tú sigues siendo dueño de lo que subes, pero:</p>
-            <p>Concedes a Prompt-Gallery una licencia global, gratuita y no exclusiva para:</p>
+            <h3>5. Propiedad intelectual y Licencia de Uso</h3>
+            <p>Tú conservas la propiedad intelectual de todo el contenido (imágenes y prompts) que subas a la plataforma. Sin embargo, al registrarte y utilizar nuestros servicios, otorgas a <strong>Prompt-Gallery</strong> una licencia mundial, perpetua, irrevocable, transferible, libre de regalías y no exclusiva para:</p>
             <ul>
-                <li>Mostrar tu contenido.</li>
-                <li>Distribuirlo dentro de la plataforma.</li>
-                <li>Adaptarlo técnicamente para visualización.</li>
+                <li>Alojar, almacenar, reproducir, modificar, crear obras derivadas, comunicar, publicar, ejecutar públicamente y distribuir dicho contenido.</li>
+                <li><strong>Uso Publicitario y Promocional:</strong> Autorizas explícitamente el uso de tus prompts e imágenes, así como tu nombre de usuario público, para la promoción de la plataforma en canales internos y externos. Esto incluye, pero no se limita a: Publicaciones en Páginas de Facebook, Grupos de Facebook, Instagram, X (Twitter), TikTok, YouTube y otras redes sociales o campañas publicitarias gestionadas por Prompt-Gallery.</li>
+                <li>Adaptar técnicamente el contenido para su correcta visualización en diferentes dispositivos y formatos.</li>
             </ul>
-            <p>Esta licencia dura mientras el contenido esté publicado.</p>
+            <p>Esta licencia nos permite operar el servicio y promocionar tu trabajo y la comunidad de Prompt-Gallery ante una audiencia global.</p>
         </div>
 
         <div class="tos-section">
             <h3>6. Uso del contenido por otros usuarios</h3>
             <p>El contenido público puede ser:</p>
             <ul>
-                <li>Visualizado.</li>
-                <li>Compartido dentro de la plataforma.</li>
-                <li>Usado según la licencia que indiques.</li>
+                <li>Visualizado por cualquier usuario o visitante de la plataforma.</li>
+                <li>Compartido en redes sociales a través de las funciones nativas de la plataforma.</li>
+                <li>Utilizado por otros usuarios bajo los términos de la licencia que tú especifiques (si la hubiere). En defecto de una licencia específica, se entiende que concedes permiso para uso personal y no comercial.</li>
             </ul>
-            <p>Si no defines licencia: Solo se permite visualización y uso personal.</p>
+            <p>Prompt-Gallery no se hace responsable por el uso indebido que terceros puedan hacer de tu contenido fuera de nuestro control directo.</p>
         </div>
 
         <div class="tos-section">

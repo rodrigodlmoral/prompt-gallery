@@ -1,0 +1,819 @@
+{
+  "timestamp": "2026-02-13T11:20:27.739Z",
+  "users": {
+    "status": "success",
+    "total": 269,
+    "with_tokens": 86,
+    "total_tokens": 6569,
+    "by_level": {
+      "0": 262,
+      "1": 5,
+      "2": 2,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    }
+  },
+  "prompts": {
+    "status": "success",
+    "total": 306,
+    "with_copies": 44,
+    "total_copies": 73,
+    "total_tokens_distributed": 310,
+    "top_10": [
+      {
+        "title": "Seducción en el Ventanal",
+        "copies": 6,
+        "tokens": 0,
+        "tool": "DIGEN AI"
+      },
+      {
+        "title": "Elegancia sensual",
+        "copies": 4,
+        "tokens": 0,
+        "tool": "DIGEN AI"
+      },
+      {
+        "title": "Susurro de Sed",
+        "copies": 4,
+        "tokens": 0,
+        "tool": "DIGEN AI"
+      },
+      {
+        "title": "Atardecer Sensual",
+        "copies": 3,
+        "tokens": 0,
+        "tool": "DIGEN AI"
+      },
+      {
+        "title": "Ventana de Intimidad",
+        "copies": 3,
+        "tokens": 0,
+        "tool": "DIGEN AI"
+      },
+      {
+        "title": "Graffiti Enigma",
+        "copies": 3,
+        "tokens": 0,
+        "tool": "DIGEN AI"
+      },
+      {
+        "title": "Silueta de Luz",
+        "copies": 3,
+        "tokens": 0,
+        "tool": "DIGEN AI"
+      },
+      {
+        "title": "Atractivo Vintage",
+        "copies": 3,
+        "tokens": 0,
+        "tool": "DIGEN AI"
+      },
+      {
+        "title": "Elegancia en Encaje",
+        "copies": 2,
+        "tokens": 0,
+        "tool": "DIGEN AI"
+      },
+      {
+        "title": "Atractivo atardecer",
+        "copies": 2,
+        "tokens": 0,
+        "tool": "DIGEN AI"
+      }
+    ]
+  },
+  "ledger": {
+    "status": "error",
+    "error": "Something went wrong while processing your request."
+  },
+  "levels": {
+    "status": "success",
+    "configured": 6,
+    "configs": [
+      {
+        "level": 0,
+        "name": "Explorador",
+        "min_posts": 0,
+        "min_copies": 0,
+        "icon": "🛡️",
+        "has_benefits": true
+      },
+      {
+        "level": 1,
+        "name": "Novato",
+        "min_posts": 5,
+        "min_copies": 0,
+        "icon": "🌱",
+        "has_benefits": true
+      },
+      {
+        "level": 2,
+        "name": "Creador Jr",
+        "min_posts": 25,
+        "min_copies": 0,
+        "icon": "🎨",
+        "has_benefits": true
+      },
+      {
+        "level": 3,
+        "name": "Creador Elite",
+        "min_posts": 50,
+        "min_copies": 100,
+        "icon": "🏆",
+        "has_benefits": true
+      },
+      {
+        "level": 4,
+        "name": "Artista Prompter",
+        "min_posts": 100,
+        "min_copies": 200,
+        "icon": "💎",
+        "has_benefits": true
+      },
+      {
+        "level": 5,
+        "name": "Maestro Prompter",
+        "min_posts": 250,
+        "min_copies": 500,
+        "icon": "👑",
+        "has_benefits": true
+      }
+    ]
+  },
+  "issues": [
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "valentinruce@gmail.com",
+      "stored": 195,
+      "calculated": 0,
+      "difference": 195
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "rodridom.rock@gmail.com",
+      "stored": 84,
+      "calculated": -15,
+      "difference": 99
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "damasolopez574@gmail.com",
+      "stored": 102,
+      "calculated": 0,
+      "difference": 102
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "mauriciovazquezrayon@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "cyram.shop@gmail.com",
+      "stored": 93,
+      "calculated": 15,
+      "difference": 78
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "night9203@gmail.com",
+      "stored": 12,
+      "calculated": 0,
+      "difference": 12
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "jacrispin92@hotmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "Losmcbr@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "losmcbr@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "jaaa.codigo@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "oiecy857@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "kvalverdema@ucvvirtual.edu.pe",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "alainmarcelocp@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "thexman.z@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "rudi_venom@hotmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "chuyquinn54@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "liob7425@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "jderic95@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "manoeric95@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "eltenore2@yahoo.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "leonelruiz862@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "hasael.aragon@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "Pokehasael@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "hcreativeai@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "cocozepeda0@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "mcarolina2131@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "josealejorobotica2@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "ecommerce@prompt-gallery.app",
+      "stored": 21,
+      "calculated": 0,
+      "difference": 21
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "yayogni@gmail.com",
+      "stored": 101,
+      "calculated": 0,
+      "difference": 101
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "peperaltaeladio@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "mia_two@prompt-gallery.app",
+      "stored": 108,
+      "calculated": 0,
+      "difference": 108
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "redboys25@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "jalbertoav@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "alexandert.808@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "mariofernando37@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "santi.saenzgualtero3@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "prototype419@hotmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "j.dariofm20@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "oggabriel4@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "miguel.castro.cl88@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "andreweird555@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "germangermanherrcast@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "carlos.perez@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "leizer.g7@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "alonsoiman429@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "omarsahirchavezgomez@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "diimegabino@icloud.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "pokehasael@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "algelvez@gmail.com",
+      "stored": 100,
+      "calculated": 0,
+      "difference": 100
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "mine.arg033@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "tinchotatum88@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "aluxcore5@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "brandonm0306@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "alensuar@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "digitmpx@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "agustin.vidal.contacto@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "edmundo69.garcia@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "presente.surpresa12@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "clo.castro.riquelme@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "mikey_trova09@hotmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "dulceharin@hotmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "soyvozdeardilla@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "juanrobertoh3@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "betanpubli@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "lusuls525@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "click_olo@hotmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "gabrielcanepmercado@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "gabrielcanepabombastic@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "dersmentoring@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "soff.vill02@outlook.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "geravm@outlook.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "deinner593@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "swaychat25@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "drapperdigital@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "pelona2526@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "serchrock97@hotmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "raizska2022@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "juan.elcaballo.654321@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "bavaria768@gmail.com",
+      "stored": 51,
+      "calculated": 0,
+      "difference": 51
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "madoharra@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "crazyart.infinito@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "vinfreik08@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "holtbolt29@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    },
+    {
+      "type": "balance_mismatch",
+      "severity": "medium",
+      "user": "fernandorocha.egs@gmail.com",
+      "stored": 50,
+      "calculated": 0,
+      "difference": 50
+    }
+  ],
+  "recommendations": []
+}

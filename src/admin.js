@@ -1,6 +1,7 @@
 import './style.css'
 import './admin_fix.css'
 import { store } from './store-final.js'
+import { pb } from './pocketbase.js'
 import './utils/LevelDebug.js'; // Load Debug Tools
 
 const app = document.getElementById('app');
@@ -44,7 +45,7 @@ const AdminLayout = () => `
                 <span style="font-size:2.5rem">👑</span>
                 <div>
                     <h1 style="color:gold; margin:0; font-size:1.8rem">Panel de Administración</h1>
-                    <p style="color:#666; margin:5px 0 0 0">Gestión total de Prompt Gallery</p>
+                    <p style="color:#666; margin:5px 0 0 0">Gestión total de Prompt Gallery (v4.7.1 🚀)</p>
                 </div>
             </div>
             <a href="/" class="btn-outline" style="text-decoration:none; padding:10px 20px">Volver a la Galería</a>
@@ -55,6 +56,8 @@ const AdminLayout = () => `
             <button class="profile-tab ${currentTab === 'content' ? 'active' : ''}" onclick="window.switchAdminTab('content')">Moderación</button>
             <button class="profile-tab ${currentTab === 'logs' ? 'active' : ''}" onclick="window.switchAdminTab('logs')">📜 Actividad</button>
             <button class="profile-tab ${currentTab === 'broadcast' ? 'active' : ''}" onclick="window.switchAdminTab('broadcast')">📢 Broadcast</button>
+            <button class="profile-tab ${currentTab === 'fb-queue' ? 'active' : ''}" onclick="window.switchAdminTab('fb-queue')" style="border-color:#1877F2; color:#1877F2">📘 Autopost</button>
+            <button class="profile-tab ${currentTab === 'economy' ? 'active' : ''}" onclick="window.switchAdminTab('economy')" style="border-color:#a29bfe; color:#a29bfe">💰 Economía</button>
         </div>
 
         <!-- Sub-modal de Gestión de Usuario (Compacto) -->
@@ -126,6 +129,10 @@ const renderAdmin = async () => {
         await renderLogsTab(container);
     } else if (currentTab === 'broadcast') {
         await renderBroadcastTab(container);
+    } else if (currentTab === 'fb-queue') {
+        await renderFbQueueTab(container);
+    } else if (currentTab === 'economy') {
+        await renderEconomyTab(container);
     }
 };
 
@@ -288,7 +295,630 @@ const renderBroadcastTab = async (container) => {
     };
 };
 
-// --- BROADCAST HANDLERS ---
+// --- FB QUEUE TAB (OAUTH CONNECT v4.5) ---
+const renderFbQueueTab = async (container) => {
+    container.innerHTML = `<div style="text-align:center; padding:50px; color:#666"><div class="loading-spinner"></div> Cargando cola de Facebook...</div>`;
+
+    // 1. Check Connection Status
+    let fbSettings = null;
+    try {
+        const settingsList = await pb.collection('fb_settings').getList(1, 1, {
+            filter: 'status="active"',
+            // sort: '-created', // REMOVED CAUSE 400 ERROR IN PB v0.23+
+            $autoCancel: false
+        });
+        if (settingsList.items.length > 0) {
+            fbSettings = settingsList.items[0];
+        }
+    } catch (e) {
+        console.warn('Could not fetch fb_settings:', e);
+    }
+
+    // 2. Setup FB SDK (Idempotent)
+    if (window.FB) {
+        window.FB.init({
+            appId: '1230045182005480',
+            cookie: true,
+            xfbml: true,
+            version: 'v24.0'
+        });
+    }
+
+    // 3. Load Queue Data
+    const queue = await store.adminGetFbQueue();
+    window.fbQueueCache = queue;
+
+    // Subscription logic remains...
+    store.unsubscribeFromFbQueue();
+    store.subscribeToFbQueue(({ action, record }) => {
+        const queueList = document.getElementById('fbQueueList');
+        const queueCount = document.getElementById('fbQueueCount');
+        if (!queueList) return;
+
+        if (action === 'create') {
+            const newItem = {
+                id: record.id,
+                status: record.status,
+                created: record.created,
+                prompt: record.expand?.prompt ? {
+                    id: record.expand.prompt.id,
+                    title: record.expand.prompt.title,
+                    image: record.expand.prompt.image,
+                    author: record.expand.prompt.expand?.author?.username || record.expand.prompt.author || 'Usuario'
+                } : null
+            };
+            window.fbQueueCache.push(newItem);
+        } else if (action === 'update') {
+            const idx = window.fbQueueCache.findIndex(i => i.id === record.id);
+            if (idx !== -1) {
+                window.fbQueueCache[idx].status = record.status;
+                if (record.expand?.prompt) {
+                    window.fbQueueCache[idx].prompt.title = record.expand.prompt.title;
+                }
+            }
+        } else if (action === 'delete') {
+            window.fbQueueCache = window.fbQueueCache.filter(i => i.id !== record.id);
+        }
+
+        window.fbQueueCache.sort((a, b) => new Date(a.created) - new Date(b.created));
+        queueList.innerHTML = renderFbQueueItems(window.fbQueueCache);
+        if (queueCount) queueCount.innerText = window.fbQueueCache.length;
+    });
+
+    // Load source pool (all prompts)
+    if (!store.prompts || store.prompts.length === 0) await store.loadPrompts(true);
+    let sourcePrompts = store.allPrompts && store.allPrompts.length > 0 ? store.allPrompts : store.prompts;
+    sourcePrompts = sourcePrompts.filter(p => p.rating !== 'NSFW / +18');
+
+    // 4. Render Layout
+    container.innerHTML = `
+        <div style="max-width:1200px; margin:0 auto; display:flex; flex-direction:column; height:1400px; gap:20px">
+            
+            <!-- CONNECT HEADER -->
+            <div style="background:#111; border:1px solid #333; padding:15px; border-radius:12px; display:flex; justify-content:space-between; align-items:center">
+                <div style="display:flex; align-items:center; gap:15px">
+                    <span style="font-size:2rem">📘</span>
+                    <div>
+                        <h2 style="margin:0; color:white; font-size:1.2rem">Conexión con Facebook</h2>
+                        <p style="margin:0; color:#888; font-size:0.8rem">
+                            ${fbSettings ? `✅ Conectado a: <strong style="color:#1877F2">${fbSettings.page_name}</strong>` : '⚠️ No hay página conectada. Los posts pueden fallar.'}
+                        </p>
+                    </div>
+                </div>
+                <div>
+                    ${fbSettings
+            ? `<button onclick="window.disconnectFacebook('${fbSettings.id}')" class="btn" style="background:#333; border:1px solid #555">❌ Desconectar</button>`
+            : `<button onclick="window.connectFacebook()" class="btn" style="background:#1877F2; font-weight:bold">🔗 Conectar Página</button>`
+        }
+                </div>
+            </div>
+
+            <!-- INSTAGRAM STATUS -->
+            <div id="igStatusBox" style="background:#111; border:1px solid #333; padding:12px 15px; border-radius:12px; display:flex; align-items:center; gap:15px">
+                <span style="font-size:1.8rem">📸</span>
+                <div>
+                    <h3 style="margin:0; color:white; font-size:1rem">Conexión con Instagram</h3>
+                    <p id="igStatusText" style="margin:0; color:#888; font-size:0.8rem">⏳ Detectando cuenta...</p>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; flex:1; min-height:0">
+                
+                <!-- LEFT: SOURCE (Discovery) -->
+                <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; display:flex; flex-direction:column; overflow:hidden; height:1100px">
+                    <div style="padding:15px; border-bottom:1px solid #333; background:#222">
+                        <h3 style="margin:0; color:#ccc; display:flex; align-items:center; gap:10px">
+                            <span>🗂️ Fuente de Prompts</span>
+                            <span style="font-size:0.7rem; background:#333; padding:2px 6px; border-radius:4px">${sourcePrompts.length}</span>
+                        </h3>
+                        <div style="display:flex; gap:8px; margin-top:10px; align-items:center">
+                            <input type="text" id="fbSourceSearch" placeholder="🔍 Buscar por título..." class="form-input" style="flex:1; padding:6px; font-size:0.8rem" oninput="window.filterFbSource()">
+                            <button id="btnBatchAddSource" class="btn-sm" onclick="window.batchAddToQueue()" style="background:#22c55e; color:white; padding:6px 10px; font-size:0.7rem; white-space:nowrap; display:none">➕ Añadir seleccionados</button>
+                        </div>
+                        <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:0.75rem; color:#888; cursor:pointer">
+                            <input type="checkbox" id="cbSelectAllSource" onchange="window.toggleSelectAllSource(this.checked)" style="accent-color:#3b82f6">
+                            Seleccionar todos
+                        </label>
+                    </div>
+                    <div id="fbSourceList" style="flex:1; overflow-y:auto; padding:10px">
+                        ${renderFbSourceItems(sourcePrompts, queue)}
+                    </div>
+                </div>
+
+                <!-- RIGHT: QUEUE (Scheduled) -->
+                <div style="background:#0f172a; border:1px solid #1e293b; border-radius:12px; display:flex; flex-direction:column; overflow:hidden; height:1100px">
+                    <div style="padding:15px; border-bottom:1px solid #1e293b; background:#1e293b; display:flex; justify-content:space-between; align-items:center">
+                        <div>
+                            <h3 style="margin:0; color:#3b82f6; display:flex; align-items:center; gap:10px">
+                                <span>📘 Cola de Publicación</span>
+                                <span id="fbQueueCount" style="font-size:0.7rem; background:#0f172a; padding:2px 8px; border-radius:10px; border:1px solid #3b82f6">${queue.length}</span>
+                            </h3>
+                            <div id="fbNextRun" style="font-size:0.75rem; color:#64748b; margin-top:4px">⏸️ Esperando inicio...</div>
+                        </div>
+                        <div style="display:flex; gap:6px; align-items:center">
+                            <button id="btnStartSmartQueue" class="btn" onclick="window.startSmartQueue()" style="background:#3b82f6; font-size:0.8rem; padding:6px 12px">▶️ Iniciar</button>
+                            <button id="btnPauseSmartQueue" class="btn" onclick="window.pauseSmartQueue()" style="background:#eab308; font-size:0.8rem; padding:6px 12px; display:none">⏸️ Pausar</button>
+                            <button id="btnStopSmartQueue" class="btn" onclick="window.stopSmartQueue()" style="background:#ef4444; font-size:0.8rem; padding:6px 12px; display:none">⏹️ Detener</button>
+                        </div>
+                    </div>
+                    <div style="padding:8px 15px; border-bottom:1px solid #1e293b; background:#172033; display:flex; gap:8px; align-items:center">
+                        <label style="display:flex; align-items:center; gap:6px; font-size:0.75rem; color:#888; cursor:pointer">
+                            <input type="checkbox" id="cbSelectAllQueue" onchange="window.toggleSelectAllQueue(this.checked)" style="accent-color:#ef4444">
+                            Seleccionar todos
+                        </label>
+                        <button id="btnBatchRemoveQueue" class="btn-sm" onclick="window.batchRemoveFromQueue()" style="background:#ef4444; color:white; padding:4px 10px; font-size:0.7rem; display:none">🗑️ Quitar seleccionados</button>
+                    </div>
+                    <div id="fbQueueList" style="flex:1; overflow-y:auto; padding:10px; background:#0f172a">
+                        ${renderFbQueueItems(queue)}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Detect Instagram account (async, non-blocking)
+    if (fbSettings) {
+        fetch('/api/ig-detect').then(r => r.json()).then(igData => {
+            const igStatusText = document.getElementById('igStatusText');
+            if (!igStatusText) return;
+            if (igData.connected) {
+                const username = igData.username ? `@${igData.username}` : `ID: ${igData.id}`;
+                igStatusText.innerHTML = `✅ Conectado: <strong style="color:#E1306C">${username}</strong>`;
+            } else {
+                igStatusText.innerHTML = `⚠️ No vinculada (${igData.reason || 'desconocido'})`;
+            }
+        }).catch(() => {
+            const igStatusText = document.getElementById('igStatusText');
+            if (igStatusText) igStatusText.innerHTML = '❌ Error detectando cuenta';
+        });
+    }
+};
+
+// --- FB CONNECTION HANDLERS ---
+window.connectFacebook = () => {
+    if (!window.FB) return alert('Facebook SDK no cargó. Recarga la página.');
+
+    // SDK requires a synchronous callback
+    window.FB.login((response) => {
+        handleFbLoginResponse(response);
+    }, { scope: 'pages_manage_posts,pages_read_engagement,business_management,instagram_basic,instagram_content_publish' });
+};
+
+const handleFbLoginResponse = async (response) => {
+    if (response.authResponse) {
+        console.log('FB Login Success. Token:', response.authResponse.accessToken);
+        const userToken = response.authResponse.accessToken;
+
+        try {
+            if (window.showToast) window.showToast("Obteniendo páginas...", "info");
+
+            const res = await fetch('/api/fb-connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shortUserToken: userToken })
+            });
+
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Error al obtener páginas');
+
+            // Show Page Selection Modal
+            renderPageSelectionModal(data.pages);
+
+        } catch (err) {
+            console.error(err);
+            alert('Error conectando: ' + err.message);
+        }
+    } else {
+        console.log('User cancelled login or did not fully authorize.');
+    }
+};
+
+window.disconnectFacebook = async (settingsId) => {
+    if (!confirm('¿Desconectar página? Los posts automáticos podrían fallar.')) return;
+    try {
+        // Use server-side endpoint to bypass RLS restrictions
+        const res = await fetch('/api/fb-disconnect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ settingsId })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+
+        window.switchAdminTab('fb-queue'); // Refresh
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+};
+
+const renderPageSelectionModal = (pages) => {
+    const modal = document.createElement('div');
+    modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; display:flex; justify-content:center; align-items:center`;
+
+    let pagesHtml = pages.map(p => {
+        const igSection = p.instagram
+            ? `<div style="display:flex; align-items:center; gap:8px">
+                    <img src="${p.instagram.picture || ''}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; background:#333; border:2px solid #E1306C" onerror="this.style.display='none'">
+                    <div>
+                        <div style="font-size:0.8rem; color:#E1306C; font-weight:600">📸 @${p.instagram.username || 'IG'}</div>
+                        <div style="font-size:0.65rem; color:#888">${p.instagram.name || ''}</div>
+                    </div>
+                </div>`
+            : `<div style="display:flex; align-items:center; gap:8px; opacity:0.4">
+                    <div style="width:36px; height:36px; border-radius:50%; background:#333; display:flex; align-items:center; justify-content:center; border:2px dashed #555">📷</div>
+                    <div style="font-size:0.75rem; color:#666">Sin IG vinculado</div>
+                </div>`;
+
+        const fbSection = `<div style="display:flex; align-items:center; gap:8px">
+                <img src="${p.fb_picture || ''}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; background:#333; border:2px solid #1877F2" onerror="this.style.display='none'">
+                <div>
+                    <div style="font-size:0.8rem; color:#1877F2; font-weight:600">📘 ${p.name}</div>
+                    <div style="font-size:0.65rem; color:#888">${p.category || 'Página'}</div>
+                </div>
+            </div>`;
+
+        return `
+            <div onclick="window.selectPage('${p.id}', '${p.name.replace(/'/g, "\\'")}', '${p.access_token}')" 
+                 style="background:#1a1a1a; padding:14px 18px; margin-bottom:10px; border-radius:10px; cursor:pointer; border:1px solid #333; display:flex; align-items:center; gap:12px; transition:all 0.2s; hover:border-color:gold"
+                 onmouseover="this.style.borderColor='gold'; this.style.background='#222'" onmouseout="this.style.borderColor='#333'; this.style.background='#1a1a1a'">
+                ${igSection}
+                <div style="font-size:1.2rem; color:#666; flex-shrink:0; margin:0 4px">→</div>
+                ${fbSection}
+                <div style="margin-left:auto; flex-shrink:0">
+                    <button class="btn" style="background:#3b82f6; padding:6px 14px; font-size:0.75rem; font-weight:bold; pointer-events:none">Seleccionar</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    modal.innerHTML = `
+        <div style="background:#111; padding:25px; border-radius:16px; width:650px; max-width:95%; border:1px solid gold; box-shadow:0 0 40px rgba(0,0,0,0.6)">
+            <h3 style="color:gold; margin-top:0; font-size:1.2rem">📡 Cuentas vinculadas a tu perfil</h3>
+            <p style="color:#bbb; font-size:0.85rem; margin-bottom:15px">Selecciona la combinación Instagram ↔ Facebook donde quieres publicar:</p>
+            <div style="max-height:450px; overflow-y:auto; margin:15px 0; padding-right:5px">
+                ${pagesHtml.length > 0 ? pagesHtml : '<div style="color:#666; text-align:center; padding:20px">No se encontraron páginas administrables. Asegúrate de haber otorgado permisos.</div>'}
+            </div>
+            <button onclick="document.body.removeChild(this.parentElement.parentElement)" class="btn" style="width:100%; background:#333; padding:12px; margin-top:5px">Cancelar</button>
+        </div>
+    `;
+    modal.id = 'fbPageSelectModal';
+    document.body.appendChild(modal);
+};
+
+window.selectPage = async (id, name, token) => {
+    try {
+        if (window.showToast) window.showToast("Guardando conexión...", "info");
+
+        // Remove modal
+        // Remove modal by ID first, fallback to selector
+        const modalById = document.getElementById('fbPageSelectModal');
+        if (modalById) modalById.remove();
+        else {
+            const modal = document.querySelector('div[style*="z-index:9999"]');
+            if (modal) modal.remove();
+        }
+
+        // Call backend to save
+        const res = await fetch('/api/fb-save-page', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pageId: id,
+                pageName: name,
+                pageAccessToken: token,
+                userId: store.currentUser?.id
+            })
+        });
+
+        const data = await res.json();
+        if (!data.success) {
+            // Log full diagnostic data to console
+            console.error('[FB_SAVE] Server diagnostic:', data);
+            if (data.steps) console.table(data.steps);
+
+            const stepsInfo = data.steps ? '\n\nDiagnóstico:\n' + data.steps.join('\n') : '';
+            throw new Error((data.error || 'Unknown error') + stepsInfo);
+        }
+
+        alert(`✅ Conectado exitosamente a: ${name}`);
+        window.switchAdminTab('fb-queue'); // Refresh
+
+    } catch (e) {
+        alert('Error guardando página: ' + e.message);
+    }
+};
+
+// --- RENDER HELPERS ---
+const renderFbSourceItems = (prompts, queue) => {
+    const queuedIds = new Set(queue.map(q => q.prompt?.id));
+
+    return prompts.map(p => {
+        const isQueued = queuedIds.has(p.id);
+        if (isQueued) return '';
+
+        return `
+            <div class="fb-source-item" data-title="${p.title.toLowerCase()}" data-prompt-id="${p.id}" style="display:flex; gap:10px; padding:10px; border-bottom:1px solid #333; align-items:center">
+                <input type="checkbox" class="cb-source-item" data-id="${p.id}" onchange="window.updateSourceSelection()" style="accent-color:#3b82f6; flex-shrink:0">
+                <img src="${p.image || (p.content && p.content[0] ? p.content[0].image : '')}" style="width:50px; height:50px; border-radius:6px; object-fit:cover; background:#000">
+                <div style="flex:1; overflow:hidden">
+                    <div style="font-weight:600; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" title="${p.title}">
+                        ${(p.content && p.content.length > 1) ? '<span title="Secuencia/Carrusel">📚</span> ' : ''}${p.title} ${(p.image_hd || (p.content && p.content[0] && p.content[0].image_hd)) ? '<span style="background:#16a34a;color:#fff;font-size:0.6rem;padding:1px 5px;border-radius:4px;vertical-align:middle;font-weight:bold" title="Tiene versión HD">📀HD</span>' : '<span style="background:#78716c;color:#fff;font-size:0.6rem;padding:1px 5px;border-radius:4px;vertical-align:middle;font-weight:bold" title="Sin versión HD">⚠️SD</span>'}
+                    </div>
+                    <div style="font-size:0.75rem; color:#666">@${p.author} • ${new Date(p.createdAt).toLocaleDateString()}</div>
+                </div>
+                <button class="btn-icon-pro btn-add" onclick="window.addToFbQueue('${p.id}')" title="Añadir a la Cola">➕</button>
+            </div>
+        `;
+    }).join('');
+};
+
+const renderFbQueueItems = (queue) => {
+    if (queue.length === 0) return `<div style="text-align:center; padding:40px; color:#475569; font-style:italic">La cola está vacía.<br>Añade prompts desde la izquierda.</div>`;
+
+    return queue.map((item, idx) => {
+        const p = item.prompt || { title: 'Eliminado', image: '' };
+        let statusColor = '#94a3b8'; // Pending
+        if (item.status === 'processing') statusColor = '#eab308';
+        if (item.status === 'published') statusColor = '#22c55e';
+        if (item.status === 'failed') statusColor = '#ef4444';
+
+        return `
+            <div style="display:flex; gap:10px; padding:12px; margin-bottom:8px; background:#1e293b; border-radius:8px; border-left:4px solid ${statusColor}; align-items:center; position:relative">
+                <input type="checkbox" class="cb-queue-item" data-id="${item.id}" onchange="window.updateQueueSelection()" style="accent-color:#ef4444; flex-shrink:0">
+                <div style="position:absolute; top:4px; right:8px; font-size:0.65rem; color:#64748b; font-weight:bold">Pos: ${idx + 1}</div>
+                <img src="${p.image || (p.content && p.content[0] ? p.content[0].image : '')}" style="width:60px; height:60px; border-radius:6px; object-fit:cover; background:#000">
+                <div style="flex:1; overflow:hidden">
+                    <div style="font-weight:bold; font-size:0.9rem; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">
+                         ${(p.content && p.content.length > 1) ? '<span title="Secuencia/Carrusel">📚</span> ' : ''}${p.title} ${(p.image_hd || (p.content && p.content[0] && p.content[0].image_hd)) ? '<span style="background:#16a34a;color:#fff;font-size:0.6rem;padding:1px 5px;border-radius:4px;vertical-align:middle;font-weight:bold" title="Tiene versión HD">📀HD</span>' : '<span style="background:#78716c;color:#fff;font-size:0.6rem;padding:1px 5px;border-radius:4px;vertical-align:middle;font-weight:bold" title="Sin versión HD">⚠️SD</span>'}
+                    </div>
+                    <div style="font-size:0.75rem; color:#94a3b8">
+                        Status: <span style="color:${statusColor}; text-transform:uppercase; font-weight:bold">${item.status}</span>
+                        ${item.error ? `<br><span style="color:#ef4444">Error: ${item.error}</span>` : ''}
+                    </div>
+                </div>
+                <div style="display:flex; flex-direction:row; gap:6px; align-items:center">
+                    ${item.status === 'pending' || item.status === 'failed' ? `
+                        <button class="btn-icon-pro btn-publish" onclick="window.processFbItem('${item.id}', '${p.id}')" title="Publicar Ahora">🚀</button>
+                        <button class="btn-icon-pro btn-delete" onclick="window.removeFromFbQueue('${item.id}')" title="Eliminar de la Cola">🗑️</button>
+                    ` : ''}
+                    ${item.status === 'published' ? `<button class="btn-icon-pro btn-clear" onclick="window.removeFromFbQueue('${item.id}')" title="Limpiar de la lista">✨</button>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+};
+
+// --- FB QUEUE LOGIC ---
+window.filterFbSource = () => {
+    const term = document.getElementById('fbSourceSearch').value.toLowerCase();
+    const list = document.getElementById('fbSourceList');
+    const items = list.getElementsByClassName('fb-source-item');
+    for (let item of items) {
+        const title = item.getAttribute('data-title');
+        item.style.display = title.includes(term) ? 'flex' : 'none';
+    }
+};
+
+window.addToFbQueue = async (promptId) => {
+    const res = await store.adminAddToFbQueue(promptId);
+    if (res.success) {
+        // Refresh Tab
+        await renderFbQueueTab(document.getElementById('admin-main-content'));
+    } else alert("Error: " + res.msg);
+};
+
+window.removeFromFbQueue = async (queueId) => {
+    if (!confirm("¿Quitar de la cola?")) return;
+    const res = await store.adminRemoveFromFbQueue(queueId);
+    if (res.success) await renderFbQueueTab(document.getElementById('admin-main-content'));
+    else alert("Error: " + res.msg);
+};
+
+window.processFbItem = async (queueId, promptId) => {
+    if (!confirm("🚀 ¿Publicar INMEDIATAMENTE en Facebook?")) return;
+
+    // Find prompt data
+    const item = window.fbQueueCache.find(i => i.id === queueId);
+    if (!item || !item.prompt) return alert("Error: Datos corruptos");
+
+    const res = await store.adminProcessFbQueueItem(queueId, item.prompt);
+    if (res.success) {
+        alert("✅ ¡Publicado en Facebook correctamente!");
+        await renderFbQueueTab(document.getElementById('admin-main-content'));
+    } else {
+        alert("❌ Error publicando: " + res.msg);
+        await renderFbQueueTab(document.getElementById('admin-main-content'));
+    }
+};
+
+// --- SMART RUNNER (CLIENT SIDE) ---
+window.smartQueueInterval = null;
+window.smartTimerDisplay = null;
+window.nextRunTime = 0;
+window.smartQueuePaused = false;
+
+window.startSmartQueue = () => {
+    const btnStart = document.getElementById('btnStartSmartQueue');
+    const btnPause = document.getElementById('btnPauseSmartQueue');
+    const btnStop = document.getElementById('btnStopSmartQueue');
+    const status = document.getElementById('fbNextRun');
+
+    btnStart.style.display = 'none';
+    btnPause.style.display = 'inline-block';
+    btnStop.style.display = 'inline-block';
+    status.style.color = '#22c55e';
+    window.smartQueuePaused = false;
+
+    runSmartCycle();
+};
+
+window.pauseSmartQueue = () => {
+    const btnPause = document.getElementById('btnPauseSmartQueue');
+    const status = document.getElementById('fbNextRun');
+
+    if (window.smartQueuePaused) {
+        // RESUME
+        window.smartQueuePaused = false;
+        btnPause.innerHTML = '⏸️ Pausar';
+        btnPause.style.background = '#eab308';
+        status.innerHTML = '▶️ Reanudando...';
+        status.style.color = '#22c55e';
+        runSmartCycle();
+    } else {
+        // PAUSE
+        window.smartQueuePaused = true;
+        clearTimeout(window.smartQueueInterval);
+        clearInterval(window.smartTimerDisplay);
+        window.smartQueueInterval = null;
+        btnPause.innerHTML = '▶️ Reanudar';
+        btnPause.style.background = '#22c55e';
+        status.innerHTML = '⏸️ Pausado (cola activa, esperando reanudar)';
+        status.style.color = '#eab308';
+    }
+};
+
+window.stopSmartQueue = () => {
+    if (!confirm('⏹️ ¿Detener completamente el auto-post?')) return;
+
+    clearTimeout(window.smartQueueInterval);
+    clearInterval(window.smartTimerDisplay);
+    window.smartQueueInterval = null;
+    window.smartQueuePaused = false;
+
+    const btnStart = document.getElementById('btnStartSmartQueue');
+    const btnPause = document.getElementById('btnPauseSmartQueue');
+    const btnStop = document.getElementById('btnStopSmartQueue');
+    const status = document.getElementById('fbNextRun');
+
+    if (btnStart) btnStart.style.display = 'inline-block';
+    if (btnPause) { btnPause.style.display = 'none'; btnPause.innerHTML = '⏸️ Pausar'; btnPause.style.background = '#eab308'; }
+    if (btnStop) btnStop.style.display = 'none';
+    if (status) { status.innerHTML = '⏹️ Detenido'; status.style.color = '#64748b'; }
+};
+
+// Keep legacy toggle as alias
+window.toggleSmartQueue = window.startSmartQueue;
+
+const runSmartCycle = async () => {
+    const status = document.getElementById('fbNextRun');
+    if (!status) return;
+    if (window.smartQueuePaused) return;
+
+    const queue = await store.adminGetFbQueue();
+    const pending = queue.filter(q => q.status === 'pending');
+
+    if (pending.length === 0) {
+        status.innerHTML = '💤 Cola vacía. Revisando en 1 min...';
+        window.smartQueueInterval = setTimeout(runSmartCycle, 60000);
+        return;
+    }
+
+    const nextItem = pending[0];
+    status.innerHTML = `🚀 Publicando: ${nextItem.prompt?.title.substring(0, 20)}...`;
+
+    await store.adminProcessFbQueueItem(nextItem.id, nextItem.prompt);
+
+    const container = document.getElementById('admin-main-content');
+    if (container) await renderFbQueueTab(container);
+
+    // Re-show controls after refresh
+    const btnStart = document.getElementById('btnStartSmartQueue');
+    const btnPause = document.getElementById('btnPauseSmartQueue');
+    const btnStop = document.getElementById('btnStopSmartQueue');
+    if (btnStart) btnStart.style.display = 'none';
+    if (btnPause) { btnPause.style.display = 'inline-block'; btnPause.innerHTML = '⏸️ Pausar'; btnPause.style.background = '#eab308'; }
+    if (btnStop) btnStop.style.display = 'inline-block';
+
+    const minTime = 20 * 60 * 1000;
+    const maxTime = 45 * 60 * 1000;
+    const delay = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
+
+    window.nextRunTime = Date.now() + delay;
+
+    if (window.smartTimerDisplay) clearInterval(window.smartTimerDisplay);
+    window.smartTimerDisplay = setInterval(() => {
+        const now = Date.now();
+        const diff = window.nextRunTime - now;
+
+        const statusEl = document.getElementById('fbNextRun');
+        if (!statusEl) { clearInterval(window.smartTimerDisplay); return; }
+
+        if (diff <= 0) {
+            statusEl.innerHTML = '⚡ Preparando siguiente...';
+        } else {
+            const mins = Math.floor(diff / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            statusEl.innerHTML = `⏳ Siguiente post en: ${mins}m ${secs}s`;
+        }
+    }, 1000);
+
+    window.smartQueueInterval = setTimeout(runSmartCycle, delay);
+};
+
+// --- BATCH SELECTION LOGIC ---
+window.selectedSourceIds = new Set();
+window.selectedQueueIds = new Set();
+
+window.updateSourceSelection = () => {
+    window.selectedSourceIds.clear();
+    document.querySelectorAll('.cb-source-item:checked').forEach(cb => window.selectedSourceIds.add(cb.dataset.id));
+    const btn = document.getElementById('btnBatchAddSource');
+    if (btn) btn.style.display = window.selectedSourceIds.size > 0 ? 'inline-block' : 'none';
+    if (btn) btn.textContent = `➕ Añadir ${window.selectedSourceIds.size} seleccionados`;
+};
+
+window.updateQueueSelection = () => {
+    window.selectedQueueIds.clear();
+    document.querySelectorAll('.cb-queue-item:checked').forEach(cb => window.selectedQueueIds.add(cb.dataset.id));
+    const btn = document.getElementById('btnBatchRemoveQueue');
+    if (btn) btn.style.display = window.selectedQueueIds.size > 0 ? 'inline-block' : 'none';
+    if (btn) btn.textContent = `🗑️ Quitar ${window.selectedQueueIds.size} seleccionados`;
+};
+
+window.toggleSelectAllSource = (checked) => {
+    document.querySelectorAll('.cb-source-item').forEach(cb => {
+        // Only toggle visible items
+        if (cb.closest('.fb-source-item').style.display !== 'none') cb.checked = checked;
+    });
+    window.updateSourceSelection();
+};
+
+window.toggleSelectAllQueue = (checked) => {
+    document.querySelectorAll('.cb-queue-item').forEach(cb => cb.checked = checked);
+    window.updateQueueSelection();
+};
+
+window.batchAddToQueue = async () => {
+    if (window.selectedSourceIds.size === 0) return;
+    const ids = [...window.selectedSourceIds];
+    if (!confirm(`¿Añadir ${ids.length} prompts a la cola?`)) return;
+
+    if (window.showToast) window.showToast(`Añadiendo ${ids.length} prompts...`, 'info');
+    let ok = 0;
+    for (const id of ids) {
+        const res = await store.adminAddToFbQueue(id);
+        if (res.success) ok++;
+    }
+    if (window.showToast) window.showToast(`✅ ${ok}/${ids.length} añadidos a la cola`, 'success');
+    window.selectedSourceIds.clear();
+    await renderFbQueueTab(document.getElementById('admin-main-content'));
+};
+
+window.batchRemoveFromQueue = async () => {
+    if (window.selectedQueueIds.size === 0) return;
+    const ids = [...window.selectedQueueIds];
+    if (!confirm(`¿Quitar ${ids.length} items de la cola?`)) return;
+
+    if (window.showToast) window.showToast(`Quitando ${ids.length} items...`, 'info');
+    let ok = 0;
+    for (const id of ids) {
+        const res = await store.adminRemoveFromFbQueue(id);
+        if (res.success) ok++;
+    }
+    if (window.showToast) window.showToast(`✅ ${ok}/${ids.length} removidos de la cola`, 'success');
+    window.selectedQueueIds.clear();
+    await renderFbQueueTab(document.getElementById('admin-main-content'));
+};
 window.previewBroadcast = () => {
     const html = document.getElementById('broadcastHtml').value;
     const preview = document.getElementById('broadcastPreview');
@@ -745,6 +1375,166 @@ window.adminDeletePrompt = async (id) => {
     }
 };
 
+
+// === ECONOMY TAB ===
+const renderEconomyTab = async (container) => {
+    container.innerHTML = `<div style="text-align:center; padding:50px; color:#666"><div class="loading-spinner"></div> Calculando economía global...</div>`;
+
+    try {
+        const res = await fetch('/api/economy-stats');
+        if (!res.ok) throw new Error(`API Error: ${res.status}`);
+        const data = await res.json();
+
+        const s = data.summary;
+        const discColor = s.discrepancy === 0 ? '#16a34a' : (Math.abs(s.discrepancy) < 100 ? '#eab308' : '#ef4444');
+        const discIcon = s.discrepancy === 0 ? '✅' : '⚠️';
+        const discExpl = s.discrepancy > 0
+            ? `Hay ${s.discrepancy} 💎 más en billeteras de usuario que lo registrado en el Ledger. Probable causa: bonos de registro anteriores al sistema de Ledger.`
+            : s.discrepancy < 0
+                ? `Hay ${Math.abs(s.discrepancy)} 💎 menos en billeteras de lo esperado. Posible error contable.`
+                : 'La contabilidad cuadra perfectamente. Todo en orden.';
+
+        // --- TYPE BREAKDOWN TABLE ---
+        const typeLabels = {
+            POST_REWARD: '🖼️ Recompensa por Post',
+            LEVEL_UP: '✨ Bono de Nivel',
+            TIP: '💌 Propinas (P2P)',
+            COPY_MILESTONE: '🏆 Milestone de Copias',
+            REGISTRATION_BONUS: '🎁 Bono de Registro',
+            GIFT: '🎀 Regalos Admin',
+            PURCHASE: '🛒 Compras',
+            BOOST: '🚀 Boosts',
+            FEE: '💸 Comisiones',
+            DAILY_LOGIN: '📅 Login Diario',
+            DEPOSIT: '💳 Depósitos'
+        };
+
+        const breakdownRows = Object.entries(data.breakdown)
+            .sort(([, a], [, b]) => b.total - a.total)
+            .map(([type, info]) => `
+                <tr style="border-bottom:1px solid #333">
+                    <td style="padding:8px 12px; font-size:0.85rem">${typeLabels[type] || type}</td>
+                    <td style="padding:8px 12px; text-align:center; color:#888">${info.count}</td>
+                    <td style="padding:8px 12px; text-align:right; font-weight:bold; color:#a29bfe">${info.total.toLocaleString()} 💎</td>
+                </tr>
+            `).join('');
+
+        // --- TOP HOLDERS TABLE ---
+        const holdersRows = data.topHolders.map((u, i) => `
+            <tr style="border-bottom:1px solid #333">
+                <td style="padding:6px 10px; font-size:0.85rem; color:#888">${i + 1}</td>
+                <td style="padding:6px 10px; font-weight:bold">@${window.escapeHTML(u.username)}</td>
+                <td style="padding:6px 10px; text-align:center; font-size:0.8rem">Lvl ${u.level}</td>
+                <td style="padding:6px 10px; text-align:right; color:#a29bfe; font-weight:bold">${u.tokens.toLocaleString()} 💎</td>
+            </tr>
+        `).join('');
+
+        // --- MONTHLY CHART (simple bar chart) ---
+        const maxMonthly = Math.max(...data.monthlyData.map(m => m.amount), 1);
+        const monthlyBars = data.monthlyData.map(m => {
+            const pct = Math.max(2, (m.amount / maxMonthly) * 100);
+            const label = m.month.substring(5); // MM only
+            return `
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px">
+                    <span style="width:35px; text-align:right; font-size:0.75rem; color:#888">${label}</span>
+                    <div style="flex:1; background:#222; border-radius:4px; overflow:hidden; height:20px">
+                        <div style="width:${pct}%; height:100%; background:linear-gradient(90deg, #6c5ce7, #a29bfe); border-radius:4px; display:flex; align-items:center; justify-content:flex-end; padding-right:6px">
+                            <span style="font-size:0.65rem; color:#fff; font-weight:bold">${m.amount}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            <div style="max-width:1100px; margin:0 auto">
+                <h2 style="color:#a29bfe; margin-bottom:20px">💰 Economía Global — PromptBits</h2>
+
+                <!-- SUMMARY CARDS -->
+                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:15px; margin-bottom:25px">
+                    <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:20px; text-align:center">
+                        <div style="font-size:0.75rem; color:#888; margin-bottom:5px">📤 Total Emitidos</div>
+                        <div style="font-size:1.8rem; font-weight:bold; color:#16a34a">${s.totalMinted.toLocaleString()}</div>
+                        <div style="font-size:0.65rem; color:#555">${s.totalLedgerEntries} registros en Ledger</div>
+                    </div>
+                    <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:20px; text-align:center">
+                        <div style="font-size:0.75rem; color:#888; margin-bottom:5px">💰 En Circulación</div>
+                        <div style="font-size:1.8rem; font-weight:bold; color:#a29bfe">${s.totalInCirculation.toLocaleString()}</div>
+                        <div style="font-size:0.65rem; color:#555">${s.totalUsersWithTokens} de ${s.totalUsers} usuarios</div>
+                    </div>
+                    <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:20px; text-align:center">
+                        <div style="font-size:0.75rem; color:#888; margin-bottom:5px">🔥 Total Quemados</div>
+                        <div style="font-size:1.8rem; font-weight:bold; color:#ef4444">${s.totalBurned.toLocaleString()}</div>
+                        <div style="font-size:0.65rem; color:#555">Boosts, compras, fees</div>
+                    </div>
+                    <div style="background:#1a1a1a; border:1px solid ${discColor}; border-radius:12px; padding:20px; text-align:center">
+                        <div style="font-size:0.75rem; color:#888; margin-bottom:5px">${discIcon} Validación</div>
+                        <div style="font-size:1.8rem; font-weight:bold; color:${discColor}">${s.discrepancy === 0 ? 'OK' : (s.discrepancy > 0 ? '+' : '') + s.discrepancy.toLocaleString()}</div>
+                        <div style="font-size:0.65rem; color:#555">Circulación vs Ledger</div>
+                    </div>
+                </div>
+
+                <!-- VALIDATION BANNER -->
+                <div style="background:${discColor}15; border:1px solid ${discColor}; border-radius:8px; padding:12px 16px; margin-bottom:25px; font-size:0.85rem; color:${discColor}">
+                    ${discIcon} <strong>Auditoría Contable:</strong> ${discExpl}
+                </div>
+
+                <!-- TWO COLUMN LAYOUT -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:25px">
+
+                    <!-- LEFT: TYPE BREAKDOWN -->
+                    <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:20px">
+                        <h3 style="color:#ccc; margin-top:0; font-size:1rem">📊 Desglose por Tipo</h3>
+                        <table style="width:100%; border-collapse:collapse">
+                            <thead><tr style="border-bottom:2px solid #444">
+                                <th style="text-align:left; padding:8px 12px; font-size:0.75rem; color:#888">Tipo</th>
+                                <th style="text-align:center; padding:8px 12px; font-size:0.75rem; color:#888">Txns</th>
+                                <th style="text-align:right; padding:8px 12px; font-size:0.75rem; color:#888">Total</th>
+                            </tr></thead>
+                            <tbody>${breakdownRows || '<tr><td colspan="3" style="padding:20px; text-align:center; color:#666">Sin datos</td></tr>'}</tbody>
+                        </table>
+                    </div>
+
+                    <!-- RIGHT: TOP HOLDERS -->
+                    <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:20px">
+                        <h3 style="color:#ccc; margin-top:0; font-size:1rem">🏅 Top 10 Holders</h3>
+                        <table style="width:100%; border-collapse:collapse">
+                            <thead><tr style="border-bottom:2px solid #444">
+                                <th style="padding:6px 10px; font-size:0.75rem; color:#888">#</th>
+                                <th style="text-align:left; padding:6px 10px; font-size:0.75rem; color:#888">Usuario</th>
+                                <th style="text-align:center; padding:6px 10px; font-size:0.75rem; color:#888">Nivel</th>
+                                <th style="text-align:right; padding:6px 10px; font-size:0.75rem; color:#888">Saldo</th>
+                            </tr></thead>
+                            <tbody>${holdersRows || '<tr><td colspan="4" style="padding:20px; text-align:center; color:#666">Sin datos</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- MONTHLY CHART -->
+                <div style="background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:20px; margin-bottom:25px">
+                    <h3 style="color:#ccc; margin-top:0; font-size:1rem">📈 Emisión Mensual</h3>
+                    ${data.monthlyData.length > 0 ? monthlyBars : '<div style="padding:20px; text-align:center; color:#666">Sin datos mensuales aún</div>'}
+                </div>
+
+                <!-- FOOTER -->
+                <div style="text-align:right; font-size:0.7rem; color:#555; margin-top:10px">
+                    Última actualización: ${new Date(data.timestamp).toLocaleString()}
+                </div>
+            </div>
+        `;
+
+    } catch (err) {
+        console.error('[ECONOMY TAB] Error:', err);
+        container.innerHTML = `
+            <div style="text-align:center; padding:50px">
+                <div style="font-size:3rem; margin-bottom:15px">❌</div>
+                <h3 style="color:#ef4444">Error al cargar datos de economía</h3>
+                <p style="color:#888">${window.escapeHTML(err.message)}</p>
+                <button class="btn" onclick="window.switchAdminTab('economy')" style="margin-top:15px">🔄 Reintentar</button>
+            </div>
+        `;
+    }
+};
 
 // --- INIT ---
 renderAdmin();

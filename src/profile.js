@@ -9,7 +9,13 @@ import { DetailModalTemplate } from './components/DetailModal.js';
 import { SearchSuggestions } from './components/SearchSuggestions.js';
 import { getSearchSuggestions } from './utils/search-logic.js';
 import { initEconomyDashboard } from './components/EconomyDashboard.js';
+import { initLiveChat } from './components/LiveChat.js';
+import { setupLevelModals } from './components/Modals/LevelModals.js';
+import { toast } from './utils/ui-helpers.js';
 import './utils/LevelDebug.js'; // Load Debug Tools
+
+// Initialize Modals
+setupLevelModals();
 
 const app = document.getElementById('app');
 
@@ -312,7 +318,7 @@ const Header = () => `
             <div class="search-bar search-desktop" style="position:relative">
                 <!-- Trap for Chrome Autofill -->
                 <input type="password" style="display:none" autocomplete="new-password">
-                <input type="text" class="search-input" id="searchInput" placeholder="Buscar..." value="${searchQuery}" autocomplete="chrome-off-v3" spellcheck="false" name="prof_find_v${Date.now()}">
+                <input type="text" class="search-input" id="searchInput" placeholder="${store.currentUser?.username === profileUser ? 'Buscar en MIS prompts... 👤' : 'Buscar en este perfil... 🎯'}" value="${searchQuery}" autocomplete="chrome-off-v3" spellcheck="false" name="prof_find_v${Date.now()}">
                 <div id="search-suggestions-mount"></div>
             </div>
             ` : ''}
@@ -482,7 +488,7 @@ const ProfileHeader = () => {
                     <!-- Actions Buttons -->
                     <div class="profile-actions">
                         ${!isMe ?
-            `<button class="btn" onclick="window.doFollow('${user.username}')" style="min-width:120px">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
+            `<button class="btn" onclick="window.doFollow('${user.name || user.id}')" style="min-width:120px">${store.currentUser?.following?.includes(user.id) ? 'Siguiendo' : 'Seguir'}</button>`
             :
             `
                             <button class="btn-glass" onclick="window.openSettings()">⚙️ Editar Perfil</button>
@@ -500,6 +506,7 @@ const ProfileHeader = () => {
         <div class="container" style="margin-top:20px; display:flex; gap:25px; border-bottom:1px solid #333">
             <button class="profile-tab ${profileTab === 'creations' ? 'active' : ''}" onclick="window.setProfileTab('creations')">CREACIONES</button>
             ${isMe ? `<button class="profile-tab ${profileTab === 'saved' ? 'active' : ''}" onclick="window.setProfileTab('saved')">GUARDADOS</button>` : ''}
+            ${isMe ? `<button class="profile-tab ${profileTab === 'economy' ? 'active' : ''}" onclick="window.setProfileTab('economy')">ECONOMÍA</button>` : ''}
         </div>
     </div> `;
 };
@@ -553,12 +560,13 @@ const Gallery = () => {
     });
 
     const isVisitor = !store.currentUser;
+    // La galería ahora usa store.prompts (los cargados incrementalmente)
     const itemsToShow = isVisitor ? list.slice(0, 12) : list;
 
     if (list.length === 0) return `<div class="container" style="padding:100px; text-align:center; color:#666">No hay prompts que coincidan con los filtros.</div>`;
 
     return `
-    <div class="container gallery-grid" style="margin-top:20px">
+    <div class="container gallery-grid" id="gallery-root" style="margin-top:20px">
         ${itemsToShow.map(p => {
         const { applyBlur, warningLabel } = getModeration(p);
         const reactions = p.reactions || { like: 0 };
@@ -581,7 +589,6 @@ const Gallery = () => {
                         <span title="PromptBits" onclick="event.stopPropagation(); window.openTip('${p.id}')" style="color:#a29bfe; cursor:pointer">💎 ${p.tokens_received || 0}</span>
                     </div>
                 </div>
-
                 ${(store.currentUser?.username === profileUser && p.author === store.currentUser?.username) ? `
                 <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px; z-index:10;">
                     ${(store.currentUser?.level >= 4 && !p.is_featured) ? `<button class="btn-icon" style="background:rgba(241,196,15,0.8); padding:5px; width:auto; height:30px; font-size:0.75rem; color:black; font-weight:700" onclick="event.stopPropagation(); window.doPromotePrompt('${p.id}')" title="Destacar por 1 semana (50 PromptBits)">💎 50 PromptBits</button>` : ''}
@@ -591,6 +598,50 @@ const Gallery = () => {
             </div>`;
     }).join('')}
     </div> 
+    
+    <!-- BOTÓN DE CARGA MANUAL (MISMO SISTEMA QUE DASHBOARD) -->
+    ${(!isVisitor && store.hasMore) ? `
+        <div id="scroll-sentinel" class="manual-load-container" style="margin: 40px 0; display: flex; flex-direction: column; align-items: center; gap: 20px;">
+            <div id="sentinel-visual" style="color: var(--accent); opacity: 0.8; font-size: 0.9rem; letter-spacing: 2px; text-transform: uppercase; font-weight: 900; background: rgba(59, 130, 246, 0.1); padding: 5px 15px; border-radius: 4px;">
+                MOSTRAR SIGUIENTES 60 POSTS
+            </div>
+            
+            <button class="btn-primary" onclick="window.forceLoadMore()" id="manual-load-btn" style="
+                background: linear-gradient(135deg, var(--accent) 0%, #1e40af 100%);
+                color: white;
+                border: none;
+                padding: 18px 45px;
+                font-size: 1.1rem;
+                font-weight: 800;
+                border-radius: 50px;
+                cursor: pointer;
+                box-shadow: 0 10px 25px var(--accent-alpha);
+                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            ">
+                <span id="loading-spinner-sentinel" style="display:none; width: 22px; height: 22px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
+                <span>Cargar más contenido</span>
+            </button>
+        </div>
+    ` : ''}
+
+    ${(!isVisitor && !store.hasMore && list.length > 30) ? `
+        <div class="end-of-gallery" style="text-align:center; padding: 60px 0;">
+            <div id="sentinel-visual" style="color:#666">
+                <div style="padding:40px 20px; background:rgba(255,255,255,0.05); border-radius:20px; border:1px dashed rgba(255,255,255,0.2); max-width:400px; margin:0 auto;">
+                    <div style="font-size:2.5rem; margin-bottom:15px">🏁</div>
+                    <div style="font-weight:800; font-size:1.2rem; color:#fff; margin-bottom:10px">¡Has llegado al final!</div>
+                    <div style="color:#888; font-size:0.9rem; line-height:1.5">
+                        Estás viendo todos los posts de @${profileUser}.
+                    </div>
+                </div>
+            </div>
+        </div>
+    ` : ''}
     
     ${isVisitor ? `
     <div class="container" style="margin-top: 40px; padding: 40px 20px;">
@@ -710,8 +761,22 @@ window.doUpdate = async () => {
             isPrivate: document.getElementById('upPrivate').checked,
             needsReference: document.getElementById('upReference').checked,
             type: p.type,
-            tags: Array.from(window.selectedTags) // NUEVO
+            tags: Array.from(window.selectedTags), // NUEVO
+            content: p.content || []
         };
+
+        // Si es secuencia, recolectar datos de los pasos (v16)
+        if (p.type === 'sequence') {
+            const steps = [];
+            document.querySelectorAll('#seqContainer .seq-card').forEach((card, idx) => {
+                steps.push({
+                    prompt: card.querySelector('.seqPrompt').value,
+                    rating: card.querySelector('.seqRating').value,
+                    image: p.content[idx]?.image || '' // Mantenemos la imagen actual si no se sube una nueva (la lógica de subida se maneja en el reader si aplica, pero para edición simple de texto esto basta)
+                });
+            });
+            data.content = steps;
+        }
 
         const btn = document.getElementById('pubBtn');
         if (btn) btn.innerText = "Guardando...";
@@ -734,8 +799,12 @@ window.doUpdate = async () => {
                 else if (window.toast) window.toast("Error: " + (res.msg || "Error desconocido"), "error");
             }
         } else {
-            if (window.toast) window.toast("Edición de secuencias en mantenimiento en perfil. Por favor borra y crea de nuevo.", "error");
-            if (btn) { btn.innerText = "Actualizar"; }
+            // EDICIÓN DE SECUENCIAS HABILITADA (v16.1)
+            // Nota: Por ahora solo permite editar el texto de los pasos. 
+            // Para cambiar imágenes de pasos, se requiere lógica iterativa de FileReader (futuro).
+            const res = await store.updatePrompt(editingId, data);
+            if (res.success) finishUpdate();
+            else if (window.toast) window.toast("Error: " + (res.msg || "Error en secuencia"), "error");
         }
     } catch (e) { console.error(e); }
 };
@@ -912,7 +981,7 @@ const CreateModal = () => `
                     </label>
                     <label class="chk-wrap">
                         <input type="radio" name="postType" value="sequence" onchange="window.togglePostType('sequence')">
-                            <span>Secuencia (Múltiples) <small style="color:var(--accent); font-weight:bold">[Nivel 1+]</small></span>
+                            <span>Secuencia (Múltiples) <small style="color:var(--accent); font-weight:bold">[Nivel 2+]</small></span>
                     </label>
                 </div>
             </div>
@@ -1074,20 +1143,34 @@ const render = () => {
     if (pHeaderMount) pHeaderMount.innerHTML = ProfileHeader();
 
     const galleryMount = document.getElementById('profile-gallery-container');
-    if (galleryMount) galleryMount.innerHTML = Gallery();
+    if (galleryMount) {
+        galleryMount.innerHTML = profileTab === 'economy' ? '' : Gallery();
+    }
 
     // Advanced Filter Panel
     const advFilterMount = document.getElementById('adv-filter-mount');
-    if (advFilterMount) advFilterMount.innerHTML = AdvancedFilters(filters);
+    if (advFilterMount) advFilterMount.innerHTML = profileTab === 'economy' ? '' : AdvancedFilters(filters);
 
     attachEvents();
 
     // Economy Dashboard (own profile only)
     const isOwnProfile = store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser);
-    if (isOwnProfile) {
-        initEconomyDashboard('economyDashboardContainer');
-    } else {
+    const ecoContainer = document.getElementById('economyDashboardContainer');
+
+    if (isOwnProfile && profileTab === 'economy') {
         const ecoContainer = document.getElementById('economyDashboardContainer');
+        if (ecoContainer) {
+            ecoContainer.style.opacity = '0';
+            ecoContainer.style.transform = 'translateY(10px)';
+            ecoContainer.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            initEconomyDashboard('economyDashboardContainer');
+            // Force reflow and animate
+            setTimeout(() => {
+                ecoContainer.style.opacity = '1';
+                ecoContainer.style.transform = 'translateY(0)';
+            }, 50);
+        }
+    } else {
         if (ecoContainer) ecoContainer.innerHTML = '';
     }
 
@@ -1143,6 +1226,26 @@ window.openDetail = (id) => {
 window.showSlider = () => store.showSlider();
 window.initCrystalSlider = () => store.initCrystalSlider();
 window.postComm = () => store.postComm();
+
+window.togglePostType = (type) => {
+    const isSequence = type === 'sequence';
+    const effectiveLevel = store.getEffectiveLevel(store.currentUser);
+
+    if (isSequence && effectiveLevel < 2) {
+        if (window.toast) window.toast("⚠️ Función Bloqueda: Necesitas ser Nivel 2 o superior para subir secuencias.", "error");
+        else alert("⚠️ Función Bloqueda: Necesitas ser Nivel 2 o superior para subir secuencias.");
+        const singleRadio = document.querySelector('input[name="postType"][value="single"]');
+        if (singleRadio) singleRadio.checked = true;
+        return;
+    }
+    const sF = document.getElementById('singleFields');
+    const qF = document.getElementById('sequenceFields');
+    if (sF) sF.style.display = type === 'single' ? 'block' : 'none';
+    if (qF) qF.style.display = type === 'sequence' ? 'block' : 'none';
+    if (type === 'sequence' && seqStepCount === 0) {
+        window.addSeqStep();
+    }
+};
 
 window.toggleOptionsMenu = () => {
     const menu = document.getElementById('optionsMenu');
@@ -1504,6 +1607,127 @@ window.openCreate = () => {
     }
 };
 
+// --- REPRODUCTOR DE CARGA MANUAL (BOTÓN) ---
+const triggerLoadMore = async () => {
+    if (store.isLoadingMore || !store.hasMore) return;
+
+    const btn = document.getElementById('manual-load-btn');
+    const visual = document.getElementById('sentinel-visual');
+    if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
+    if (visual) visual.innerText = "⏳ Trayendo más contenido...";
+
+    try {
+        const target = profileUser.toLowerCase();
+        const user = (store.currentUser && (store.currentUser.username?.toLowerCase() === target || store.currentUser.name?.toLowerCase() === target))
+            ? store.currentUser
+            : (store.users.find(u => u.username?.toLowerCase() === target || u.name?.toLowerCase() === target) || store.usersCache[target]);
+
+        if (!user) return;
+
+        // Filtro específico para el autor que estamos viendo
+        const filter = `author = "${user.id}"`;
+        const newItems = await store.loadPrompts(false, filter);
+
+        if (newItems && newItems.length > 0) {
+            console.log(`[PROFILE SCROLL] 💉 Inyectando ${newItems.length} items de forma quirúrgica.`);
+            appendSurgicalPrompts(newItems);
+        }
+    } catch (err) {
+        console.error("[PROFILE SCROLL] ❌ Fallo crítico:", err);
+        if (visual) visual.innerText = "❌ Error al cargar";
+    } finally {
+        if (btn) { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; }
+
+        const hasMore = store.hasMore;
+        if (visual) visual.innerText = hasMore ? "MOSTRAR SIGUIENTES 60 POSTS" : "🏁 Fin de la galería";
+
+        if (!hasMore && btn) {
+            btn.style.display = 'none';
+        }
+    }
+};
+
+window.forceLoadMore = () => {
+    if (!store.currentUser) {
+        toast("Inicia sesión para ver más contenido", "info");
+        return;
+    }
+    console.log("🛡️ Carga Manual Perfil Solicitada");
+    triggerLoadMore();
+};
+
+const appendSurgicalPrompts = (newItems) => {
+    const grids = document.querySelectorAll('.gallery-grid');
+    let galleryRoot = grids.length > 0 ? grids[grids.length - 1] : document.getElementById('gallery-root');
+    const sentinel = document.getElementById('scroll-sentinel');
+    const parentContainer = galleryRoot?.parentElement || document.getElementById('profile-gallery-container');
+
+    if (!galleryRoot) {
+        console.error("[PROFILE SCROLL] No se encontró contenedor para inyección.");
+        return;
+    }
+
+    // Usamos el conteo real de cards en el DOM para sincronizar
+    let globalIdx = document.querySelectorAll('.card').length;
+
+    console.log(`[PROFILE SCROLL] 🎯 Iniciando inyección quirúrgica desde índice global ${globalIdx}`);
+
+    newItems.forEach((p) => {
+        // Partimos el grid cada 12 (mismo sistema que main.js para consistencia)
+        // Solo partimos si el grid actual ya tiene contenido, para evitar doble split
+        if (globalIdx > 0 && globalIdx % 12 === 0 && galleryRoot.children.length > 0) {
+            console.log(`[PROFILE SCROLL] 🏗️ Lote de 12 completado. Creando nuevo grid.`);
+
+            const newGrid = document.createElement('div');
+            newGrid.className = 'gallery-grid';
+            newGrid.style.marginTop = '20px';
+
+            if (sentinel) {
+                parentContainer.insertBefore(newGrid, sentinel);
+            } else {
+                parentContainer.appendChild(newGrid);
+            }
+            galleryRoot = newGrid;
+        }
+
+        const temp = document.createElement('div');
+        const { applyBlur, warningLabel } = getModeration(p);
+        const reactions = p.reactions || { like: 0 };
+
+        temp.innerHTML = `
+            <div class="card">
+                <div class="card-img-wrap ${applyBlur ? 'card-blurred' : ''}" data-post-id="${p.id}" data-warning="${applyBlur ? warningLabel : ''}" style="height:100%; cursor:pointer">
+                    ${renderCollage(p)}
+                </div>
+                <div class="card-overlay" data-post-id="${p.id}" style="cursor:pointer">
+                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:5px">${window.escapeHTML(p.title)}</div>
+                    <div style="font-size:0.8rem; opacity:0.8; margin-bottom:10px">por @${window.escapeHTML(p.author)}</div>
+                    <div class="card-stats">
+                        ${reactions.like > 0 ? `<span title="Me gusta">👍 ${reactions.like}</span>` : ''}
+                        ${reactions.love > 0 ? `<span title="Me encanta">❤️ ${reactions.love}</span>` : ''}
+                        ${reactions.fire > 0 ? `<span title="Fuego">🔥 ${reactions.fire}</span>` : ''}
+                        ${reactions.funny > 0 ? `<span title="Divertido">😂 ${reactions.funny}</span>` : ''}
+                        ${reactions.dislike > 0 ? `<span title="No me gusta">👎 ${reactions.dislike}</span>` : ''}
+                        ${reactions.sad > 0 ? `<span title="Triste">😢 ${reactions.sad}</span>` : ''}
+                        <span title="Copiado" style="color:var(--accent)">📋 ${p.copy_count || 0}</span>
+                        <span title="PromptBits" onclick="event.stopPropagation(); window.openTip('${p.id}')" style="color:#a29bfe; cursor:pointer">💎 ${p.tokens_received || 0}</span>
+                    </div>
+                </div>
+                ${(store.currentUser?.username === profileUser && p.author === store.currentUser?.username) ? `
+                <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px; z-index:10;">
+                    ${(store.currentUser?.level >= 4 && !p.is_featured) ? `<button class="btn-icon" style="background:rgba(241,196,15,0.8); padding:5px; width:auto; height:30px; font-size:0.75rem; color:black; font-weight:700" onclick="event.stopPropagation(); window.doPromotePrompt('${p.id}')" title="Destacar por 1 semana (50 PromptBits)">💎 50 PromptBits</button>` : ''}
+                    <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doEditPrompt('${p.id}')" title="Editar">✏️</button>
+                    <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doDeletePrompt('${p.id}')" title="Eliminar Post">🗑️</button>
+                </div>` : ''}
+            </div>`;
+
+        const cardNode = temp.firstElementChild;
+        if (cardNode) galleryRoot.appendChild(cardNode);
+
+        globalIdx++;
+    });
+};
+
 window.togglePostType = (type) => {
     if (type === 'sequence' && (!store.currentUser || (store.currentUser.level || 0) < 1)) {
         alert("⚠️ Función Bloquedada: Necesitas ser Nivel 1 o superior para subir secuencias (aporta al menos 10 prompts sencillos).");
@@ -1829,52 +2053,6 @@ window.doPublish = () => {
     }
 };
 
-window.showLevelUpModal = (newLevel) => {
-    const lvlInfo = LEVEL_REQS[newLevel] || LEVEL_REQS[0];
-    const bgEmojis = ["✨", "🎉", "💎", "🎊", "🔥", "🚀", "🌟"];
-    let bgHtml = '';
-    for (let i = 0; i < 30; i++) {
-        const left = Math.random() * 100;
-        const animDelay = Math.random() * 2;
-        const dur = 3 + Math.random() * 3;
-        const emoji = bgEmojis[Math.floor(Math.random() * bgEmojis.length)];
-        bgHtml += `<div style="position:absolute; top:-10%; left:${left}%; font-size:${1 + Math.random()}rem; animation: fall ${dur}s linear infinite; animation-delay:-${animDelay}s; opacity:0.6; user-select:none;">${emoji}</div>`;
-    }
-
-    const modalHtml = `
-                        <div id="levelUpModalCanvas" onclick="this.remove()">
-                            <style>
-                                @keyframes fall {
-                                    0 % { transform: translateY(-10vh) rotate(0deg); }
-                100% {transform: translateY(110vh) rotate(360deg); }
-            }
-                            </style>
-                            ${bgHtml}
-                            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:500px; background:rgba(0,0,0,0.9); border:2px solid gold; border-radius:20px; padding:40px; box-shadow:0 0 50px rgba(255,215,0,0.3); z-index:10000000;">
-                                <div class="level-up-content" style="text-align:center">
-                                    <div style="font-size:4rem; margin-bottom:10px">${lvlInfo.icon}</div>
-                                    <div style="font-size:1.5rem; font-weight:800; color:gold; margin-bottom:10px">¡NIVEL DESBLOQUEADO!</div>
-                                    <h2 style="font-size:1.5rem; color:white; margin-bottom:5px">Has alcanzado el Nivel ${newLevel}</h2>
-                                    <h3 style="color:#aaa; text-transform:uppercase; letter-spacing:2px; margin-bottom:20px">${lvlInfo.name}</h3>
-
-                                    <div style="text-align:left; background:rgba(255,255,255,0.05); padding:15px; border-radius:10px">
-                                        <div style="font-weight:bold; margin-bottom:10px; color:white">Nuevos Beneficios:</div>
-                                        <ul style="padding-left:20px; margin:0; color:#ddd">
-                                            ${lvlInfo.benefits.map(b => `<li>${b}</li>`).join('')}
-                                        </ul>
-                                    </div>
-
-                                    <button class="btn" onclick="this.closest('#levelUpModalCanvas').remove()" style="width:100%; font-size:1.2rem; font-weight:bold; background:gold; color:black; border:none; padding:15px; border-radius:10px; cursor:pointer; margin-top:20px; box-shadow:0 5px 15px rgba(255,215,0,0.4)">
-                                        ¡GENIAL!
-                                    </button>
-                                </div>
-                            </div>
-                        </div>`;
-
-    const div = document.createElement('div');
-    div.innerHTML = modalHtml;
-    document.body.appendChild(div.firstElementChild);
-};
 
 window.closeModals = () => {
     const modals = ['viewModal', 'settingsModal', 'confirmModal', 'createModal'];
@@ -1893,8 +2071,18 @@ window.doLogout = () => {
 
 window.doFollow = async (username) => {
     if (!store.currentUser) return window.openLogin();
-    await store.followUser(username);
-    render();
+
+    // UI Feedback inmediato
+    window.toast("Actualizando seguimiento...", "info");
+
+    const res = await store.followUser(username);
+    if (res.success) {
+        const msg = res.action === 'follow' ? `Ahora sigues a @${username}` : `Has dejado de seguir a @${username}`;
+        window.toast(msg, "success");
+        render(); // Re-renderizar para actualizar botones y contadores
+    } else {
+        window.toast(res.msg || "Error al procesar", "error");
+    }
 };
 
 window.toggleAuth = (m) => {
@@ -2369,16 +2557,24 @@ window.doSendDirectTip = async (recipientId, amount) => {
 
 const init = async () => {
     console.log("[PROFILE] init starting...");
-    // Normal initialization
     await store.init();
-    console.log("[PROFILE] store.init done.");
+
+    // Iniciar Chat solo cuando el store (usuario) esté listo
+    if (typeof initLiveChat === 'function') {
+        initLiveChat();
+    }
+
     if (profileUser) {
         console.log(`[PROFILE] fetching profile for: ${profileUser}`);
         const user = await store.fetchUserProfileByUsername(profileUser);
         if (user) {
-            await store.loadUserPrompts(user.id);
+            // 1. CARGA MAESTRA PARA ANÁLISIS (Todos los del usuario para stats/prompts_count)
+            await store.loadUserPromptsForAnalysis(user.id);
+
+            // 2. CARGA INICIAL PARA GALERÍA (Primeros 60)
+            const filter = `author = "${user.id}"`;
+            await store.loadPrompts(true, filter);
         }
-        console.log("[PROFILE] fetch done.");
     }
     window.initDone = true;
     render();

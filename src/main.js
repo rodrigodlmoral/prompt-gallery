@@ -8,7 +8,7 @@ import { TopBar, Header, ProfileHeader, FilterBar } from './components/Layout.js
 import { HeroCarousel } from './components/HeroCarousel.js';
 import { PromptsSemanal } from './components/PromptsSemanal.js';
 import { PromptsDiario } from './components/PromptsDiario.js';
-import { Gallery } from './components/Gallery.js';
+import { Gallery, PromptCard } from './components/Gallery.js';
 import { AuthModal } from './components/Modals/AuthModal.js';
 import { CreateModal } from './components/Modals/CreateModal.js';
 import { SettingsModal } from './components/Modals/SettingsModal.js';
@@ -32,13 +32,16 @@ import { DetailModalTemplate as DetailModal } from './components/DetailModal.js'
 import { SearchSuggestions } from './components/SearchSuggestions.js';
 import { filterPrompts } from './utils/gallery-filter.js';
 import { getSearchSuggestions } from './utils/search-logic.js';
+import { initLiveChat } from './components/LiveChat.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;
 
 // Script Initialization
 console.log("🚀 Prompt Gallery Initialized");
+window.toast = toast; // Globalize for all components
 setupLevelModals();
+// initLiveChat() movido al final de store.init() para asegurar que el usuario esté cargado
 
 
 const renderMaintenance = () => {
@@ -147,10 +150,13 @@ const renderMaintenance = () => {
                 0%, 100% { transform: rotateX(10deg) rotateY(-10deg) translateY(0px); }
                 50% { transform: rotateX(15deg) rotateY(5deg) translateY(-25px); }
             }
-            @keyframes progress {
-                0% { transform: translateX(-100%); }
-                50% { transform: translateX(0%); }
-                100% { transform: translateX(100%); }
+            @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            @keyframes fadeInUp {
+                from { opacity: 0; transform: translateY(30px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .fade-in-up {
+                animation: fadeInUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
             }
             body { 
                 margin: 0; 
@@ -163,6 +169,123 @@ const renderMaintenance = () => {
     `;
 
     document.body.appendChild(overlay);
+};
+
+// --- REPRODUCTOR DE CARGA MANUAL (BOTÓN) ---
+// Eliminado IntersectionObserver y Legacy Scroll por política de "No Alucinaciones"
+// La carga ahora es 100% controlada por el usuario.
+
+// Centralizamos la lógica de carga para re-uso
+const triggerLoadMore = async () => {
+    if (store.isLoadingMore || !store.hasMore) return;
+
+    // Feedback visual en el botón manual si existe
+    const btn = document.getElementById('manual-load-btn');
+    const spinner = document.getElementById('loading-spinner-sentinel');
+    const visual = document.getElementById('sentinel-visual');
+    if (btn) btn.style.opacity = '0.5', btn.style.pointerEvents = 'none';
+    if (spinner) spinner.style.display = 'block';
+    if (visual) visual.innerText = "⏳ Trayendo más contenido...";
+
+    // Eliminados Skeletons bruscos por solicitud del usuario para una entrada más sutil
+
+    try {
+        const newItems = await store.loadPrompts();
+
+        if (newItems && newItems.length > 0) {
+            const filteredNewItems = filterPrompts({
+                prompts: newItems,
+                currentUser: store.currentUser,
+                currentView,
+                profileUser,
+                profileTab,
+                filters,
+                searchQuery
+            });
+
+            if (filteredNewItems && filteredNewItems.length > 0) {
+                console.log(`[SCROLL] 💉 Inyectando ${filteredNewItems.length} items de forma quirúrgica.`);
+                appendSurgicalPrompts(filteredNewItems);
+            } else {
+                console.warn("[SCROLL] ℹ️ Batch cargado pero todos los items fueron filtrados.");
+            }
+        }
+    } catch (err) {
+        console.error("[SCROLL] ❌ Fallo crítico en triggerLoadMore:", err);
+        if (visual) visual.innerText = "❌ Error al cargar";
+    } finally {
+        // Restaurar UI del botón
+        if (btn) btn.style.opacity = '1', btn.style.pointerEvents = 'auto';
+        if (spinner) spinner.style.display = 'none';
+
+        const hasMore = store.hasMore;
+        if (visual) visual.innerText = hasMore ? "SIGUIENTES 60 POSTS" : "🏁 Fin de la galería";
+
+        if (!store.hasMore) {
+            if (btn) btn.style.display = 'none';
+            if (visual) visual.innerHTML = `<div style="padding:40px 20px; background:rgba(255,255,255,0.05); border-radius:20px; border:1px dashed rgba(255,255,255,0.2); max-width:400px; margin:0 auto;">
+                <div style="font-size:2.5rem; margin-bottom:15px">🏁</div>
+                <div style="font-weight:800; font-size:1.2rem; color:#fff; margin-bottom:10px">¡Has llegado al final!</div>
+                <div style="color:#888; font-size:0.9rem; line-height:1.5">
+                    Estás viendo los <b>${store.prompts.length} prompts públicos</b> de la comunidad.<br><br>
+                    Si tienes más prompts que no ves aquí, recuerda que los <b>posts privados</b> solo son visibles desde tu <a href="/profile.html" style="color:var(--accent); text-decoration:none; font-weight:bold">Perfil Personal</a>.
+                </div>
+            </div>`;
+        }
+    }
+};
+
+window.forceLoadMore = () => {
+    if (!store.currentUser) {
+        toast("Inicia sesión para ver más contenido", "info");
+        return;
+    }
+    console.log("🛡️ Carga Manual Solicitada");
+    triggerLoadMore();
+};
+
+const appendSurgicalPrompts = (newItems) => {
+    const grids = document.querySelectorAll('.gallery-grid');
+    let galleryRoot = grids.length > 0 ? grids[grids.length - 1] : document.getElementById('gallery-root');
+    const sentinel = document.getElementById('scroll-sentinel');
+    const parentContainer = galleryRoot?.parentElement || document.getElementById('main-gallery-container');
+
+    if (!galleryRoot) {
+        console.error("[SCROLL] No se encontró contenedor para inyección quirúrgica.");
+        return;
+    }
+
+    console.log(`[SCROLL] 🎯 Inyectando en el grid #${grids.length || 1}`);
+
+    // El índice real para la lógica de banners debe basarse en lo que ya hay en el DOM
+    let currentIdx = document.querySelectorAll('.card').length;
+
+    newItems.forEach((p) => {
+        // En Gallery.js, el adBanner se dispara en (idx > 11 && (idx + 1) % 12 === 0)
+        // Solo partimos si el grid actual ya tiene contenido, para evitar doble split
+        if (currentIdx > 0 && currentIdx % 12 === 0 && galleryRoot.children.length > 0) {
+            console.log(`[SCROLL] 🏗️ Lote de 12 completado. Creando nuevo grid.`);
+
+            const banner = document.createElement('div');
+            banner.className = 'ad-banner';
+            if (sentinel) parentContainer.insertBefore(banner, sentinel);
+            else parentContainer.appendChild(banner);
+
+            const newGrid = document.createElement('div');
+            newGrid.className = 'gallery-grid';
+            if (sentinel) parentContainer.insertBefore(newGrid, sentinel);
+            else parentContainer.appendChild(newGrid);
+
+            galleryRoot = newGrid;
+        }
+
+        const temp = document.createElement('div');
+        temp.innerHTML = PromptCard(p, store.currentUser, currentView, profileUser, profileTab, getModeration, true);
+        const cardNode = temp.firstElementChild;
+        if (cardNode) galleryRoot.appendChild(cardNode);
+
+        currentIdx++;
+    });
 };
 
 
@@ -187,6 +310,157 @@ let filters = {
 
 // --- ADMIN SORT STATE ---
 window.adminSort = { col: 'username', dir: 'asc' };
+
+// --- INTERACTIVE CAROUSEL LOGIC ---
+let carouselSpeed = 0.5; // Pixels per frame
+let isCarouselPaused = false;
+let isDragging = false;
+let startX, scrollLeftAtStart;
+
+window.initHeroCarousel = () => {
+    const container = document.getElementById('hero-carousel-container');
+    const track = document.getElementById('hero-carousel-track');
+    if (!container || !track) return;
+
+    let rafId;
+
+    const animate = () => {
+        if (!isCarouselPaused && !isDragging) {
+            container.scrollLeft += carouselSpeed;
+
+            // Infinite loop logic
+            const maxScroll = track.offsetWidth / 3; // We added 3 copies
+            if (container.scrollLeft >= maxScroll * 2) {
+                container.scrollLeft = maxScroll;
+            } else if (container.scrollLeft <= 0) {
+                container.scrollLeft = maxScroll;
+            }
+        }
+        rafId = requestAnimationFrame(animate);
+    };
+
+    // Initial position in the middle set of items
+    setTimeout(() => {
+        const maxScroll = track.offsetWidth / 3;
+        container.scrollLeft = maxScroll;
+        animate();
+    }, 100);
+
+    // Pause on hover
+    container.addEventListener('mouseenter', () => isCarouselPaused = true);
+    container.addEventListener('mouseleave', () => {
+        if (!isDragging) isCarouselPaused = false;
+    });
+
+    // Drag to scroll
+    container.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        isCarouselPaused = true;
+        startX = e.pageX - container.offsetLeft;
+        scrollLeftAtStart = container.scrollLeft;
+        container.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            isCarouselPaused = false;
+            container.style.cursor = 'grab';
+        }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const x = e.pageX - container.offsetLeft;
+        const walk = (x - startX) * 2; // Scroll speed multiplier
+        container.scrollLeft = scrollLeftAtStart - walk;
+    });
+
+    // Touch support (mobile)
+    container.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        startX = e.touches[0].pageX - container.offsetLeft;
+        scrollLeftAtStart = container.scrollLeft;
+    }, { passive: true });
+
+    container.addEventListener('touchend', () => {
+        isDragging = false;
+    }, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const x = e.touches[0].pageX - container.offsetLeft;
+        const walk = (x - startX);
+        container.scrollLeft = scrollLeftAtStart - walk;
+    }, { passive: true });
+};
+
+window.initDragScroll = (containerId) => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    container.addEventListener('mousedown', (e) => {
+        isDown = true;
+        container.classList.add('active'); // CSS hook if needed
+        startX = e.pageX - container.offsetLeft;
+        scrollLeft = container.scrollLeft;
+    });
+
+    container.addEventListener('mouseleave', () => {
+        isDown = false;
+    });
+
+    container.addEventListener('mouseup', () => {
+        isDown = false;
+    });
+
+    container.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - container.offsetLeft;
+        const walk = (x - startX) * 2;
+        container.scrollLeft = scrollLeft - walk;
+    });
+
+    // Touch support (passive for performance)
+    container.addEventListener('touchstart', (e) => {
+        isDown = true;
+        startX = e.touches[0].pageX - container.offsetLeft;
+        scrollLeft = container.scrollLeft;
+    }, { passive: true });
+
+    container.addEventListener('touchend', () => isDown = false, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+        if (!isDown) return;
+        const x = e.touches[0].pageX - container.offsetLeft;
+        const walk = (x - startX);
+        container.scrollLeft = scrollLeft - walk;
+    }, { passive: true });
+};
+
+window.navHeroCarousel = (dir) => {
+    const container = document.getElementById('hero-carousel-container');
+    if (!container) return;
+
+    isCarouselPaused = true;
+    const moveAmount = 400 * dir;
+    container.scroll({
+        left: container.scrollLeft + moveAmount,
+        behavior: 'smooth'
+    });
+
+    // Resume auto-scroll after a delay
+    clearTimeout(window._heroNavTimeout);
+    window._heroNavTimeout = setTimeout(() => {
+        isCarouselPaused = false;
+    }, 3000);
+};
 
 // --- TOP CREATORS STATE ---
 let topCreatorsList = [];
@@ -345,6 +619,7 @@ window.clearAllFilters = () => {
 
 
 const getFilteredPrompts = () => {
+    // La galería usa store.prompts (los 60 cargados actualmente)
     return filterPrompts({
         prompts: store.prompts,
         currentUser: store.currentUser,
@@ -373,6 +648,13 @@ const Modals = () => AuthModal() + CreateModal() + InfoModal() + ConfirmModal() 
 
 // --- LOGIC ---
 const render = () => {
+    // Si el store no está inicializado (carga inicial en progreso), no hacemos nada.
+    // Esto evita que render() sobrescriba el loading de index.html prematuramente.
+    if (!store.isInitialized) {
+        console.log("[RENDER] ⏳ Saltando renderizado: Store no inicializado aún.");
+        return;
+    }
+
     // Estrategia No-Destructiva: No sobrescribir todo el app.innerHTML si ya existe la estructura
     if (!document.getElementById('main-gallery-container')) {
         app.innerHTML = `
@@ -410,13 +692,13 @@ const render = () => {
     if (filtersMount) filtersMount.innerHTML = (currentView === 'home') ? FilterBar({ currentUser: store.currentUser, filters }) : '';
 
     const heroMount = document.getElementById('hero-mount');
-    if (heroMount) heroMount.innerHTML = (currentView === 'home' && !searchQuery) ? HeroCarousel({ currentView, prompts: store.prompts }) : '';
+    if (heroMount) heroMount.innerHTML = (currentView === 'home' && !searchQuery) ? HeroCarousel({ currentView, prompts: store.getTopWeeklyPrompts().slice(0, 20) }) : '';
 
     const semanalMount = document.getElementById('semanal-mount');
-    if (semanalMount) semanalMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsSemanal({ currentView, prompts: store.prompts }) : '';
+    if (semanalMount) semanalMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsSemanal({ currentView, prompts: store.getTopWeeklyPrompts().slice(0, 3) }) : '';
 
     const diarioMount = document.getElementById('diario-mount');
-    if (diarioMount) diarioMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsDiario({ currentView, prompts: store.prompts }) : '';
+    if (diarioMount) diarioMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsDiario({ currentView, prompts: store.getTopDailyPrompts().slice(0, 1) }) : '';
 
     const profileMount = document.getElementById('profile-mount');
     if (profileMount) {
@@ -438,13 +720,19 @@ const render = () => {
             profileTab,
             filters,
             getModeration: getModeration, // Passed from utils import
-            topCreatorsList
+            topCreatorsList,
+            searchQuery
         });
     }
 
     attachEvents();
+    // Start interactive carousels
+    if (currentView === 'home' && !searchQuery) {
+        window.initHeroCarousel();
+        window.initDragScroll('tc-grid-container');
+    }
 
-    // Solo scrollear arriba si no es un render incremental por reaccion
+    // Solo scrollear arriba si es una carga inicial o reset de filtros (No incremental)
     if (!window._isIncrementalRender) {
         window.scrollTo(0, 0);
     }
@@ -457,9 +745,7 @@ const attachEvents = () => {
         if (window.handleSearchTyping) window.handleSearchTyping(e.target.value);
     });
     document.getElementById('addBtn')?.addEventListener('click', () => {
-        window.selectedTags.clear();
-        window.renderTagSelector();
-        document.getElementById('createModal').style.display = 'flex';
+        window.openCreate();
     });
     document.getElementById('loginBtn')?.addEventListener('click', () => { document.getElementById('authModal').style.display = 'flex'; });
 
@@ -625,15 +911,35 @@ window.togglePass = togglePass;
 
 // Modals
 window.openCreate = () => {
+    if (typeof window.resetCreateModal === 'function') {
+        window.resetCreateModal();
+    }
     const modal = document.getElementById('createModal');
     if (modal) modal.style.display = 'flex';
 };
 
 window.openDetail = (id) => {
-    // Check if DetailModal is loaded logic or if we need to manually trigger it.
-    // In previous main.js, openDetail was often defined to fetch prompt and open modal.
-    const p = store.prompts.find(x => x.id === id);
-    if (!p) return;
+    // Usar el helper centralizado del store (Busca en Lista Maestra y Batches)
+    const p = store.findPrompt(id);
+
+    if (!p) {
+        console.warn("[UI] Prompt not found in local memory:", id);
+        return;
+    }
+
+    // --- VISITOR GATE: Bloquear Sugestivo/NSFW para visitantes ---
+    if (!store.currentUser) {
+        const restrictedRatings = ['Sugestivo', 'NSFW / +18'];
+        if (restrictedRatings.includes(p.rating)) {
+            if (window.toast) {
+                window.toast('🔒 Regístrate o inicia sesión para ver contenido Sugestivo/NSFW', 'warning');
+            }
+            // Intentar abrir modal de auth
+            const authModal = document.getElementById('authModal');
+            if (authModal) authModal.style.display = 'flex';
+            return;
+        }
+    }
 
     // Update URL
     const newUrl = new URL(window.location);
@@ -763,35 +1069,68 @@ window.toggleSearchUI = () => {
 window.doAutoTag = async () => {
     const btn = document.getElementById('autoTagBtn');
     const isSequence = document.querySelector('input[name="postType"]:checked')?.value === 'sequence';
-    let file;
+    let files = [];
 
     if (isSequence) {
-        file = document.querySelector('.seq-card input[type="file"]')?.files[0];
+        // En secuencias, recolectamos TODAS las imágenes disponibles de los pasos
+        const steps = Array.from(document.querySelectorAll('.seq-step'));
+        steps.forEach(step => {
+            const stepFile = step.querySelector('input[type="file"]')?.files[0];
+            if (stepFile) files.push(stepFile);
+        });
     } else {
-        file = document.getElementById('upFile')?.files[0];
+        const file = document.getElementById('upFile')?.files[0];
+        if (file) files.push(file);
     }
 
-    if (!file) {
-        window.toast('Por favor, selecciona una imagen primero', 'warning');
+    if (files.length === 0) {
+        window.toast('Por favor, selecciona al menos una imagen primero', 'warning');
         return;
     }
 
     try {
         btn.disabled = true;
         btn.innerHTML = '🪄 Analizando...';
-        window.toast('IA analizando imagen...', 'info');
+        window.toast(files.length > 1 ? `IA analizando ${files.length} imágenes...` : 'IA analizando imagen...', 'info');
 
-        const reader = new FileReader();
-        const base64Promise = new Promise((resolve) => {
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.readAsDataURL(file);
+        // Convertir todas las imágenes a Base64
+        const base64Promises = files.map(file => {
+            return new Promise((resolve) => {
+                if (!(file instanceof Blob)) {
+                    console.warn("[IA] Invalid file object:", file);
+                    return resolve(null);
+                }
+                const reader = new FileReader();
+                reader.onload = () => resolve({
+                    type: file.type,
+                    base64: reader.result.split(',')[1]
+                });
+                reader.readAsDataURL(file);
+            });
         });
 
-        const base64Image = await base64Promise;
+        const imagesData = await Promise.all(base64Promises);
         const ALL_TAGS = Object.values(TAG_CATEGORIES).flat();
 
         // Use injected key or hardcoded as fallback for local dev
         const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+
+        // Construir contenido multimodal
+        const content = [
+            {
+                type: "text",
+                text: isSequence
+                    ? `Analiza esta SECUENCIA de ${files.length} imágenes. De la siguiente lista de etiquetas, elige las 3-5 más adecuadas que describan el CONTEXTO GLOBAL de toda la obra. Devuelve ÚNICAMENTE un array JSON de strings: ${ALL_TAGS.join(', ')}`
+                    : `De la siguiente lista de etiquetas, elige las 3-5 más adecuadas para describir esta imagen. Devuelve ÚNICAMENTE un array JSON de strings: ${ALL_TAGS.join(', ')}`
+            }
+        ];
+
+        imagesData.forEach(img => {
+            content.push({
+                type: "image_url",
+                image_url: { "url": `data:${img.type};base64,${img.base64}` }
+            });
+        });
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
@@ -804,16 +1143,7 @@ window.doAutoTag = async () => {
                 "messages": [
                     {
                         "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": `De la siguiente lista de etiquetas, elige las 3-5 más adecuadas para describir esta imagen. Devuelve ÚNICAMENTE un array JSON de strings: ${ALL_TAGS.join(', ')}`
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": { "url": `data:${file.type};base64,${base64Image}` }
-                            }
-                        ]
+                        "content": content
                     }
                 ]
             })
@@ -901,6 +1231,23 @@ window.filterTags = (query) => {
     container.innerHTML = resultsHTML || '<div style="color:#666; font-size:0.8rem; padding:10px">No se encontraron etiquetas.</div>';
 };
 
+// --- MOBILE NAVIGATION LOGIC ---
+window.toggleMobileNav = () => {
+    const nav = document.getElementById('mobileNavOverlay');
+    if (nav) nav.classList.toggle('active');
+};
+
+// Close mobile nav when clicking outside
+document.addEventListener('click', (e) => {
+    const nav = document.getElementById('mobileNavOverlay');
+    const btn = document.querySelector('.mobile-menu-btn');
+    if (nav && nav.classList.contains('active')) {
+        if (!nav.contains(e.target) && !btn.contains(e.target)) {
+            nav.classList.remove('active');
+        }
+    }
+});
+
 // --- GLOBAL HELPER DEFINITIONS ---
 // window.openInfo already assigned
 
@@ -921,6 +1268,9 @@ try {
 
             // --- TOKEN DETECTION (Password Reset & Email Verification) ---
             processTokens();
+
+            // --- INIT LIVE CHAT (Después de que el store tiene al usuario) ---
+            initLiveChat();
         })
         .catch(err => {
             console.error("❌ FATAL STORE INIT ERROR:", err);

@@ -15,6 +15,14 @@ echo [0/4] Sincronizando con GitHub...
 if exist "%DESTINO%" (
     cd /d "%DESTINO%"
     echo Resetting repo... >> "%LOGFILE%"
+    if exist .git\rebase-merge (
+        echo Abortando rebase pendiente... >> "%LOGFILE%"
+        git rebase --abort >> "%LOGFILE%" 2>&1
+    )
+    if exist .git\rebase-apply (
+        echo Abortando rebase pendiente... >> "%LOGFILE%"
+        git rebase --abort >> "%LOGFILE%" 2>&1
+    )
     git checkout main >> "%LOGFILE%" 2>&1
     git reset --hard origin/main >> "%LOGFILE%" 2>&1
     if %errorlevel% neq 0 (
@@ -44,6 +52,7 @@ copy /y "%ORIGEN%\batch_upload.html" "%DESTINO%\batch_upload.html" >> "%LOGFILE%
 copy /y "%ORIGEN%\package.json" "%DESTINO%\package.json" >> "%LOGFILE%" 2>&1
 copy /y "%ORIGEN%\vite.config.js" "%DESTINO%\vite.config.js" >> "%LOGFILE%" 2>&1
 copy /y "%ORIGEN%\vercel.json" "%DESTINO%\vercel.json" >> "%LOGFILE%" 2>&1
+if exist "%ORIGEN%\api" xcopy "%ORIGEN%\api" "%DESTINO%\api" /E /I /Y >> "%LOGFILE%" 2>&1
 
 echo [3/4] Enviando a GitHub...
 cd /d "%DESTINO%"

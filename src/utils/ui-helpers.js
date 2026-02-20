@@ -14,8 +14,8 @@ export const toast = (msg, type = 'info') => {
     el.style.color = '#fff';
     el.style.padding = '12px 24px';
     el.style.borderRadius = '30px';
-    el.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
-    el.style.zIndex = '100000';
+    el.style.boxShadow = '0 8px 25px rgba(0,0,0,0.5)';
+    el.style.zIndex = '9999999';
     el.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
     el.style.fontWeight = '600';
     el.style.fontSize = '0.95rem';
