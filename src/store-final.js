@@ -784,7 +784,7 @@ const store = {
             totalBonuses,
             totalGifts: data?.totalGifts ?? 0,
             transactionCount,
-            transactions: transactions.slice(0, 20)
+            transactions: (data?.items || []).slice(0, 20)
         };
     },
 

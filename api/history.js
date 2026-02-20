@@ -67,6 +67,8 @@ export default async function handler(req, res) {
                     totalReceived += amount;
                 } else if (rec.type === 'COPY_MILESTONE') {
                     totalBonuses += amount;
+                } else if (rec.type === 'PURCHASE') {
+                    totalPurchased += amount;
                 } else if (['POST_REWARD', 'LEVEL_UP', 'GIFT', 'REGISTRATION_BONUS'].includes(rec.type)) {
                     totalGifts += amount;
                 }
