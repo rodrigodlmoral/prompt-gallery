@@ -17,6 +17,8 @@ export default async function handler(req, res) {
         await pbAdmin.collection('_superusers').authWithPassword(process.env.PB_ADMIN_EMAIL, process.env.PB_ADMIN_PASS);
 
         const BANK_USER_ID = 'z44ierjl0thcczd';
+        const LEGACY_ADMIN_ID = 'rkmrhmgh067x7un';
+        const SYSTEM_IDS = [BANK_USER_ID, LEGACY_ADMIN_ID];
 
         // 2. Fetch ALL users (for circulation calc + top holders)
         const allUsers = await pbAdmin.collection('users').getFullList({
@@ -42,35 +44,39 @@ export default async function handler(req, res) {
         const breakdown = {};
         const monthlyMinted = {};
 
-        const BURN_TYPES = ['PURCHASE', 'BOOST', 'FEE'];
-
         ledgerEntries.forEach(entry => {
             const amount = entry.amount || 0;
-            const type = entry.type || 'UNKNOWN';
+            let type = entry.type || 'UNKNOWN';
             const hasEntryType = !!entry.entry_type;
+
+            // In legacy migration, PURCHASE was used as a MIGRATION marker
+            if (type === 'PURCHASE' && !hasEntryType) {
+                type = 'MIGRACIÓN';
+            }
 
             if (hasEntryType) {
                 // Modern double-entry records
-                if (entry.from_user === BANK_USER_ID && entry.entry_type === 'CREDIT') {
+                if (SYSTEM_IDS.includes(entry.from_user) && entry.entry_type === 'CREDIT') {
                     totalMinted += amount;
                 }
-                if (entry.to_user === BANK_USER_ID && entry.entry_type === 'DEBIT') {
+                if (SYSTEM_IDS.includes(entry.to_user) && entry.entry_type === 'DEBIT') {
                     totalBurned += amount;
                 }
             } else {
                 // Legacy single-entry records (no entry_type)
-                if (entry.from_user === BANK_USER_ID) {
-                    // Bank → User = minting
+                // If from_user is system OR null -> it's emission (creating tokens from nothing)
+                if (SYSTEM_IDS.includes(entry.from_user) || !entry.from_user) {
                     totalMinted += amount;
-                } else if (BURN_TYPES.includes(type)) {
-                    // PURCHASE/BOOST/FEE without entry_type = user paying bank
+                } else if (type === 'PURCHASE' || type === 'BOOST' || type === 'FEE' || SYSTEM_IDS.includes(entry.to_user)) {
+                    // Actual burns: User paying bank OR entries explicitly going to system accounts
                     totalBurned += amount;
                 }
             }
 
             // Monthly minting aggregation
-            const isMinting = (hasEntryType && entry.from_user === BANK_USER_ID && entry.entry_type === 'CREDIT')
-                || (!hasEntryType && entry.from_user === BANK_USER_ID);
+            const isMinting = (hasEntryType && SYSTEM_IDS.includes(entry.from_user) && entry.entry_type === 'CREDIT')
+                || (!hasEntryType && SYSTEM_IDS.includes(entry.from_user));
+
             if (isMinting) {
                 const month = (entry.created || '').substring(0, 7);
                 if (month) {
@@ -78,7 +84,7 @@ export default async function handler(req, res) {
                 }
             }
 
-            // Type breakdown (CREDIT + legacy, skip DEBIT to avoid double-counting)
+            // Type breakdown
             if (entry.entry_type === 'CREDIT' || !entry.entry_type) {
                 if (!breakdown[type]) {
                     breakdown[type] = { count: 0, total: 0 };
