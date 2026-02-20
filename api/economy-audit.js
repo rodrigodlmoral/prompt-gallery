@@ -78,8 +78,11 @@ export default async function handler(req, res) {
             if (fromSystem && toRealUser) {
                 userStats[entry.to_user].minted += amount;
 
-                // Forzar etiqueta Migración Enero para emisiones históricas
-                const emissionType = type === 'AUDIT_ADJUSTMENT' ? 'AUDIT_ADJUSTMENT' : 'MIGRACION_ENERO';
+                // Detectar el Ajuste de Febrero como tipo especial
+                let emissionType = type;
+                if (desc.includes('Ajuste de PromptBits - Febrero')) {
+                    emissionType = 'FEBRUARY_ADJUSTMENT';
+                }
 
                 if (!earnings[emissionType]) earnings[emissionType] = { count: 0, total: 0 };
                 earnings[emissionType].count++;
@@ -93,12 +96,9 @@ export default async function handler(req, res) {
             if (fromRealUser && (toSystem || ['PURCHASE', 'BOOST', 'FEE'].includes(type) || type === 'AUDIT_ADJUSTMENT')) {
                 userStats[entry.from_user].spent += amount;
 
-                // Forzar etiqueta Ajuste Contable para gastos de auditoría
-                const spendingType = type === 'AUDIT_ADJUSTMENT' ? 'AUDIT_ADJUSTMENT' : type;
-
-                if (!spending[spendingType]) spending[spendingType] = { count: 0, total: 0 };
-                spending[spendingType].count++;
-                spending[spendingType].total += amount;
+                if (!spending[type]) spending[type] = { count: 0, total: 0 };
+                spending[type].count++;
+                spending[type].total += amount;
             }
         });
 

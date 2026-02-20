@@ -1402,7 +1402,8 @@ const renderEconomyTab = async (container) => {
             REGISTRATION_BONUS: '🎁 Bono de Registro',
             GIFT: '🎀 Regalos Admin',
             UNRECORDED_GIFT: '💝 Regalos Admin (No registrados)',
-            MIGRACION_ENERO: 'Migración Enero',
+            FEBRUARY_ADJUSTMENT: 'Ajuste de PromptBits - Febrero',
+            MIGRACION_ENERO: 'Migración Enero (Legacy)',
             MIGRACION: '📦 Migración Sistema',
             BOOST: '🚀 Boosts / Impulsos',
             FEE: '💸 Comisiones',
@@ -1413,12 +1414,12 @@ const renderEconomyTab = async (container) => {
 
         const renderBreakdownTable = (map, title, emptyMsg) => {
             const entries = Object.entries(map).sort(([typeA, a], [typeB, b]) => {
-                // Prioridad 1: Migración Enero
+                // Prioridad 1: Ajuste de Febrero (Nuevo Baseline)
+                if (typeA === 'FEBRUARY_ADJUSTMENT') return -1;
+                if (typeB === 'FEBRUARY_ADJUSTMENT') return 1;
+                // Prioridad 2: Migración Enero
                 if (typeA === 'MIGRACION_ENERO') return -1;
                 if (typeB === 'MIGRACION_ENERO') return 1;
-                // Prioridad 2: Ajuste Contable Enero
-                if (typeA === 'AUDIT_ADJUSTMENT') return -1;
-                if (typeB === 'AUDIT_ADJUSTMENT') return 1;
                 return b.total - a.total;
             });
             if (entries.length === 0) return `<div style="padding:20px; text-align:center; color:#666; font-style:italic">${emptyMsg}</div>`;
