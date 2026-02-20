@@ -733,11 +733,8 @@ const store = {
             console.error('[ECONOMY] Error getting user stats:', e);
         }
 
-        // 2. Fetch Transaction History via Secure API (Bypasses ACLs)
-        // 2. Fetch Transaction History (Hybrid Strategy: API Proxy -> Native Fallback)
-        let fetchedViaApi = false;
+        // 2. Fetch Transaction History and Aggregated Metrics via Secure API
         try {
-            // Priority: Use Secure API Proxy (Bypasses ACLs on Vercel)
             const token = pb.authStore.token;
             if (token) {
                 // Add timestamp to bypass browser cache
@@ -747,8 +744,16 @@ const store = {
 
                 if (res.ok) {
                     const data = await res.json();
+
+                    // Unified Metrics from API (The Absolute Truth)
+                    currentBalance = data.currentBalance ?? currentBalance;
+                    totalEarned = data.totalEarned ?? 0;
+                    totalSpent = data.totalSpent ?? 0;
+                    totalReceived = data.totalReceived ?? 0;
+                    totalBonuses = data.totalBonuses ?? 0;
+                    transactionCount = data.transactionCount ?? 0;
+
                     if (data.items && Array.isArray(data.items)) {
-                        // Pre-process items to ensure consistent icons even if API is older
                         transactions = data.items.map(tx => {
                             if (!tx.icon) {
                                 if (tx.type === 'sent') tx.icon = '📤';
@@ -758,117 +763,24 @@ const store = {
                             }
                             return tx;
                         });
-                        fetchedViaApi = true;
                     }
                 }
             }
         } catch (err) {
-            console.warn('[ECONOMY] API Proxy failed, falling back to native fetch:', err);
+            console.warn('[ECONOMY] Secure API failed:', err);
+            // In case of total API failure, we could stay with 0s or try a native fallback,
+            // but the user wants absolute Ledger consistency, and the API is the way.
         }
-
-        if (!fetchedViaApi) {
-            // Fallback: Native Fetch (Works if ACLs are fixed by server hook)
-            console.log('[ECONOMY] Using native fetch fallback...');
-            try {
-                // A) Ledger (Native Fallback)
-                // Removed 'expand' to avoid 400 Bad Request if relation data is inconsistent
-                // Removed 'sort' as it caused 400 Bad Request in backfill logs previously
-                // Sorting is handled client-side anyway.
-                const ledgerRecords = await pb.collection('ledger').getList(1, 40, {
-                    filter: `from_user="${uid}" || to_user="${uid}"`,
-                    sort: '-updated',
-                    $autoCancel: false
-                });
-
-                const ledgerTxs = ledgerRecords.items
-                    // Phase C: Filter double-entry TIPs to avoid duplicates
-                    .filter(rec => {
-                        // Legacy records (no entry_type) always pass through
-                        if (!rec.entry_type) return true;
-                        // For TIPs with double-entry: show DEBIT to sender, CREDIT to receiver
-                        if (rec.type === 'TIP' || rec.type === 'PURCHASE' || rec.type === 'FEE') {
-                            if (rec.from_user === uid) return rec.entry_type === 'DEBIT';
-                            if (rec.to_user === uid) return rec.entry_type === 'CREDIT';
-                        }
-                        // System rewards (CREDIT) always pass through
-                        return true;
-                    })
-                    .map(rec => {
-                        const isSender = rec.from_user === uid;
-                        const txDate = rec.created || rec.updated;
-                        if (rec.type === 'TIP' || rec.type === 'PURCHASE') {
-                            if (isSender) {
-                                return { type: 'sent', amount: -rec.amount, description: rec.description || `Enviado`, date: txDate, icon: '📤', id: rec.id };
-                            } else {
-                                return { type: 'received', amount: rec.amount, description: rec.description || `Recibido`, date: txDate, icon: '📥', id: rec.id };
-                            }
-                        }
-                        if (rec.type === 'POST_REWARD') {
-                            return { type: 'income', amount: rec.amount, description: rec.description || 'Publicación', date: txDate, icon: '🖼️', id: rec.id };
-                        }
-                        if (rec.type === 'LEVEL_UP') {
-                            return { type: 'income', amount: rec.amount, description: rec.description || 'Bono de Nivel', date: txDate, icon: '✨', id: rec.id };
-                        }
-                        if (rec.type === 'COPY_MILESTONE') {
-                            return { type: 'bonus', amount: rec.amount, description: rec.description || 'Bono de Copias', date: txDate, icon: '🏆', id: rec.id };
-                        }
-                        return { type: isSender ? 'expense' : 'income', amount: isSender ? -rec.amount : rec.amount, description: rec.description || 'Transacción', date: txDate, icon: isSender ? '📉' : '📈', id: rec.id };
-                    });
-                transactions = [...transactions, ...ledgerTxs];
-
-                // B) Activity Logs (Bonuses)
-                // Simplified client-side filter
-                // Removed 'sort' to prevent 400 Bad Request
-                const logRecords = await pb.collection('activity_logs').getList(1, 40, {
-                    filter: `user="${uid}" || details.recipientId="${uid}"`,
-                    sort: '-updated',
-                    $autoCancel: false
-                });
-
-                const logTxs = logRecords.items.map(log => {
-                    const details = log.details || {};
-                    const logDate = log.created || log.updated;
-                    if (log.action === 'copy_milestone_bonus') {
-                        return { type: 'bonus', amount: details.bonus || 0, description: `🎉 Milestone: ${details.copies} copias`, date: logDate, icon: '🏆', id: log.id };
-                    }
-                    if (log.action === 'send_tip') {
-                        const isSender = log.user === uid;
-                        if (isSender) return { type: 'sent', amount: -(details.amount || 0), description: `Enviado a @${details.recipient || 'Usuario'}`, date: logDate, icon: '📤', id: log.id };
-                        else return { type: 'received', amount: details.amount || 0, description: `Recibido de @${log.expand?.user?.username || 'Usuario'}`, date: logDate, icon: '📥', id: log.id };
-                    }
-                    return null;
-                }).filter(Boolean);
-                transactions = [...transactions, ...logTxs];
-
-            } catch (nativeErr) {
-                console.error('[ECONOMY] Native fetch failed too:', nativeErr);
-            }
-        }
-
-        // Final Sort & Dedupe (by ID)
-        const seenIds = new Set();
-        transactions = transactions.filter(tx => {
-            if (tx.id && seenIds.has(tx.id)) return false;
-            if (tx.id) seenIds.add(tx.id);
-            return true;
-        });
-
-        // Transactions are already sorted and formatted by the API
-
-        // 4. Sort and Dedupe (Simple ID check if possible, otherwise just sort)
-        // We sort descending by date
-        transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-        transactions = transactions.slice(0, 20);
 
         return {
             currentBalance,
             totalEarned,
             totalSpent,
             netFlow: totalEarned - totalSpent,
-            totalReceived,   // Fixed: Added
-            totalBonuses,    // Fixed: Added (default 0 for now)
-            transactionCount, // Fixed: Added
-            transactions
+            totalReceived,
+            totalBonuses,
+            transactionCount,
+            transactions: transactions.slice(0, 20)
         };
     },
 
