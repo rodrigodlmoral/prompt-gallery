@@ -1381,7 +1381,7 @@ const renderEconomyTab = async (container) => {
     container.innerHTML = `<div style="text-align:center; padding:50px; color:#666"><div class="loading-spinner"></div> Calculando economía global...</div>`;
 
     try {
-        const res = await fetch('/api/economy-stats');
+        const res = await fetch('/api/economy-audit');
         if (!res.ok) throw new Error(`API Error: ${res.status}`);
         const data = await res.json();
 
