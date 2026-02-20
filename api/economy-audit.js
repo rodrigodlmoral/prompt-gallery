@@ -56,19 +56,22 @@ export default async function handler(req, res) {
 
             if (hasEntryType) {
                 // Modern double-entry records
-                if (SYSTEM_IDS.includes(entry.from_user) && entry.entry_type === 'CREDIT') {
+                if (SYSTEM_IDS.includes(entry.from_user) && !SYSTEM_IDS.includes(entry.to_user) && entry.entry_type === 'CREDIT') {
+                    // System -> User = New tokens in circulation
                     totalMinted += amount;
                 }
-                if (SYSTEM_IDS.includes(entry.to_user) && entry.entry_type === 'DEBIT') {
+                if (!SYSTEM_IDS.includes(entry.from_user) && SYSTEM_IDS.includes(entry.to_user) && entry.entry_type === 'DEBIT') {
+                    // User -> System = Tokens removed from circulation
                     totalBurned += amount;
                 }
             } else {
                 // Legacy single-entry records (no entry_type)
-                // If from_user is system OR null -> it's emission (creating tokens from nothing)
-                if (SYSTEM_IDS.includes(entry.from_user) || !entry.from_user) {
+                // Minting: From System/Null TO a real user
+                if ((SYSTEM_IDS.includes(entry.from_user) || !entry.from_user) && !SYSTEM_IDS.includes(entry.to_user)) {
                     totalMinted += amount;
-                } else if (type === 'PURCHASE' || type === 'BOOST' || type === 'FEE' || SYSTEM_IDS.includes(entry.to_user)) {
-                    // Actual burns: User paying bank OR entries explicitly going to system accounts
+                }
+                // Burning: From a real user TO the system
+                else if (!SYSTEM_IDS.includes(entry.from_user) && (SYSTEM_IDS.includes(entry.to_user) || type === 'PURCHASE' || type === 'BOOST' || type === 'FEE')) {
                     totalBurned += amount;
                 }
             }
