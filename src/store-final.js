@@ -734,6 +734,7 @@ const store = {
         }
 
         // 2. Fetch Transaction History and Aggregated Metrics via Secure API
+        let data = null;
         try {
             const token = pb.authStore.token;
             if (token) {
@@ -743,7 +744,7 @@ const store = {
                 });
 
                 if (res.ok) {
-                    const data = await res.json();
+                    data = await res.json();
 
                     // Unified Metrics from API (The Absolute Truth)
                     currentBalance = data.currentBalance ?? currentBalance;
@@ -777,6 +778,7 @@ const store = {
             totalEarned,
             totalSpent,
             totalSent: data?.totalSent ?? 0,
+            totalPurchased: data?.totalPurchased ?? 0,
             netFlow: totalEarned - totalSpent - (data?.totalSent ?? 0),
             totalReceived,
             totalBonuses,
