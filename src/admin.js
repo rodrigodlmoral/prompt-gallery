@@ -1403,7 +1403,7 @@ const renderEconomyTab = async (container) => {
             REGISTRATION_BONUS: '🎁 Bono de Registro',
             GIFT: '🎀 Regalos Admin',
             PURCHASE: '🛒 Migración (Legacy)',
-            MIGRACIÓN: '📦 Migración Sistema',
+            MIGRACION: '📦 Migración Sistema',
             BOOST: '🚀 Boosts',
             FEE: '💸 Comisiones',
             DAILY_LOGIN: '📅 Login Diario',
