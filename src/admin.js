@@ -1402,13 +1402,13 @@ const renderEconomyTab = async (container) => {
             REGISTRATION_BONUS: '🎁 Bono de Registro',
             GIFT: '🎀 Regalos Admin',
             UNRECORDED_GIFT: '💝 Regalos Admin (No registrados)',
-            PURCHASE: '🛒 Compras / Inversión',
+            PURCHASE: '📥 Migración Enero',
             MIGRACION: '📦 Migración Sistema',
             BOOST: '🚀 Boosts / Impulsos',
             FEE: '💸 Comisiones',
             DAILY_LOGIN: '📅 Login Diario',
             DEPOSIT: '💳 Depósitos',
-            AUDIT_ADJUSTMENT: '⚖️ Ajuste de Auditoría (Legacy)'
+            AUDIT_ADJUSTMENT: '⚖️ Ajuste Contable Enero'
         };
 
         const renderBreakdownTable = (map, title, emptyMsg) => {
