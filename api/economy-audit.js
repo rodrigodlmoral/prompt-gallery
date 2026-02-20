@@ -26,8 +26,7 @@ export default async function handler(req, res) {
         }
 
         const BANK_USER_ID = 'z44ierjl0thcczd';
-        const LEGACY_ADMIN_ID = 'rkmrhmgh067x7un';
-        const SYSTEM_IDS = [BANK_USER_ID, LEGACY_ADMIN_ID];
+        const SYSTEM_IDS = [BANK_USER_ID]; // Rodrigo es un usuario real, no sistema
 
         // 1. FETCH DATA
         const allUsers = await pbAdmin.collection('users').getFullList({
@@ -63,9 +62,11 @@ export default async function handler(req, res) {
             let type = entry.type || 'UNKNOWN';
             const desc = entry.description || '';
 
-            // Detectar ajustes contables por descripción
+            // Diferenciar entre migración real y ajuste de auditoría por descripción
             if (desc.includes('AJUSTE CONTABLE')) {
                 type = 'AUDIT_ADJUSTMENT';
+            } else if (type === 'PURCHASE') {
+                type = 'MIGRACION_ENERO';
             }
 
             const fromSystem = SYSTEM_IDS.includes(entry.from_user) || !entry.from_user;
