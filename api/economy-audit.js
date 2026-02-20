@@ -62,37 +62,43 @@ export default async function handler(req, res) {
             let type = entry.type || 'UNKNOWN';
             const desc = entry.description || '';
 
-            // Diferenciar entre migración real y ajuste de auditoría por descripción
+            const fromSystem = SYSTEM_IDS.includes(entry.from_user) || !entry.from_user;
+            const toSystem = SYSTEM_IDS.includes(entry.to_user);
+            const toRealUser = entry.to_user && userStats[entry.to_user];
+            const fromRealUser = entry.from_user && userStats[entry.from_user];
+
+            // Detectar ajustes contables por descripción
             if (desc.includes('AJUSTE CONTABLE')) {
                 type = 'AUDIT_ADJUSTMENT';
             } else if (type === 'PURCHASE') {
                 type = 'MIGRACION_ENERO';
             }
 
-            const fromSystem = SYSTEM_IDS.includes(entry.from_user) || !entry.from_user;
-            const toSystem = SYSTEM_IDS.includes(entry.to_user);
-            const toRealUser = entry.to_user && userStats[entry.to_user];
-            const fromRealUser = entry.from_user && userStats[entry.from_user];
-
             // A) EMISSIONS (System -> User)
             if (fromSystem && toRealUser) {
                 userStats[entry.to_user].minted += amount;
 
-                if (!earnings[type]) earnings[type] = { count: 0, total: 0 };
-                earnings[type].count++;
-                earnings[type].total += amount;
+                // Forzar etiqueta Migración Enero para emisiones históricas
+                const emissionType = type === 'AUDIT_ADJUSTMENT' ? 'AUDIT_ADJUSTMENT' : 'MIGRACION_ENERO';
+
+                if (!earnings[emissionType]) earnings[emissionType] = { count: 0, total: 0 };
+                earnings[emissionType].count++;
+                earnings[emissionType].total += amount;
 
                 const month = (entry.created || '').substring(0, 7);
                 if (month) monthlyMinted[month] = (monthlyMinted[month] || 0) + amount;
             }
 
             // B) SPENDING (User -> System)
-            if (fromRealUser && (toSystem || ['PURCHASE', 'BOOST', 'FEE'].includes(type))) {
+            if (fromRealUser && (toSystem || ['PURCHASE', 'BOOST', 'FEE'].includes(type) || type === 'AUDIT_ADJUSTMENT')) {
                 userStats[entry.from_user].spent += amount;
 
-                if (!spending[type]) spending[type] = { count: 0, total: 0 };
-                spending[type].count++;
-                spending[type].total += amount;
+                // Forzar etiqueta Ajuste Contable para gastos de auditoría
+                const spendingType = type === 'AUDIT_ADJUSTMENT' ? 'AUDIT_ADJUSTMENT' : type;
+
+                if (!spending[spendingType]) spending[spendingType] = { count: 0, total: 0 };
+                spending[spendingType].count++;
+                spending[spendingType].total += amount;
             }
         });
 

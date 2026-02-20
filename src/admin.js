@@ -1402,20 +1402,23 @@ const renderEconomyTab = async (container) => {
             REGISTRATION_BONUS: '🎁 Bono de Registro',
             GIFT: '🎀 Regalos Admin',
             UNRECORDED_GIFT: '💝 Regalos Admin (No registrados)',
-            MIGRACION_ENERO: '📥 Migración Enero',
+            MIGRACION_ENERO: 'Migración Enero',
             MIGRACION: '📦 Migración Sistema',
             BOOST: '🚀 Boosts / Impulsos',
             FEE: '💸 Comisiones',
             DAILY_LOGIN: '📅 Login Diario',
             DEPOSIT: '💳 Depósitos',
-            AUDIT_ADJUSTMENT: '⚖️ Ajuste Contable Enero'
+            AUDIT_ADJUSTMENT: 'Ajuste Contable Enero'
         };
 
         const renderBreakdownTable = (map, title, emptyMsg) => {
             const entries = Object.entries(map).sort(([typeA, a], [typeB, b]) => {
-                // Forzar Migración Enero y Ajuste al principio
-                if (typeA === 'MIGRACION_ENERO' || typeA === 'AUDIT_ADJUSTMENT') return -1;
-                if (typeB === 'MIGRACION_ENERO' || typeB === 'AUDIT_ADJUSTMENT') return 1;
+                // Prioridad 1: Migración Enero
+                if (typeA === 'MIGRACION_ENERO') return -1;
+                if (typeB === 'MIGRACION_ENERO') return 1;
+                // Prioridad 2: Ajuste Contable Enero
+                if (typeA === 'AUDIT_ADJUSTMENT') return -1;
+                if (typeB === 'AUDIT_ADJUSTMENT') return 1;
                 return b.total - a.total;
             });
             if (entries.length === 0) return `<div style="padding:20px; text-align:center; color:#666; font-style:italic">${emptyMsg}</div>`;
