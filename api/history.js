@@ -151,6 +151,7 @@ export default async function handler(req, res) {
             totalSent,
             totalBonuses,
             totalGifts,
+            totalPurchased,
             transactionCount: transactions.length,
             items: transactions.slice(0, 50)
         });

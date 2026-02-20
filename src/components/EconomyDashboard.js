@@ -101,26 +101,31 @@ export function renderEconomyDashboard(stats) {
         </div>
 
         <!-- Breakdown Grid -->
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:20px">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:20px">
             <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
                 <div style="font-size:1.1rem; font-weight:600; color:#a855f7">${stats.totalReceived}</div>
-                <div style="font-size:0.7rem; color:#888">Propinas Recibidas</div>
+                <div style="font-size:0.7rem; color:#888; white-space:nowrap">Propinas Recibidas</div>
             </div>
             <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
                 <div style="font-size:1.1rem; font-weight:600; color:#ef4444">${stats.totalSent}</div>
-                <div style="font-size:0.7rem; color:#888">Propinas Enviadas</div>
+                <div style="font-size:0.7rem; color:#888; white-space:nowrap">Propinas Enviadas</div>
             </div>
             <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
-                <div style="font-size:1.1rem; font-weight:600; color:#3b82f6">${stats.totalGifts}</div>
-                <div style="font-size:0.7rem; color:#888">Gifts/Premios recibidos</div>
+                <div style="font-size:1.1rem; font-weight:600; color:#3b82f6">${stats.totalPurchased || 0}</div>
+                <div style="font-size:0.7rem; color:#888; white-space:nowrap">Total Comprado</div>
+                <div style="font-size:0.6rem; color:#555; font-style:italic">próximamente</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
+                <div style="font-size:1.1rem; font-weight:600; color:#06b6d4">${stats.totalGifts}</div>
+                <div style="font-size:0.7rem; color:#888; white-space:nowrap">Gifts/Premios</div>
             </div>
             <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
                 <div style="font-size:1.1rem; font-weight:600; color:#22c55e">${stats.totalBonuses}</div>
-                <div style="font-size:0.7rem; color:#888">Bonos por Copias</div>
+                <div style="font-size:0.7rem; color:#888; white-space:nowrap">Bono x Copias</div>
             </div>
             <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
                 <div style="font-size:1.1rem; font-weight:600; color:#f59e0b">${stats.transactionCount}</div>
-                <div style="font-size:0.7rem; color:#888">Total Transacciones</div>
+                <div style="font-size:0.7rem; color:#888; white-space:nowrap">Transacciones</div>
             </div>
         </div>
 
