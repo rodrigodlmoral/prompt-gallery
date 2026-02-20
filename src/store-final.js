@@ -776,9 +776,11 @@ const store = {
             currentBalance,
             totalEarned,
             totalSpent,
-            netFlow: totalEarned - totalSpent,
+            totalSent: data?.totalSent ?? 0,
+            netFlow: totalEarned - totalSpent - (data?.totalSent ?? 0),
             totalReceived,
             totalBonuses,
+            totalGifts: data?.totalGifts ?? 0,
             transactionCount,
             transactions: transactions.slice(0, 20)
         };

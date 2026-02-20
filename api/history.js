@@ -42,9 +42,12 @@ export default async function handler(req, res) {
 
         // 6. Metrics Aggregation
         let totalEarned = 0;
-        let totalSpent = 0;
-        let totalReceived = 0;
-        let totalBonuses = 0;
+        let totalSpent = 0;    // True spending (Tokens -> System)
+        let totalReceived = 0; // P2P Incoming (Tips)
+        let totalSent = 0;     // P2P Outgoing (Tips)
+        let totalBonuses = 0;  // Specifically Copy Milestones
+        let totalGifts = 0;    // System Rewards (Registration, Level Up, Reboot, Gifts)
+
         const transactions = [];
         const BANK_USER_ID = 'z44ierjl0thcczd';
 
@@ -52,23 +55,32 @@ export default async function handler(req, res) {
             const amount = rec.amount || 0;
             const isSender = rec.from_user === uid;
             const isSystemSource = !rec.from_user || rec.from_user === BANK_USER_ID;
+            const isSystemTarget = rec.to_user === BANK_USER_ID;
             const txDate = rec.created || rec.updated;
 
             // A) Aggregation Logic
             if (!isSender) {
-                // Incoming money
+                // INCOMING (CREDIT)
                 totalEarned += amount;
-                if (rec.type === 'TIP') totalReceived += amount;
-                if (['POST_REWARD', 'LEVEL_UP', 'COPY_MILESTONE', 'GIFT'].includes(rec.type)) {
+
+                if (rec.type === 'TIP') {
+                    totalReceived += amount;
+                } else if (rec.type === 'COPY_MILESTONE') {
                     totalBonuses += amount;
+                } else if (['POST_REWARD', 'LEVEL_UP', 'GIFT', 'REGISTRATION_BONUS'].includes(rec.type)) {
+                    totalGifts += amount;
                 }
             } else {
-                // Outgoing money (usually TIPS or Fees or Purchases)
-                // In our current system, any record where the user is 'from_user'
-                // and it's a DEBIT (double-entry) or a legacy record counts as spending.
-                // We only count DEBIT for double-entry records to avoid double-counting.
-                if (!rec.entry_type || rec.entry_type === 'DEBIT') {
-                    totalSpent += amount;
+                // OUTGOING (DEBIT)
+                // We only count DEBIT entries for double-entry records to avoid double-counting
+                const isRealDebit = !rec.entry_type || rec.entry_type === 'DEBIT';
+
+                if (isRealDebit) {
+                    if (rec.type === 'TIP') {
+                        totalSent += amount;
+                    } else if (isSystemTarget || ['BOOST', 'FEE', 'PURCHASE'].includes(rec.type)) {
+                        totalSpent += amount;
+                    }
                 }
             }
 
@@ -136,7 +148,9 @@ export default async function handler(req, res) {
             totalEarned,
             totalSpent,
             totalReceived,
+            totalSent,
             totalBonuses,
+            totalGifts,
             transactionCount: transactions.length,
             items: transactions.slice(0, 50)
         });
