@@ -12,6 +12,7 @@ import { initEconomyDashboard } from './components/EconomyDashboard.js';
 import { initLiveChat } from './components/LiveChat.js';
 import { setupLevelModals } from './components/Modals/LevelModals.js';
 import { toast } from './utils/ui-helpers.js';
+import { MarketplaceTab } from './components/MarketplaceTab.js';
 import './utils/LevelDebug.js'; // Load Debug Tools
 
 // Initialize Modals
@@ -506,6 +507,7 @@ const ProfileHeader = () => {
         <div class="container" style="margin-top:20px; display:flex; gap:25px; border-bottom:1px solid #333">
             <button class="profile-tab ${profileTab === 'creations' ? 'active' : ''}" onclick="window.setProfileTab('creations')">CREACIONES</button>
             ${isMe ? `<button class="profile-tab ${profileTab === 'saved' ? 'active' : ''}" onclick="window.setProfileTab('saved')">GUARDADOS</button>` : ''}
+            ${isMe ? `<button class="profile-tab ${profileTab === 'marketplace' ? 'active' : ''}" onclick="window.setProfileTab('marketplace')">MARKETPLACE</button>` : ''}
             ${isMe ? `<button class="profile-tab ${profileTab === 'economy' ? 'active' : ''}" onclick="window.setProfileTab('economy')">ECONOMÍA</button>` : ''}
         </div>
     </div> `;
@@ -1142,9 +1144,36 @@ const render = () => {
     const pHeaderMount = document.getElementById('profile-header-mount');
     if (pHeaderMount) pHeaderMount.innerHTML = ProfileHeader();
 
+    // Economy Dashboard (own profile only)
+    const targetNorm = profileUser.toLowerCase();
+    const isOwnProfile = store.currentUser && (
+        (store.currentUser.username || '').toLowerCase() === targetNorm ||
+        (store.currentUser.name || '').toLowerCase() === targetNorm
+    );
     const galleryMount = document.getElementById('profile-gallery-container');
+    const ecoContainer = document.getElementById('economyDashboardContainer');
+
     if (galleryMount) {
-        galleryMount.innerHTML = profileTab === 'economy' ? '' : Gallery();
+        try {
+            if (profileTab === 'marketplace') {
+                galleryMount.innerHTML = MarketplaceTab(store);
+                setTimeout(() => {
+                    if (window.loadActiveBoosts) window.loadActiveBoosts();
+                }, 100);
+            } else if (profileTab === 'economy') {
+                galleryMount.innerHTML = '';
+            } else {
+                galleryMount.innerHTML = Gallery();
+            }
+        } catch (err) {
+            console.error("❌ Component Render Error:", err);
+            galleryMount.innerHTML = `<div class="container" style="padding:100px; text-align:center; color:#ff4444">
+                <div style="font-size:3rem">⚠️</div>
+                <h3>Error de Carga</h3>
+                <p>Ocurrió un error al renderizar esta sección. Por favor, intenta de nuevo.</p>
+                <code style="font-size:0.8rem; opacity:0.6">${err.message}</code>
+            </div>`;
+        }
     }
 
     // Advanced Filter Panel
@@ -1152,10 +1181,6 @@ const render = () => {
     if (advFilterMount) advFilterMount.innerHTML = profileTab === 'economy' ? '' : AdvancedFilters(filters);
 
     attachEvents();
-
-    // Economy Dashboard (own profile only)
-    const isOwnProfile = store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser);
-    const ecoContainer = document.getElementById('economyDashboardContainer');
 
     if (isOwnProfile && profileTab === 'economy') {
         const ecoContainer = document.getElementById('economyDashboardContainer');

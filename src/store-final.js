@@ -3,6 +3,8 @@ import { uploadToCloudinary, uploadToCloudinaryHD } from './uploadService.js';
 import { LevelSystem } from './lib/LevelSystem.js';
 import { checkCopyMilestone, getNextMilestone } from './lib/CopyBonusSystem.js';
 import { LedgerService } from './lib/LedgerService.js';
+import { BoostSystem } from './lib/BoostSystem.js';
+import { BOOST_PRICES } from './lib/boost-config.js';
 
 // --- GOOGLE ANALYTICS HELPER ---
 window.trackEvent = (name, params = {}) => {
@@ -141,6 +143,9 @@ const store = {
     users: [],      // Admin list
     nuclearCache: { items: [], lastFetch: 0 },
     stats: { users: 0, prompts: 0, visits: 0 },
+    boostSystem: null,
+    BOOST_PRICES,
+    activeBoosts: { daily: [], weekly: [], super: [] },
 
     // --- INFINITE SCROLL STATE (PAGINACIÓN MANUAL) ---
     currentPage: 1,
@@ -160,7 +165,8 @@ const store = {
         // Lanzamos procesos en paralelo
         const [galleryResult, analysisResult] = await Promise.allSettled([
             this.loadPrompts(true), // Prioridad 1: Que el usuario vea posts
-            this.loadAllPromptsForAnalysis() // Prioridad 2: Cálculo de Tops en background
+            this.loadAllPromptsForAnalysis(), // Prioridad 2: Cálculo de Tops en background
+            this.initBoostSystem() // Prioridad 3: Marketplace
         ]);
 
         if (galleryResult.status === 'rejected') console.error("❌ Gallery Load Error:", galleryResult.reason);
@@ -169,6 +175,38 @@ const store = {
         await this.getPublicStats();
         this.trackVisit();
         this.isInitialized = true;
+    },
+
+    async initBoostSystem() {
+        try {
+            this.boostSystem = new BoostSystem(pb, this);
+            console.log('✅ Boost system ready');
+
+            // Verificar boosts expirados cada 5 minutos
+            setInterval(() => {
+                if (this.boostSystem) this.boostSystem.expireBoosts();
+            }, 5 * 60 * 1000);
+
+            // Precarga inicial de boosts activos
+            await this.refreshActiveBoosts();
+
+        } catch (error) {
+            console.error('❌ Error initializing boost system:', error);
+        }
+    },
+
+    async refreshActiveBoosts() {
+        if (!this.boostSystem) return;
+        try {
+            const types = ['daily', 'weekly', 'super'];
+            const boosts = await Promise.all(types.map(t => this.boostSystem.getActiveBoostsByType(t)));
+            this.activeBoosts.daily = boosts[0].map(b => b.prompt);
+            this.activeBoosts.weekly = boosts[1].map(b => b.prompt);
+            this.activeBoosts.super = boosts[2].map(b => b.prompt);
+            console.log(`[STORE] 🚀 Boosts activos sincronizados: D:${this.activeBoosts.daily.length} W:${this.activeBoosts.weekly.length} S:${this.activeBoosts.super.length}`);
+        } catch (err) {
+            console.error('[STORE] Error al refrescar boosts:', err);
+        }
     },
 
     async loadAllPromptsForAnalysis() {
@@ -818,31 +856,42 @@ const store = {
         const now = Date.now();
         const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
 
-        // 1. Prioritize explicitly "featured" prompts that haven't expired
+        // 1. Prioritize Weekly and Super Boosts
+        const boostedIds = new Set([
+            ...this.activeBoosts.weekly,
+            ...this.activeBoosts.super
+        ]);
+
+        const boosted = this.allPrompts.filter(p => boostedIds.has(p.id) && !p.is_private);
+
+        // 2. Explicitly featured prompts (Admin)
         const featured = this.allPrompts.filter(p =>
             !p.is_private &&
+            !boostedIds.has(p.id) &&
             (p.is_featured || p.admin_featured) &&
             (!p.featured_until || new Date(p.featured_until) > now)
-        ).sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0)); // Paid first, then admin
+        ).sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
 
-        // 2. Take recent prompts (last 7 days) and sort by score
+        // 3. Take recent prompts (last 7 days) and sort by score
         const recent = this.allPrompts.filter(p =>
             !p.is_private &&
+            !boostedIds.has(p.id) &&
             !p.is_featured &&
             !p.admin_featured &&
             p.createdAt >= weekAgo
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
-        // 3. Fallback: If not enough recent, take the all-time best
+        // 4. Fallback: If not enough recent, take the all-time best
         const fallbacks = this.allPrompts.filter(p =>
             !p.is_private &&
+            !boostedIds.has(p.id) &&
             !p.is_featured &&
             !p.admin_featured &&
             p.createdAt < weekAgo
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
-        const result = [...featured, ...recent, ...fallbacks].slice(0, 20);
-        console.log(`[CEREBRO] 🧠 Top Semanal calculado: ${result.length} items (Featured: ${featured.length})`);
+        const result = [...boosted, ...featured, ...recent, ...fallbacks].slice(0, 20);
+        console.log(`[CEREBRO] 🧠 Top Semanal calculado: ${result.length} items (Boosted: ${boosted.length})`);
         return result;
     },
 
@@ -852,29 +901,31 @@ const store = {
         const now = Date.now();
         const dayAgo = now - (24 * 60 * 60 * 1000);
 
-        // 1. Prioritize featured prompts (Spotlight)
+        // 1. Prioritize Daily Boosts
+        const boostedIds = new Set(this.activeBoosts.daily);
+        const boosted = this.allPrompts.filter(p => boostedIds.has(p.id) && !p.is_private);
+
+        // 2. Featured prompts (Admin/Weekly/Super fallback)
+        const weeklyBoostedIds = new Set([...this.activeBoosts.weekly, ...this.activeBoosts.super]);
         const featured = this.allPrompts.filter(p =>
             !p.is_private &&
-            (p.is_featured || p.admin_featured) &&
+            !boostedIds.has(p.id) &&
+            (p.is_featured || p.admin_featured || weeklyBoostedIds.has(p.id)) &&
             (!p.featured_until || new Date(p.featured_until) > now)
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
-        // 2. Take prompts from last 24h sorted by score
+        // 3. Take prompts from last 24h
         const recent = this.allPrompts.filter(p =>
             !p.is_private &&
+            !boostedIds.has(p.id) &&
+            !weeklyBoostedIds.has(p.id) &&
             !p.is_featured &&
             !p.admin_featured &&
             p.createdAt >= dayAgo
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
-        // 3. Fallback: If very few recent, use the top from the week
-        if (featured.length + recent.length < 3) {
-            const weekly = this.getTopWeeklyPrompts();
-            return [...featured, ...recent, ...weekly].slice(0, 5);
-        }
-
-        const result = [...featured, ...recent].slice(0, 5);
-        console.log(`[CEREBRO] 🔥 Top Diario calculado: ${result.length} items.`);
+        const result = [...boosted, ...featured, ...recent].slice(0, 5);
+        console.log(`[CEREBRO] 🔥 Top Diario calculado: ${result.length} items (Boosted: ${boosted.length})`);
         return result;
     },
 
@@ -1916,7 +1967,7 @@ const store = {
         try {
             // 1. CREACIÓN DE CUENTA DIRECTA (Confiamos en las restricciones de PB)
             // HACK: Auto-follow Admin (rodrigodlmoral) ID: rkmrhmgh067x7un
-            await pb.collection('users').create({
+            const newUser = await pb.collection('users').create({
                 username, email, password, passwordConfirm: password,
                 name: username, tokens: 50, level: 0, xp: 0, role: 'user',
                 moderation: { suggestive: 'BLUR', nsfw: 'BLUR' },
@@ -1932,7 +1983,6 @@ const store = {
 
             // 3. AUTO-FOLLOW AL ADMIN (rkmrhmgh067x7un - @rodrigodlmoral)
             try {
-                const newUser = await pb.collection('users').getFirstListItem(`email="${email}"`);
                 if (newUser) {
                     const adminId = 'rkmrhmgh067x7un';
                     const admin = await pb.collection('users').getOne(adminId);
@@ -1946,15 +1996,18 @@ const store = {
                     await batch.send();
                     console.log("[REGISTER] Auto-follow completo.");
 
-                    // 4. REGISTRAR BONO DE REGISTRO EN LEDGER (fire-and-forget)
+                    // NOTA: Hacemos fall-back automático al Ledger de parte del cliente 
+                    // debido a intermitencias en los hooks del servidor de PocketHost.
                     try {
-                        await LedgerService.systemReward(
-                            newUser.id, 50, 'REGISTRATION_BONUS',
-                            `Bono de bienvenida para @${username}`
+                        const ledgerRes = await LedgerService.systemReward(
+                            newUser.id,
+                            50,
+                            'REGISTRATION_BONUS',
+                            `Bono de bienvenida para @${newUser.username || 'Usuario'}`
                         );
-                        console.log(`[REGISTER] ✅ Ledger: +50💎 registro para ${newUser.id}`);
+                        console.log(`[REGISTER] ✅ Registro exitoso para ${newUser.username}. Bono ledger TX: ${ledgerRes?.txHash}`);
                     } catch (ledgerErr) {
-                        console.warn('[REGISTER] Ledger entry failed (non-blocking):', ledgerErr.message);
+                        console.error("[REGISTER] Error al generar registro de bienvenida en ledger:", ledgerErr);
                     }
                 }
             } catch (fErr) {

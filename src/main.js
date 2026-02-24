@@ -33,6 +33,7 @@ import { SearchSuggestions } from './components/SearchSuggestions.js';
 import { filterPrompts } from './utils/gallery-filter.js';
 import { getSearchSuggestions } from './utils/search-logic.js';
 import { initLiveChat } from './components/LiveChat.js';
+import { initSuperBoostFloat } from './components/SuperBoostFloat.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;
@@ -1271,6 +1272,11 @@ try {
 
             // --- INIT LIVE CHAT (Después de que el store tiene al usuario) ---
             initLiveChat();
+
+            // --- INIT SUPER BOOST FLOAT (Cascarón) ---
+            setTimeout(() => {
+                initSuperBoostFloat(store);
+            }, 3000); // Dar un poco de tiempo para que cargue lo demás
         })
         .catch(err => {
             console.error("❌ FATAL STORE INIT ERROR:", err);
