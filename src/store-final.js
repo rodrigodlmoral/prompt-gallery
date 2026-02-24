@@ -901,31 +901,36 @@ const store = {
         const now = Date.now();
         const dayAgo = now - (24 * 60 * 60 * 1000);
 
-        // 1. Prioritize Daily Boosts
-        const boostedIds = new Set(this.activeBoosts.daily);
-        const boosted = this.allPrompts.filter(p => boostedIds.has(p.id) && !p.is_private);
+        // 1. Prioritize Daily Boosts (Sorted by purchase descending)
+        const boosted = [];
+        for (const promptId of this.activeBoosts.daily) {
+            const p = this.allPrompts.find(x => x.id === promptId && !x.is_private);
+            if (p) boosted.push(p);
+        }
 
-        // 2. Featured prompts (Admin/Weekly/Super fallback)
+        if (boosted.length > 0) {
+            console.log(`[CEREBRO] 🔥 Top Diario: Mostrando ${boosted.length} Boosts activos.`);
+            return boosted;
+        }
+
+        // 2. Fallbacks if no boosts exist
         const weeklyBoostedIds = new Set([...this.activeBoosts.weekly, ...this.activeBoosts.super]);
         const featured = this.allPrompts.filter(p =>
             !p.is_private &&
-            !boostedIds.has(p.id) &&
             (p.is_featured || p.admin_featured || weeklyBoostedIds.has(p.id)) &&
             (!p.featured_until || new Date(p.featured_until) > now)
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
-        // 3. Take prompts from last 24h
         const recent = this.allPrompts.filter(p =>
             !p.is_private &&
-            !boostedIds.has(p.id) &&
             !weeklyBoostedIds.has(p.id) &&
             !p.is_featured &&
             !p.admin_featured &&
             p.createdAt >= dayAgo
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
-        const result = [...boosted, ...featured, ...recent].slice(0, 5);
-        console.log(`[CEREBRO] 🔥 Top Diario calculado: ${result.length} items (Boosted: ${boosted.length})`);
+        const result = [...featured, ...recent].slice(0, 1);
+        console.log(`[CEREBRO] 🔥 Top Diario (Fallback) calculado: 1 item`);
         return result;
     },
 

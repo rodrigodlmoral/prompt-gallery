@@ -699,7 +699,7 @@ const render = () => {
     if (semanalMount) semanalMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsSemanal({ currentView, prompts: store.getTopWeeklyPrompts().slice(0, 3) }) : '';
 
     const diarioMount = document.getElementById('diario-mount');
-    if (diarioMount) diarioMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsDiario({ currentView, prompts: store.getTopDailyPrompts().slice(0, 1) }) : '';
+    if (diarioMount) diarioMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsDiario({ currentView, prompts: store.getTopDailyPrompts() }) : '';
 
     const profileMount = document.getElementById('profile-mount');
     if (profileMount) {
