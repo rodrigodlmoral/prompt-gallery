@@ -905,31 +905,20 @@ const store = {
     getTopGalleryPrompts() {
         if (!this.allPrompts || this.allPrompts.length === 0) return [];
 
-        const now = Date.now();
-        const superBoostedIds = new Set(this.activeBoosts.super);
-        const weeklyBoostedIds = new Set(this.activeBoosts.weekly);
-
-        // We combine featured and boosts but don't force them to replace others.
         // We just sort everyone by a mix of featured status and popularity.
         return [...this.allPrompts]
             .filter(p => !p.is_private)
             .sort((a, b) => {
-                // Priority 1: SuperBoosts (at the very top)
-                const aSuper = superBoostedIds.has(a.id);
-                const bSuper = superBoostedIds.has(b.id);
-                if (aSuper && !bSuper) return -1;
-                if (!aSuper && bSuper) return 1;
-
-                // Priority 2: Weekly Boosts or Featured
-                const aFeatured = weeklyBoostedIds.has(a.id) || a.is_featured || a.admin_featured;
-                const bFeatured = weeklyBoostedIds.has(b.id) || b.is_featured || b.admin_featured;
+                // Priority 1: Organic Featured (admin picks)
+                const aFeatured = a.is_featured || a.admin_featured;
+                const bFeatured = b.is_featured || b.admin_featured;
 
                 // If both are featured (or both not), use popularity score
                 if (aFeatured && bFeatured) return this._getPopularityScore(b) - this._getPopularityScore(a);
                 if (aFeatured && !bFeatured) return -1;
                 if (!aFeatured && bFeatured) return 1;
 
-                // Priority 3: Pure popularity score for common prompts
+                // Priority 2: Pure popularity score for common prompts
                 return this._getPopularityScore(b) - this._getPopularityScore(a);
             });
     },
