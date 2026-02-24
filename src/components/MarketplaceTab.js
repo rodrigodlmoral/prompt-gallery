@@ -182,8 +182,12 @@ window.confirmBoostPurchase = async (type, promptId, title) => {
                 window.toast(`¡Boost activado! Vence el ${new Date(res.expiresAt).toLocaleString()}`, 'success');
                 // Re-render
                 if (window.render) window.render();
-                // Update active section
+                // Update active section locally
                 window.loadActiveBoosts();
+                // Update global store feed state
+                if (window.store.refreshActiveBoosts) {
+                    await window.store.refreshActiveBoosts();
+                }
             }
         } catch (error) {
             window.toast(error.message || 'Error en la compra', 'error');
