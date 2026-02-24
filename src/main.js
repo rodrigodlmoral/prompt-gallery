@@ -696,7 +696,7 @@ const render = () => {
     if (heroMount) heroMount.innerHTML = (currentView === 'home' && !searchQuery) ? HeroCarousel({ currentView, prompts: store.getTopWeeklyPrompts().slice(0, 20) }) : '';
 
     const semanalMount = document.getElementById('semanal-mount');
-    if (semanalMount) semanalMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsSemanal({ currentView, prompts: store.getTopWeeklyPrompts().slice(0, 3) }) : '';
+    if (semanalMount) semanalMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsSemanal({ currentView, prompts: store.getTopWeeklyPrompts() }) : '';
 
     const diarioMount = document.getElementById('diario-mount');
     if (diarioMount) diarioMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsDiario({ currentView, prompts: store.getTopDailyPrompts() }) : '';

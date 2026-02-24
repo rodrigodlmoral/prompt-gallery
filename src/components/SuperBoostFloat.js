@@ -7,11 +7,12 @@
 
 export const initSuperBoostFloat = (store) => {
     // Verificar si hay Super Boosts activos
-    const superBoosts = store.activeBoosts?.super || [];
-    if (superBoosts.length === 0) return;
+    const superBoostIds = store.activeBoosts?.super || [];
+    if (superBoostIds.length === 0) return;
 
-    // Tomar el primero (por ahora o aleatorio)
-    const promoted = superBoosts[0];
+    // Resolve objects
+    const superBoosts = superBoostIds.map(id => store.allPrompts?.find(p => p.id === id)).filter(Boolean);
+    if (superBoosts.length === 0) return;
 
     // Crear el contenedor si no existe
     let floatContainer = document.getElementById('superboost-float-overlay');
@@ -22,13 +23,13 @@ export const initSuperBoostFloat = (store) => {
         document.body.appendChild(floatContainer);
     }
 
-    floatContainer.innerHTML = `
+    floatContainer.innerHTML = superBoosts.map(promoted => `
         <div class="superboost-float-content">
-            <button class="close-float" onclick="this.closest('#superboost-float-overlay').remove()">✕</button>
-            <div class="float-tag">RECOMENDADO</div>
+            <button class="close-float" onclick="this.closest('.superboost-float-content').remove()">✕</button>
+            <div class="float-tag">SUPERBOOST</div>
             <div class="float-body">
                 <div class="float-image">
-                    <img src="${promoted.image}" alt="${promoted.title}">
+                    <img src="${promoted.image}" alt="${promoted.title?.substring(0, 20)}">
                 </div>
                 <div class="float-info">
                     <h4>${promoted.title}</h4>
@@ -37,12 +38,16 @@ export const initSuperBoostFloat = (store) => {
                 </div>
             </div>
         </div>
+    `).join('') + `
         <style>
             #superboost-float-overlay {
                 position: fixed;
                 bottom: 30px;
                 right: 30px;
                 z-index: 10000;
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
                 animation: floatUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
             }
             .superboost-float-content {

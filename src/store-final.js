@@ -856,42 +856,44 @@ const store = {
         const now = Date.now();
         const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
 
-        // 1. Prioritize Weekly and Super Boosts
-        const boostedIds = new Set([
-            ...this.activeBoosts.weekly,
-            ...this.activeBoosts.super
-        ]);
+        // 1. Prioritize Weekly Boosts (Sorted by purchase descending)
+        const boosted = [];
+        for (const promptId of this.activeBoosts.weekly) {
+            const p = this.allPrompts.find(x => x.id === promptId && !x.is_private);
+            if (p) boosted.push(p);
+        }
 
-        const boosted = this.allPrompts.filter(p => boostedIds.has(p.id) && !p.is_private);
+        if (boosted.length > 0) {
+            console.log(`[CEREBRO] 🧠 Top Semanal: Mostrando ${boosted.length} Boosts activos.`);
+            return boosted;
+        }
 
-        // 2. Explicitly featured prompts (Admin)
+        // 2. Fallbacks if no boosts exist
+        const superBoostedIds = new Set(this.activeBoosts.super);
         const featured = this.allPrompts.filter(p =>
             !p.is_private &&
-            !boostedIds.has(p.id) &&
-            (p.is_featured || p.admin_featured) &&
+            (p.is_featured || p.admin_featured || superBoostedIds.has(p.id)) &&
             (!p.featured_until || new Date(p.featured_until) > now)
         ).sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
 
-        // 3. Take recent prompts (last 7 days) and sort by score
         const recent = this.allPrompts.filter(p =>
             !p.is_private &&
-            !boostedIds.has(p.id) &&
+            !superBoostedIds.has(p.id) &&
             !p.is_featured &&
             !p.admin_featured &&
             p.createdAt >= weekAgo
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
-        // 4. Fallback: If not enough recent, take the all-time best
         const fallbacks = this.allPrompts.filter(p =>
             !p.is_private &&
-            !boostedIds.has(p.id) &&
+            !superBoostedIds.has(p.id) &&
             !p.is_featured &&
             !p.admin_featured &&
             p.createdAt < weekAgo
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
-        const result = [...boosted, ...featured, ...recent, ...fallbacks].slice(0, 20);
-        console.log(`[CEREBRO] 🧠 Top Semanal calculado: ${result.length} items (Boosted: ${boosted.length})`);
+        const result = [...featured, ...recent, ...fallbacks].slice(0, 3);
+        console.log(`[CEREBRO] 🧠 Top Semanal (Fallback) calculado: 3 items`);
         return result;
     },
 
