@@ -71,7 +71,11 @@ export default async function handler(req, res) {
             if (desc.includes('AJUSTE CONTABLE')) {
                 type = 'AUDIT_ADJUSTMENT';
             } else if (type === 'PURCHASE') {
-                type = 'MIGRACION_ENERO';
+                if (desc.includes('Boost')) {
+                    type = 'BOOST';
+                } else {
+                    type = 'MIGRACION_ENERO';
+                }
             }
 
             // A) EMISSIONS (System -> User)
