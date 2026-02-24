@@ -693,7 +693,7 @@ const render = () => {
     if (filtersMount) filtersMount.innerHTML = (currentView === 'home') ? FilterBar({ currentUser: store.currentUser, filters }) : '';
 
     const heroMount = document.getElementById('hero-mount');
-    if (heroMount) heroMount.innerHTML = (currentView === 'home' && !searchQuery) ? HeroCarousel({ currentView, prompts: store.getTopWeeklyPrompts().slice(0, 20) }) : '';
+    if (heroMount) heroMount.innerHTML = (currentView === 'home' && !searchQuery) ? HeroCarousel({ currentView, prompts: store.getTopGalleryPrompts().slice(0, 20) }) : '';
 
     const semanalMount = document.getElementById('semanal-mount');
     if (semanalMount) semanalMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsSemanal({ currentView, prompts: store.getTopWeeklyPrompts() }) : '';
