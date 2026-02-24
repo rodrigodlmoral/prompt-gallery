@@ -225,21 +225,22 @@ window.loadActiveBoosts = async () => {
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="boost-stats">
-                        <div class="stat-group">
-                            <span class="stat-value">${b.views_count || 0}</span>
-                            <span class="stat-label">Vistas</span>
+                    <div style="display: flex; align-items: center; gap: 2.5rem;">
+                        <div class="boost-stats" style="gap: 1.5rem;">
+                            <div class="stat-group">
+                                <span class="stat-value">${b.views_count || 0}</span>
+                                <span class="stat-label">Vistas</span>
+                            </div>
+                            <div class="stat-group">
+                                <span class="stat-value">${b.clicks_count || 0}</span>
+                                <span class="stat-label">Clicks</span>
+                            </div>
                         </div>
-                        <div class="stat-group">
-                            <span class="stat-value">${b.clicks_count || 0}</span>
-                            <span class="stat-label">Clicks</span>
-                        </div>
-                    </div>
 
-                    <div class="expiry-box">
-                        <div class="expiry-label">Vence en:</div>
-                        <div class="expiry-time" id="timer-${b.id}">${formatTimeLeft(b.expires_at)}</div>
+                        <div class="expiry-box">
+                            <div class="expiry-label">Vence en:</div>
+                            <div class="expiry-time" id="timer-${b.id}">${formatTimeLeft(b.expires_at)}</div>
+                        </div>
                     </div>
                 </div>
             `).join('')}
@@ -284,9 +285,11 @@ function formatTimeLeft(expiry) {
     const diff = new Date(expiry) - new Date();
     if (diff <= 0) return 'EXPIRADO';
 
-    const h = Math.floor(diff / 3600000);
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
     const s = Math.floor((diff % 60000) / 1000);
 
+    if (d > 0) return `${d}d ${h}h ${m}m ${s}s`;
     return `${h}h ${m}m ${s}s`;
 }
