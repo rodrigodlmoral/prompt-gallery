@@ -6,6 +6,27 @@ import { LedgerService } from './lib/LedgerService.js';
 import { BoostSystem } from './lib/BoostSystem.js';
 import { BOOST_PRICES } from './lib/boost-config.js';
 
+// --- DEBUG ERROR CATCHER ---
+window.onerror = function (msg, url, lineNo, columnNo, error) {
+    if (!document.getElementById('debug-error-panel')) {
+        const div = document.createElement('div');
+        div.id = 'debug-error-panel';
+        div.style.cssText = "position:fixed; bottom:0; left:0; right:0; background:red; color:white; padding:20px; z-index:999999; font-family:monospace";
+        document.body.appendChild(div);
+    }
+    document.getElementById('debug-error-panel').innerHTML += `<br>ERROR: ${msg} <br> LINE: ${lineNo}`;
+    return false;
+};
+window.addEventListener("unhandledrejection", function (promiseRejectionEvent) {
+    if (!document.getElementById('debug-error-panel')) {
+        const div = document.createElement('div');
+        div.id = 'debug-error-panel';
+        div.style.cssText = "position:fixed; bottom:0; left:0; right:0; background:red; color:white; padding:20px; z-index:999999; font-family:monospace";
+        document.body.appendChild(div);
+    }
+    document.getElementById('debug-error-panel').innerHTML += `<br>UNHANDLED REJECTION: ${promiseRejectionEvent.reason}`;
+});
+
 // --- GOOGLE ANALYTICS HELPER ---
 window.trackEvent = (name, params = {}) => {
     if (typeof window.gtag === 'function') {
@@ -234,7 +255,11 @@ const store = {
                 fields: 'id,username,name,avatar,avatar_url',
                 $autoCancel: false
             });
-            this.slimUsers = records.map(r => window.normalizeProfile ? window.normalizeProfile(r) : r);
+            this.slimUsers = records.map(r => {
+                try {
+                    return window.normalizeProfile ? window.normalizeProfile(r) : r;
+                } catch (e) { return r; }
+            });
         } catch (err) {
             console.warn("[STORE] ⚠️ Error cargando Slim Users:", err);
             this.slimUsers = [];
