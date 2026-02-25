@@ -24,6 +24,7 @@ const getSearchableUsers = (store) => {
     const allKnownUsers = [
         ...Object.values(store.usersCache || {}),
         ...(store.nuclearCache?.items || []),
+        ...(store.slimUsers || []),
         ...promptAuthors
     ];
 

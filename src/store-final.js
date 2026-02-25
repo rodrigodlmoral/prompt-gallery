@@ -142,6 +142,7 @@ const store = {
     usersCache: {}, // { username: { ...profileData } }
     users: [],      // Admin list
     nuclearCache: { items: [], lastFetch: 0 },
+    slimUsers: [], // Lightweight user list for global search
     stats: { users: 0, prompts: 0, visits: 0 },
     boostSystem: null,
     BOOST_PRICES,
@@ -166,7 +167,8 @@ const store = {
         const [galleryResult, analysisResult] = await Promise.allSettled([
             this.loadPrompts(true), // Prioridad 1: Que el usuario vea posts
             this.loadAllPromptsForAnalysis(), // Prioridad 2: Cálculo de Tops en background
-            this.initBoostSystem() // Prioridad 3: Marketplace
+            this.initBoostSystem(), // Prioridad 3: Marketplace
+            this.loadSlimUsers() // Prioridad 4: Buscador global
         ]);
 
         if (galleryResult.status === 'rejected') console.error("❌ Gallery Load Error:", galleryResult.reason);
@@ -222,6 +224,20 @@ const store = {
         } catch (err) {
             console.error("[STORE] Error cargando lista de análisis:", err);
             this.allPrompts = [];
+        }
+    },
+
+    async loadSlimUsers() {
+        try {
+            console.log("[STORE] 🔍 Cargando Slim Users para el buscador...");
+            const records = await pb.collection('users').getFullList({
+                fields: 'id,username,name,avatar,avatar_url',
+                $autoCancel: false
+            });
+            this.slimUsers = records.map(r => window.normalizeProfile ? window.normalizeProfile(r) : r);
+        } catch (err) {
+            console.warn("[STORE] ⚠️ Error cargando Slim Users:", err);
+            this.slimUsers = [];
         }
     },
 
