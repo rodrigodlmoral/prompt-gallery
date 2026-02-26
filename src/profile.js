@@ -21,7 +21,7 @@ setupLevelModals();
 const app = document.getElementById('app');
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
-const MAINTENANCE_MODE = false;
+const MAINTENANCE_MODE = true;
 
 const renderMaintenance = () => {
     // 1. Apply blur and safety to the main app container
