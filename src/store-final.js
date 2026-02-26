@@ -667,6 +667,19 @@ const store = {
                 }
             }
 
+            // STRATEGY 0.5: Buscar en Slim Users (Memoria ya cargada en init)
+            if (!found && this.slimUsers && this.slimUsers.length > 0) {
+                const slim = this.slimUsers.find(u => (u.username || '').toLowerCase() === lowerQuery || (u.name || '').toLowerCase() === lowerQuery);
+                if (slim && slim.id) {
+                    try {
+                        found = await pb.collection('users').getOne(slim.id);
+                        if (found) return this._cacheUser(lowerQuery, found);
+                    } catch (e) {
+                         console.warn("[ST_DEBUG] Slim User getOne failed", e);
+                    }
+                }
+            }
+
             // STRATEGY 1: Buscar indirectamente a través de Prompts (Seguro, público y rápido)
             if (!found) {
                 try {
@@ -696,38 +709,9 @@ const store = {
                 }
             }
 
-            // STRATEGY 3: Dragnet (Solo si todo lo demás falla y el servidor aguanta)
-            if (!found) {
-                console.log("[ST_DEBUG] Engaging DRAGNET search...");
-                try {
-                    const dragnet = await pb.collection('users').getList(1, 100, { $autoCancel: false });
-                    found = dragnet.items.find(u =>
-                        (u.name && u.name.toLowerCase() === lowerQuery) ||
-                        (u.username && u.username.toLowerCase() === lowerQuery)
-                    );
-                } catch (e) {
-                    console.warn("[ST_DEBUG] Dragnet failed, continuing...");
-                }
-            }
-
-            // STRATEGY 3: ID Check (If looks like PB ID)
-            if (!found && query.length === 15) {
-                try {
-                    found = await pb.collection('users').getOne(query);
-                } catch (e) { }
-            }
-
-            // STRATEGY 4: NUCLEAR FALLBACK (Total Registry)
-            if (!found) {
-                console.log("[ST_DEBUG] Engaging NUCLEAR search...");
-                const items = await this.loadGlobalUsers(); // REFACTORED: Use shared method
-
-                found = items.find(u =>
-                    (u.name && u.name.toLowerCase() === lowerQuery) ||
-                    (u.username && u.username.toLowerCase() === lowerQuery)
-                );
-            }
-
+            // Eliminamos las peticiones masivas (Dragnet/Nuclear) que tiran el servidor con CORS/429
+            // Si después de memoria, cache, prompts directos y filtro directo no aparece, simplemente no existe o está capado.
+            
             if (found) {
                 const userId = found.id;
                 const finalName = found.name || found.username;
