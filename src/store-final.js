@@ -183,8 +183,8 @@ const store = {
 
         console.log("[STORE] ⚡ Iniciando Carga Optimizada (Serializada)...");
 
-        // === PHASE 1: Critical — Gallery + Boosts (user sees content ASAP) ===
-        // loadPrompts(true) internally calls window.render() when done
+        // === PHASE 1: Critical — Gallery + Boosts (loaded together) ===
+        this._isInitialLoad = true;
         try {
             await Promise.allSettled([
                 this.loadPrompts(true),
@@ -193,6 +193,7 @@ const store = {
         } catch (e) {
             console.error("[STORE] Phase 1 error:", e);
         }
+        this._isInitialLoad = false;
 
         // Gallery recovery
         if (this.prompts.length === 0) {
@@ -207,7 +208,9 @@ const store = {
         }
 
         this.isInitialized = true;
-        // DO NOT call window.render() here — loadPrompts(true) already did it.
+        // Render ONCE after BOTH prompts AND boosts are loaded (main page only)
+        const isProfilePage = window.location.pathname.includes('profile');
+        if (window.render && !isProfilePage) window.render();
 
         // === PHASE 2 (deferred 1s): Analysis + Slim Users (background, no re-render) ===
         setTimeout(async () => {
@@ -476,9 +479,8 @@ const store = {
             this.hasMore = records.items.length === this.batchSize;
             if (this.hasMore) this.currentPage++;
 
-            // Only auto-render on main page. Profile page has its own render pipeline.
-            const isProfilePage = window.location.pathname.includes('profile');
-            if (window.render && reset && !isProfilePage) window.render();
+            // Skip render during initial load (init() handles render after ALL Phase 1 tasks complete)
+            if (window.render && reset && !this._isInitialLoad) window.render();
             return result;
         } catch (error) {
             console.error("Error loading prompts batch:", error);
