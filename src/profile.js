@@ -521,6 +521,9 @@ const Gallery = () => {
 
     if (!user) return '<div class="container" style="padding:40px 0; color:#666">Cargando galería...</div>';
 
+    console.log(`[GALLERY_DEBUG] store.prompts.length = ${store.prompts.length}`);
+    console.log(`[GALLERY_DEBUG] profileTab = ${profileTab}`);
+
     let list = [...store.prompts].filter(p => {
         const isMine = p.author_id === user.id;
         if (p.is_private && (!store.currentUser || store.currentUser.id !== p.author_id)) return false;
@@ -547,6 +550,8 @@ const Gallery = () => {
         return true;
     });
 
+    console.log(`[GALLERY_DEBUG] filtered list.length = ${list.length}`);
+
     // Sort Logic (Default: newest first)
     list.sort((a, b) => {
         if (filters.sort === 'popular') {
@@ -565,7 +570,10 @@ const Gallery = () => {
     // La galería ahora usa store.prompts (los cargados incrementalmente)
     const itemsToShow = isVisitor ? list.slice(0, 12) : list;
 
-    if (list.length === 0) return `<div class="container" style="padding:100px; text-align:center; color:#666">No hay prompts que coincidan con los filtros.</div>`;
+    if (list.length === 0) {
+        console.warn(`[GALLERY_DEBUG] 🚨 La lista final es 0! user.id=${user.id}, store.prompts.length=${store.prompts.length}`);
+        return `<div class="container" style="padding:100px; text-align:center; color:#666">No hay prompts que coincidan con los filtros.</div>`;
+    }
 
     return `
     <div class="container gallery-grid" id="gallery-root" style="margin-top:20px">
