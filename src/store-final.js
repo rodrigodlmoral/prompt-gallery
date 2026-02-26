@@ -2168,23 +2168,30 @@ const store = {
                     batch.collection('users').update(adminId, { followers });
                     await batch.send();
                     console.log("[REGISTER] Auto-follow completo.");
-
-                    // NOTA: Hacemos fall-back automático al Ledger de parte del cliente 
-                    // debido a intermitencias en los hooks del servidor de PocketHost.
-                    try {
-                        const ledgerRes = await LedgerService.systemReward(
-                            newUser.id,
-                            50,
-                            'REGISTRATION_BONUS',
-                            `Bono de bienvenida para @${newUser.username || 'Usuario'}`
-                        );
-                        console.log(`[REGISTER] ✅ Registro exitoso para ${newUser.username}. Bono ledger TX: ${ledgerRes?.txHash}`);
-                    } catch (ledgerErr) {
-                        console.error("[REGISTER] Error al generar registro de bienvenida en ledger:", ledgerErr);
-                    }
                 }
             } catch (fErr) {
                 console.warn("[REGISTER] Error en auto-follow (no crítico):", fErr);
+            }
+
+            // 4. LEDGER: Bono de bienvenida (INDEPENDIENTE del auto-follow)
+            // Este bloque SIEMPRE se ejecuta si newUser existe, sin importar
+            // si el auto-follow falló o no.
+            try {
+                if (newUser) {
+                    const ledgerRes = await LedgerService.systemReward(
+                        newUser.id,
+                        50,
+                        'REGISTRATION_BONUS',
+                        `Bono de bienvenida para @${newUser.username || 'Usuario'}`
+                    );
+                    if (ledgerRes?.success) {
+                        console.log(`[REGISTER] ✅ Ledger bienvenida OK para ${newUser.username}. TX: ${ledgerRes.txHash}`);
+                    } else {
+                        console.error(`[REGISTER] ⚠️ Ledger bienvenida FALLÓ para ${newUser.username}:`, ledgerRes?.error);
+                    }
+                }
+            } catch (ledgerErr) {
+                console.error("[REGISTER] ❌ Error CRÍTICO al generar ledger de bienvenida:", ledgerErr);
             }
 
             return { success: true };
