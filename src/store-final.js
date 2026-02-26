@@ -346,6 +346,50 @@ const store = {
                     console.warn("[STORE] ⚠️ Error persistiendo (permisos?), pero la UI está OK localmente.");
                 }
             }
+
+            // --- PASSIVE LEVEL-UP CHECK (on login/sync) ---
+            try {
+                const levelSystem = new LevelSystem(pb);
+                const levelCheck = await levelSystem.checkLevelUp(userId);
+                if (levelCheck && levelCheck.shouldLevelUp) {
+                    const { oldLevel, newLevel, levelName } = levelCheck;
+                    const LEVEL_UP_BONUSES = [0, 10, 20, 30, 40, 50];
+                    const bonus = LEVEL_UP_BONUSES[newLevel] || 10;
+
+                    console.log(`[ECONOMY] 🎉 Passive Level Up on login! ${oldLevel} -> ${newLevel} (${levelName}). Bonus: ${bonus}`);
+
+                    // Update user with new level + bonus
+                    const progress = levelSystem.calculateProgress(newLevel, realPosts, realCopies);
+                    await pb.collection('users').update(userId, {
+                        level: newLevel,
+                        level_progress: progress,
+                        'tokens+': bonus,
+                        'total_earned+': bonus,
+                        'total_rewards+': bonus
+                    });
+
+                    // Ledger entry for level-up bonus
+                    await LedgerService.systemReward(
+                        userId, bonus, 'LEVEL_UP',
+                        `Bono por subir al Nivel ${newLevel}: ${levelName} (detectado al iniciar sesión)`
+                    );
+
+                    // Update local profile
+                    profile.level = newLevel;
+                    profile.tokens = (profile.tokens || 0) + bonus;
+
+                    // Show level-up modal after a short delay (DOM needs to be ready)
+                    setTimeout(() => {
+                        if (window.showLevelUpModal) {
+                            window.showLevelUpModal(newLevel);
+                        } else if (window.showToast) {
+                            window.showToast(`🎉 ¡Subiste a Nivel ${newLevel}: ${levelName}! +${bonus} 💎 Bonus`, 'success');
+                        }
+                    }, 2000);
+                }
+            } catch (levelErr) {
+                console.warn("[STORE] Level check on sync error:", levelErr);
+            }
         } catch (e) {
             console.warn("[STORE] Sync stats error:", e);
         }
