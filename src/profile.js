@@ -1128,7 +1128,6 @@ const render = () => {
             <div id="profile-gallery-container"></div>
             <div id="modals-mount"></div>
             <div id="adv-filter-mount"></div>
-            ${SettingsModal()}
             ${CreateModal()}
             ${ConfirmModal()}
             ${AuthModal()}
@@ -1136,6 +1135,19 @@ const render = () => {
         `;
         const modalsMount = document.getElementById('modals-mount');
         if (modalsMount) modalsMount.innerHTML = DetailModalTemplateLocal();
+    }
+
+    // --- SAFE MODAL INJECTION ---
+    if (store.currentUser) {
+        const modalsMount = document.getElementById('modals-mount');
+        if (modalsMount) {
+            const settingsModal = document.getElementById('settingsModal');
+            if (!settingsModal) {
+                modalsMount.insertAdjacentHTML('beforeend', SettingsModal());
+            } else if (settingsModal.style.display === 'none') {
+                settingsModal.outerHTML = SettingsModal();
+            }
+        }
     }
 
     const headerMount = document.getElementById('header-mount');
@@ -2221,7 +2233,13 @@ window.setProfileTab = (tab) => {
 
 window.openSettings = () => {
     const modal = document.getElementById('settingsModal');
-    if (modal) modal.style.display = 'flex';
+    if (modal) {
+        if (modal.parentNode !== document.body) {
+            document.body.appendChild(modal);
+        }
+        modal.style.display = 'flex';
+        modal.style.zIndex = '9999999';
+    }
 };
 
 window.previewAvatar = (input) => {

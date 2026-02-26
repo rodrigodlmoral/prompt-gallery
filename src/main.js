@@ -678,6 +678,19 @@ const render = () => {
         if (modalsMount) modalsMount.innerHTML = Modals();
     }
 
+    // --- SAFE MODAL INJECTION ---
+    if (store.currentUser) {
+        const modalsMount = document.getElementById('modals-mount');
+        if (modalsMount) {
+            const settingsModal = document.getElementById('settingsModal');
+            if (!settingsModal) {
+                modalsMount.insertAdjacentHTML('beforeend', SettingsModal());
+            } else if (settingsModal.style.display === 'none') {
+                settingsModal.outerHTML = SettingsModal();
+            }
+        }
+    }
+
     // Advanced Filter Panel
     const advFilterMount = document.getElementById('adv-filter-mount');
     if (advFilterMount) advFilterMount.innerHTML = AdvancedFilters(filters);

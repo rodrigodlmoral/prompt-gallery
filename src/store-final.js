@@ -178,8 +178,8 @@ const store = {
 
     async init() {
         if (pb.authStore.isValid && pb.authStore.model) {
-            // Carga de perfil no bloquea el inicio
-            this._loadUserProfile(pb.authStore.model.id);
+            // Carga de perfil no bloquea el inicio (defer syncUserStats)
+            this._loadUserProfile(pb.authStore.model.id, true);
         }
 
         console.log("[STORE] ⚡ Iniciando Carga Optimizada...");
@@ -195,9 +195,28 @@ const store = {
         if (galleryResult.status === 'rejected') console.error("❌ Gallery Load Error:", galleryResult.reason);
         if (analysisResult.status === 'rejected') console.warn("⚠️ Analysis Load Error:", analysisResult.reason);
 
+        // --- GALLERY RECOVERY: Retry if gallery loaded 0 items ---
+        if (this.prompts.length === 0) {
+            console.warn("[STORE] ⚠️ Gallery vacía tras carga inicial. Reintentando en 2s...");
+            await new Promise(r => setTimeout(r, 2000));
+            await this.loadPrompts(true);
+            if (this.prompts.length === 0) {
+                console.warn("[STORE] ⚠️ Segundo intento falló. Reintentando en 5s...");
+                await new Promise(r => setTimeout(r, 5000));
+                await this.loadPrompts(true);
+            }
+        }
+
         await this.getPublicStats();
         this.trackVisit();
         this.isInitialized = true;
+
+        // Deferred sync: run user stats AFTER init to avoid racing with gallery
+        if (pb.authStore.isValid && pb.authStore.model && this.currentUser) {
+            this.syncUserStats(pb.authStore.model.id, this.currentUser).catch(e =>
+                console.warn("[STORE] Deferred sync error:", e)
+            );
+        }
     },
 
     async initBoostSystem() {
@@ -266,12 +285,14 @@ const store = {
         }
     },
 
-    async _loadUserProfile(userId) {
+    async _loadUserProfile(userId, deferSync = false) {
         try {
-            const record = await pb.collection('users').getOne(userId);
+            const record = await pb.collection('users').getOne(userId, { $autoCancel: false });
             if (record) {
                 const profile = window.normalizeProfile ? window.normalizeProfile(record) : record;
-                await this.syncUserStats(userId, profile);
+                if (!deferSync) {
+                    await this.syncUserStats(userId, profile);
+                }
                 this.currentUser = profile;
             }
         } catch (error) {
@@ -344,17 +365,27 @@ const store = {
             console.log(`[STORE] 📦 Loading Batch (Filter: ${customFilter || 'none'}): Page ${this.currentPage} (Size ${this.batchSize})`);
 
             let records;
-            try {
-                // EL ÚNICO MAESTRO ES created_at_custom
-                records = await pb.collection('prompts').getList(this.currentPage, this.batchSize, {
-                    sort: '-created_at_custom',
-                    filter: customFilter || '',
-                    expand: 'author',
-                    $autoCancel: false
-                });
-            } catch (sortErr) {
-                console.error("[STORE] ❌ Error crítico: created_at_custom falló.", sortErr);
-                records = { items: [], totalItems: 0 };
+            let retryCount = 0;
+            const maxRetries = 2;
+            while (retryCount <= maxRetries) {
+                try {
+                    records = await pb.collection('prompts').getList(this.currentPage, this.batchSize, {
+                        sort: '-created_at_custom',
+                        filter: customFilter || '',
+                        expand: 'author',
+                        $autoCancel: false
+                    });
+                    break; // Success, exit retry loop
+                } catch (sortErr) {
+                    retryCount++;
+                    if (retryCount > maxRetries) {
+                        console.error(`[STORE] ❌ Error crítico tras ${maxRetries + 1} intentos:`, sortErr);
+                        records = { items: [], totalItems: 0 };
+                    } else {
+                        console.warn(`[STORE] ⚠️ Intento ${retryCount} falló, reintentando en ${retryCount * 1000}ms...`, sortErr.message);
+                        await new Promise(r => setTimeout(r, retryCount * 1000));
+                    }
+                }
             }
 
             const newPrompts = this._mapPrompts(records.items);
