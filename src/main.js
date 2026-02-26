@@ -36,7 +36,7 @@ import { initLiveChat } from './components/LiveChat.js';
 import { initSuperBoostFloat } from './components/SuperBoostFloat.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 // Script Initialization
 console.log("🚀 Prompt Gallery Initialized");
