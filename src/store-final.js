@@ -182,20 +182,19 @@ const store = {
             this._loadUserProfile(pb.authStore.model.id, true);
         }
 
-        console.log("[STORE] ⚡ Iniciando Carga Optimizada...");
+        console.log("[STORE] ⚡ Iniciando Carga Optimizada (Serializada)...");
 
-        // Lanzamos procesos en paralelo
-        const [galleryResult, analysisResult] = await Promise.allSettled([
-            this.loadPrompts(true), // Prioridad 1: Que el usuario vea posts
-            this.loadAllPromptsForAnalysis(), // Prioridad 2: Cálculo de Tops en background
-            this.initBoostSystem(), // Prioridad 3: Marketplace
-            this.loadSlimUsers() // Prioridad 4: Buscador global
-        ]);
+        // === PHASE 1: Critical — Gallery + Boosts (user sees content ASAP) ===
+        try {
+            await Promise.allSettled([
+                this.loadPrompts(true),
+                this.initBoostSystem()
+            ]);
+        } catch (e) {
+            console.error("[STORE] Phase 1 error:", e);
+        }
 
-        if (galleryResult.status === 'rejected') console.error("❌ Gallery Load Error:", galleryResult.reason);
-        if (analysisResult.status === 'rejected') console.warn("⚠️ Analysis Load Error:", analysisResult.reason);
-
-        // --- GALLERY RECOVERY: Retry if gallery loaded 0 items ---
+        // Gallery recovery
         if (this.prompts.length === 0) {
             console.warn("[STORE] ⚠️ Gallery vacía tras carga inicial. Reintentando en 2s...");
             await new Promise(r => setTimeout(r, 2000));
@@ -207,16 +206,44 @@ const store = {
             }
         }
 
-        await this.getPublicStats();
-        this.trackVisit();
+        // Mark initialized so UI renders immediately with gallery + boosts
         this.isInitialized = true;
+        if (window.render) window.render();
 
-        // Deferred sync: run user stats AFTER init to avoid racing with gallery
-        if (pb.authStore.isValid && pb.authStore.model && this.currentUser) {
-            this.syncUserStats(pb.authStore.model.id, this.currentUser).catch(e =>
-                console.warn("[STORE] Deferred sync error:", e)
-            );
-        }
+        // === PHASE 2 (deferred 1s): Analysis + Slim Users ===
+        setTimeout(async () => {
+            try {
+                await this.loadAllPromptsForAnalysis();
+            } catch (e) { console.warn("[STORE] Analysis load error:", e); }
+
+            // Small gap before next batch
+            await new Promise(r => setTimeout(r, 500));
+
+            try {
+                await this.loadSlimUsers();
+            } catch (e) { console.warn("[STORE] Slim users error:", e); }
+
+            // Re-render to update Tops now that allPrompts is loaded
+            if (window.render) window.render();
+        }, 1000);
+
+        // === PHASE 3 (deferred 3s): Stats + User Sync (non-critical) ===
+        setTimeout(async () => {
+            try {
+                await this.getPublicStats();
+            } catch (e) { console.warn("[STORE] Stats error:", e); }
+
+            this.trackVisit();
+
+            // Deferred sync: run user stats AFTER everything else
+            if (pb.authStore.isValid && pb.authStore.model && this.currentUser) {
+                try {
+                    await this.syncUserStats(pb.authStore.model.id, this.currentUser);
+                } catch (e) {
+                    console.warn("[STORE] Deferred sync error:", e);
+                }
+            }
+        }, 3000);
     },
 
     async initBoostSystem() {
