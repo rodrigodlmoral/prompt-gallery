@@ -334,6 +334,14 @@ const Header = () => `
                 <button class="btn-outline" onclick="window.doLogout()">Salir</button>
             ` : ''}
             </nav>
+
+            <!-- Mobile Search & Menu Toggle -->
+            ${store.currentUser ? `
+            <div style="display:flex; align-items:center; gap:10px" class="mobile-only-flex">
+                <div class="search-mobile-btn" onclick="document.querySelector('.search-mobile-overlay').classList.add('active'); document.getElementById('searchMobileInput').focus()">🔍</div>
+                <button class="mobile-menu-btn" onclick="window.toggleMobileNav()">☰</button>
+            </div>
+            ` : ''}
         </div>
         ${store.currentUser ? `
         <div class="container filters-bar" style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; background:rgba(0,0,0,0.3); align-items:center; justify-content: flex-end">
@@ -355,7 +363,40 @@ const Header = () => `
             </button>
         </div>
         ` : ''}
-</header> `;
+
+        <!-- Mobile Navigation Overlay (Unified Menu) -->
+        <div class="mobile-nav-overlay" id="mobileNavOverlay">
+            ${store.currentUser ? `
+            <div class="mobile-nav-item" onclick="window.location.href='/profile.html?u=${store.currentUser.username}'; window.toggleMobileNav();">
+                <i>👤</i> MI PERFIL
+            </div>
+            <div class="mobile-nav-item" onclick="window.openCreate(); window.toggleMobileNav();">
+                <i>🚀</i> COMPARTIR PROMPT
+            </div>
+            <div class="mobile-nav-divider"></div>
+            <div class="mobile-nav-item" onclick="window.location.href='/'">
+                <i>🏠</i> VOLVER AL CREADOR (HOME)
+            </div>
+            <div class="mobile-nav-divider"></div>
+            <div class="mobile-nav-item" onclick="window.doLogout(); window.toggleMobileNav();" style="color:#ff6b6b">
+                <i>🚪</i> SALIR O CERRAR SESIÓN
+            </div>
+            ` : ''}
+        </div>
+
+        <div class="search-mobile-overlay">
+            <div class="container" style="display:flex; flex-direction:column; gap:10px; height:100%; padding-top:20px">
+                <div style="display:flex; align-items:center; gap:10px; width:100%">
+                    <button class="btn-icon" onclick="document.querySelector('.search-mobile-overlay').classList.remove('active')" style="font-size:1.2rem; color:#fff">✕</button>
+                    <div class="search-bar" style="flex:1; max-width:none; position:relative">
+                        <input type="password" style="display:none" autocomplete="new-password">
+                        <input type="text" class="search-input" id="searchMobileInput" placeholder="Buscar en perfil..." value="${searchQuery}" autocomplete="chrome-off-v2" spellcheck="false" name="mgprof_find" oninput="if(window.handleSearchTyping) window.handleSearchTyping(this.value)" onkeydown="if(event.key === 'Enter'){ window.handleSearch(this.value); document.querySelector('.search-mobile-overlay').classList.remove('active'); }">
+                    </div>
+                </div>
+                <div id="search-mobile-suggestions-mount" style="flex:1; overflow-y:auto; margin-top:10px"></div>
+            </div>
+        </div>
+    </header> `;
 
 const ProfileHeader = () => {
     console.log(`[PROFILE] ProfileHeader: profileUser = "${profileUser}"`);
@@ -1223,6 +1264,21 @@ const render = () => {
 };
 window.render = render;
 
+// --- MOBILE NAVIGATION LOGIC ---
+window.toggleMobileNav = () => {
+    const nav = document.getElementById('mobileNavOverlay');
+    if (nav) nav.classList.toggle('active');
+};
+// Close mobile nav when clicking outside
+document.addEventListener('click', (e) => {
+    const nav = document.getElementById('mobileNavOverlay');
+    const btn = document.querySelector('.mobile-menu-btn');
+    if (nav && nav.classList.contains('active')) {
+        if (!nav.contains(e.target) && btn && !btn.contains(e.target)) {
+            nav.classList.remove('active');
+        }
+    }
+});
 const attachEvents = () => {
     document.getElementById('searchInput')?.addEventListener('input', (e) => {
         if (window.handleSearchTyping) window.handleSearchTyping(e.target.value);
