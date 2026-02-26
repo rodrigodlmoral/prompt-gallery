@@ -925,60 +925,17 @@ const store = {
     getTopWeeklyPrompts() {
         if (!this.allPrompts || this.allPrompts.length === 0) return [];
 
-        const now = Date.now();
-        const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
-        const isGuest = !(this.currentUser || pb.authStore.isValid);
-
-        // Validation function for NSFW/Suggestive
-        const isValid = (p) => {
-            if (p.is_private) return false;
-            // Exclude suggestive/NSFW content for guests
-            if (isGuest) {
-                const r = p.type === 'sequence' && p.content && p.content.length > 0 ? p.content[0].rating : p.rating;
-                if (r === 'Sugestivo' || r === 'NSFW / +18') return false;
-            }
-            return true;
-        };
-
-        // 1. Prioritize Weekly Boosts (Sorted by purchase descending)
+        // ONLY return active Weekly Boosts — no fallbacks
         const boosted = [];
         for (const promptId of this.activeBoosts.weekly) {
-            const p = this.allPrompts.find(x => x.id === promptId);
-            if (p && isValid(p)) boosted.push(p);
+            const p = this.allPrompts.find(x => x.id === promptId && !x.is_private);
+            if (p) boosted.push(p);
         }
 
         if (boosted.length > 0) {
             console.log(`[CEREBRO] 🧠 Top Semanal: Mostrando ${boosted.length} Boosts activos.`);
-            return boosted;
         }
-
-        // 2. Fallbacks if no boosts exist
-        const superBoostedIds = new Set(this.activeBoosts.super);
-        const featured = this.allPrompts.filter(p =>
-            isValid(p) &&
-            (p.is_featured || p.admin_featured || superBoostedIds.has(p.id)) &&
-            (!p.featured_until || new Date(p.featured_until) > now)
-        ).sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
-
-        const recent = this.allPrompts.filter(p =>
-            isValid(p) &&
-            !superBoostedIds.has(p.id) &&
-            !p.is_featured &&
-            !p.admin_featured &&
-            p.createdAt >= weekAgo
-        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
-
-        const fallbacks = this.allPrompts.filter(p =>
-            isValid(p) &&
-            !superBoostedIds.has(p.id) &&
-            !p.is_featured &&
-            !p.admin_featured &&
-            p.createdAt < weekAgo
-        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
-
-        const result = [...featured, ...recent, ...fallbacks].slice(0, 3);
-        console.log(`[CEREBRO] 🧠 Top Semanal (Fallback) calculado: 3 items`);
-        return result;
+        return boosted;
     },
 
     /**
@@ -1020,52 +977,17 @@ const store = {
     getTopDailyPrompts() {
         if (!this.allPrompts || this.allPrompts.length === 0) return [];
 
-        const now = Date.now();
-        const dayAgo = now - (24 * 60 * 60 * 1000);
-        const isGuest = !(this.currentUser || pb.authStore.isValid);
-
-        // Validation function for NSFW/Suggestive
-        const isValid = (p) => {
-            if (p.is_private) return false;
-            // Exclude suggestive/NSFW content for guests
-            if (isGuest) {
-                const r = p.type === 'sequence' && p.content && p.content.length > 0 ? p.content[0].rating : p.rating;
-                if (r === 'Sugestivo' || r === 'NSFW / +18') return false;
-            }
-            return true;
-        };
-
-        // 1. Prioritize Daily Boosts (Sorted by purchase descending)
+        // ONLY return active Daily Boosts — no fallbacks
         const boosted = [];
         for (const promptId of this.activeBoosts.daily) {
-            const p = this.allPrompts.find(x => x.id === promptId);
-            if (p && isValid(p)) boosted.push(p);
+            const p = this.allPrompts.find(x => x.id === promptId && !x.is_private);
+            if (p) boosted.push(p);
         }
 
         if (boosted.length > 0) {
             console.log(`[CEREBRO] 🔥 Top Diario: Mostrando ${boosted.length} Boosts activos.`);
-            return boosted;
         }
-
-        // 2. Fallbacks if no boosts exist
-        const weeklyBoostedIds = new Set([...this.activeBoosts.weekly, ...this.activeBoosts.super]);
-        const featured = this.allPrompts.filter(p =>
-            isValid(p) &&
-            (p.is_featured || p.admin_featured || weeklyBoostedIds.has(p.id)) &&
-            (!p.featured_until || new Date(p.featured_until) > now)
-        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
-
-        const recent = this.allPrompts.filter(p =>
-            isValid(p) &&
-            !weeklyBoostedIds.has(p.id) &&
-            !p.is_featured &&
-            !p.admin_featured &&
-            p.createdAt >= dayAgo
-        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
-
-        const result = [...featured, ...recent].slice(0, 1);
-        console.log(`[CEREBRO] 🔥 Top Diario (Fallback) calculado: 1 item`);
-        return result;
+        return boosted;
     },
 
     // --- CONTENT ACTIONS ---

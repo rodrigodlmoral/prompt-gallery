@@ -5,7 +5,17 @@ export const PromptsDiario = ({ currentView, prompts }) => {
     if (currentView !== 'home') return '';
 
     let featuredList = prompts;
-    if (!featuredList || featuredList.length === 0) return '';
+    if (!featuredList || featuredList.length === 0) {
+        return `
+        <div class="premium-spotlight-card" style="--glow-color: rgba(231, 76, 60, 0.15); margin-bottom: 25px; justify-content: center; text-align: center; min-height: 140px;">
+            <div class="spotlight-glow"></div>
+            <div class="spotlight-info" style="align-items: center;">
+                <div class="spotlight-badge" style="--badge-color: #e74c3c">🔥 TOP DIARIO</div>
+                <div style="color: #888; font-size: 0.95rem; margin: 8px 0;">No hay Boosts Diarios activos</div>
+                <div style="color: #666; font-size: 0.8rem;">¡Destaca tu prompt por 24 horas! Activa un Boost desde tu perfil.</div>
+            </div>
+        </div>`;
+    }
 
     // Single prompt: render simple card (no carousel controls)
     if (featuredList.length === 1) {
