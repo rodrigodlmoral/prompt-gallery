@@ -927,7 +927,7 @@ const store = {
 
         const now = Date.now();
         const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
-        const isGuest = !this.currentUser;
+        const isGuest = !(this.currentUser || pb.authStore.isValid);
 
         // Validation function for NSFW/Suggestive
         const isValid = (p) => {
@@ -989,7 +989,7 @@ const store = {
     getTopGalleryPrompts() {
         if (!this.allPrompts || this.allPrompts.length === 0) return [];
 
-        const isGuest = !this.currentUser;
+        const isGuest = !(this.currentUser || pb.authStore.isValid);
 
         // We just sort everyone by a mix of featured status and popularity.
         return [...this.allPrompts]
@@ -1022,7 +1022,7 @@ const store = {
 
         const now = Date.now();
         const dayAgo = now - (24 * 60 * 60 * 1000);
-        const isGuest = !this.currentUser;
+        const isGuest = !(this.currentUser || pb.authStore.isValid);
 
         // Validation function for NSFW/Suggestive
         const isValid = (p) => {
