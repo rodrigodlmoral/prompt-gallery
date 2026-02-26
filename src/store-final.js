@@ -178,13 +178,13 @@ const store = {
 
     async init() {
         if (pb.authStore.isValid && pb.authStore.model) {
-            // Carga de perfil no bloquea el inicio (defer syncUserStats)
             this._loadUserProfile(pb.authStore.model.id, true);
         }
 
         console.log("[STORE] ⚡ Iniciando Carga Optimizada (Serializada)...");
 
         // === PHASE 1: Critical — Gallery + Boosts (user sees content ASAP) ===
+        // loadPrompts(true) internally calls window.render() when done
         try {
             await Promise.allSettled([
                 this.loadPrompts(true),
@@ -206,28 +206,24 @@ const store = {
             }
         }
 
-        // Mark initialized so UI renders immediately with gallery + boosts
         this.isInitialized = true;
-        if (window.render) window.render();
+        // DO NOT call window.render() here — loadPrompts(true) already did it.
 
-        // === PHASE 2 (deferred 1s): Analysis + Slim Users ===
+        // === PHASE 2 (deferred 1s): Analysis + Slim Users (background, no re-render) ===
         setTimeout(async () => {
             try {
                 await this.loadAllPromptsForAnalysis();
             } catch (e) { console.warn("[STORE] Analysis load error:", e); }
 
-            // Small gap before next batch
             await new Promise(r => setTimeout(r, 500));
 
             try {
                 await this.loadSlimUsers();
             } catch (e) { console.warn("[STORE] Slim users error:", e); }
-
-            // Re-render to update Tops now that allPrompts is loaded
-            if (window.render) window.render();
+            // NO window.render() — data loaded silently for search/tops
         }, 1000);
 
-        // === PHASE 3 (deferred 3s): Stats + User Sync (non-critical) ===
+        // === PHASE 3 (deferred 3s): Stats + User Sync (non-critical, no re-render) ===
         setTimeout(async () => {
             try {
                 await this.getPublicStats();
@@ -235,7 +231,6 @@ const store = {
 
             this.trackVisit();
 
-            // Deferred sync: run user stats AFTER everything else
             if (pb.authStore.isValid && pb.authStore.model && this.currentUser) {
                 try {
                     await this.syncUserStats(pb.authStore.model.id, this.currentUser);
