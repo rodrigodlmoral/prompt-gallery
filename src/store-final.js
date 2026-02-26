@@ -476,7 +476,9 @@ const store = {
             this.hasMore = records.items.length === this.batchSize;
             if (this.hasMore) this.currentPage++;
 
-            if (window.render && reset) window.render();
+            // Only auto-render on main page. Profile page has its own render pipeline.
+            const isProfilePage = window.location.pathname.includes('profile');
+            if (window.render && reset && !isProfilePage) window.render();
             return result;
         } catch (error) {
             console.error("Error loading prompts batch:", error);
