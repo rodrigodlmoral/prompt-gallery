@@ -927,12 +927,24 @@ const store = {
 
         const now = Date.now();
         const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
+        const isGuest = !this.currentUser;
+
+        // Validation function for NSFW/Suggestive
+        const isValid = (p) => {
+            if (p.is_private) return false;
+            // Exclude suggestive/NSFW content for guests
+            if (isGuest) {
+                const r = p.type === 'sequence' && p.content && p.content.length > 0 ? p.content[0].rating : p.rating;
+                if (r === 'Sugestivo' || r === 'NSFW / +18') return false;
+            }
+            return true;
+        };
 
         // 1. Prioritize Weekly Boosts (Sorted by purchase descending)
         const boosted = [];
         for (const promptId of this.activeBoosts.weekly) {
-            const p = this.allPrompts.find(x => x.id === promptId && !x.is_private);
-            if (p) boosted.push(p);
+            const p = this.allPrompts.find(x => x.id === promptId);
+            if (p && isValid(p)) boosted.push(p);
         }
 
         if (boosted.length > 0) {
@@ -943,13 +955,13 @@ const store = {
         // 2. Fallbacks if no boosts exist
         const superBoostedIds = new Set(this.activeBoosts.super);
         const featured = this.allPrompts.filter(p =>
-            !p.is_private &&
+            isValid(p) &&
             (p.is_featured || p.admin_featured || superBoostedIds.has(p.id)) &&
             (!p.featured_until || new Date(p.featured_until) > now)
         ).sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
 
         const recent = this.allPrompts.filter(p =>
-            !p.is_private &&
+            isValid(p) &&
             !superBoostedIds.has(p.id) &&
             !p.is_featured &&
             !p.admin_featured &&
@@ -957,7 +969,7 @@ const store = {
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
         const fallbacks = this.allPrompts.filter(p =>
-            !p.is_private &&
+            isValid(p) &&
             !superBoostedIds.has(p.id) &&
             !p.is_featured &&
             !p.admin_featured &&
@@ -977,9 +989,19 @@ const store = {
     getTopGalleryPrompts() {
         if (!this.allPrompts || this.allPrompts.length === 0) return [];
 
+        const isGuest = !this.currentUser;
+
         // We just sort everyone by a mix of featured status and popularity.
         return [...this.allPrompts]
-            .filter(p => !p.is_private)
+            .filter(p => {
+                if (p.is_private) return false;
+                // Exclude NSFW/Suggestive for visitors from the Hero Carousel entirely
+                if (isGuest) {
+                    const r = p.type === 'sequence' && p.content && p.content.length > 0 ? p.content[0].rating : p.rating;
+                    if (r === 'Sugestivo' || r === 'NSFW / +18') return false;
+                }
+                return true;
+            })
             .sort((a, b) => {
                 // Priority 1: Organic Featured (admin picks)
                 const aFeatured = a.is_featured || a.admin_featured;
@@ -1000,12 +1022,24 @@ const store = {
 
         const now = Date.now();
         const dayAgo = now - (24 * 60 * 60 * 1000);
+        const isGuest = !this.currentUser;
+
+        // Validation function for NSFW/Suggestive
+        const isValid = (p) => {
+            if (p.is_private) return false;
+            // Exclude suggestive/NSFW content for guests
+            if (isGuest) {
+                const r = p.type === 'sequence' && p.content && p.content.length > 0 ? p.content[0].rating : p.rating;
+                if (r === 'Sugestivo' || r === 'NSFW / +18') return false;
+            }
+            return true;
+        };
 
         // 1. Prioritize Daily Boosts (Sorted by purchase descending)
         const boosted = [];
         for (const promptId of this.activeBoosts.daily) {
-            const p = this.allPrompts.find(x => x.id === promptId && !x.is_private);
-            if (p) boosted.push(p);
+            const p = this.allPrompts.find(x => x.id === promptId);
+            if (p && isValid(p)) boosted.push(p);
         }
 
         if (boosted.length > 0) {
@@ -1016,13 +1050,13 @@ const store = {
         // 2. Fallbacks if no boosts exist
         const weeklyBoostedIds = new Set([...this.activeBoosts.weekly, ...this.activeBoosts.super]);
         const featured = this.allPrompts.filter(p =>
-            !p.is_private &&
+            isValid(p) &&
             (p.is_featured || p.admin_featured || weeklyBoostedIds.has(p.id)) &&
             (!p.featured_until || new Date(p.featured_until) > now)
         ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
 
         const recent = this.allPrompts.filter(p =>
-            !p.is_private &&
+            isValid(p) &&
             !weeklyBoostedIds.has(p.id) &&
             !p.is_featured &&
             !p.admin_featured &&

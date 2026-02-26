@@ -945,6 +945,109 @@ header nav {
   }
 }
 
+/* --- BOOST CAROUSEL (Internal Slide System) --- */
+.boost-carousel-card {
+  position: relative;
+}
+
+.boost-slide {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 30px;
+  width: 100%;
+  animation: boostFadeIn 0.4s ease;
+}
+
+@keyframes boostFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.boost-dots-container {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 15px;
+  z-index: 5;
+  position: relative;
+}
+
+.boost-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.boost-dot.active {
+  background: #f1c40f;
+  transform: scale(1.3);
+  box-shadow: 0 0 8px rgba(241, 196, 15, 0.5);
+}
+
+.boost-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.boost-carousel-card:hover .boost-nav-btn {
+  opacity: 1;
+}
+
+.boost-nav-btn:hover {
+  background: rgba(241, 196, 15, 0.3);
+  border-color: #f1c40f;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.boost-prev {
+  left: 10px;
+}
+
+.boost-next {
+  right: 10px;
+}
+
+@media (max-width: 1200px) {
+  .boost-slide {
+    flex-direction: column;
+    text-align: center;
+    gap: 20px;
+  }
+
+  .boost-nav-btn {
+    opacity: 1;
+    width: 28px;
+    height: 28px;
+    font-size: 1rem;
+  }
+}
+
 /* --- FILTERS --- */
 .filter-bar {
   display: flex;
@@ -2967,376 +3070,395 @@ header nav {
   color: white;
   border-color: rgba(255, 255, 255, 0.3);
 }
+
 /* --- HEADER REFINEMENT (Desktop) - LAST VISUAL FIX --- */
 @media (min-width: 900px) {
-    
-    /* 1. Flex Container Alignment */
-    header nav {
-        display: flex;
-        align-items: center;
-        gap: 12px; /* Consistent gap between elements */
-        height: 100%;
-    }
 
-    /* 2. Unified Height & Base Styles for All Actions */
-    header nav .btn, 
-    header nav .btn-outline, 
-    header nav .user-info {
-        height: 42px; /* Fixed robust height for all */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.9rem;
-        font-weight: 700;
-        border-radius: 8px; /* Consistent geometry */
-        box-sizing: border-box;
-        transition: all 0.2s ease;
-        margin: 0; /* Remove potential margins */
-    }
+  /* 1. Flex Container Alignment */
+  header nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    /* Consistent gap between elements */
+    height: 100%;
+  }
 
-    /* 3. COMPARTIR PROMPT (Primary Action) */
-    header nav .btn#addBtn {
-        background: var(--accent); /* Keep vivid blue */
-        color: white;
-        padding: 0 24px; /* Generous padding */
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); /* Subtle glow */
-        border: 1px solid transparent; /* No border */
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-size: 0.85rem;
-    }
-    header nav .btn#addBtn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
-        background: #3b82f6;
-    }
+  /* 2. Unified Height & Base Styles for All Actions */
+  header nav .btn,
+  header nav .btn-outline,
+  header nav .user-info {
+    height: 42px;
+    /* Fixed robust height for all */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    font-weight: 700;
+    border-radius: 8px;
+    /* Consistent geometry */
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+    margin: 0;
+    /* Remove potential margins */
+  }
 
-    /* 4. USER PROFILE (Middle Element) */
-    header nav .user-info {
-        background: transparent;
-        color: #ddd;
-        padding: 0 12px 0 6px; /* Optimized padding */
-        gap: 10px;
-        cursor: pointer;
-        border: 1px solid transparent; /* Invisible border to match height calculation */
-        min-width: 140px; /* Minimum width for stability */
-        justify-content: flex-start; /* Align left */
-    }
-    header nav .user-info:hover {
-        background: rgba(255,255,255,0.05); /* Slight highlight on hover */
-        border-radius: 21px; /* Pill shape hover effect */
-        color: white;
-    }
-    
-    /* Specific Avatar Style in Header */
-    header nav .user-info .user-avatar-sm {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        border: 2px solid rgba(255,255,255,0.1);
-        background-size: cover;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-    }
+  /* 3. COMPARTIR PROMPT (Primary Action) */
+  header nav .btn#addBtn {
+    background: var(--accent);
+    /* Keep vivid blue */
+    color: white;
+    padding: 0 24px;
+    /* Generous padding */
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    /* Subtle glow */
+    border: 1px solid transparent;
+    /* No border */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.85rem;
+  }
 
-    /* 5. SALIR (Logout - Secondary Action) */
-    header nav .btn-outline {
-        padding: 0 20px;
-        border: 1px solid rgba(255,255,255,0.15);
-        color: #aaa;
-        background: transparent;
-        font-weight: 600;
-        font-size: 0.85rem;
-    }
-    header nav .btn-outline:hover {
-        background: rgba(255, 60, 60, 0.1); /* Subtle red tint */
-        border-color: rgba(255, 60, 60, 0.4);
-        color: #ff6b6b;
-    }
+  header nav .btn#addBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
+    background: #3b82f6;
+  }
+
+  /* 4. USER PROFILE (Middle Element) */
+  header nav .user-info {
+    background: transparent;
+    color: #ddd;
+    padding: 0 12px 0 6px;
+    /* Optimized padding */
+    gap: 10px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    /* Invisible border to match height calculation */
+    min-width: 140px;
+    /* Minimum width for stability */
+    justify-content: flex-start;
+    /* Align left */
+  }
+
+  header nav .user-info:hover {
+    background: rgba(255, 255, 255, 0.05);
+    /* Slight highlight on hover */
+    border-radius: 21px;
+    /* Pill shape hover effect */
+    color: white;
+  }
+
+  /* Specific Avatar Style in Header */
+  header nav .user-info .user-avatar-sm {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    background-size: cover;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  }
+
+  /* 5. SALIR (Logout - Secondary Action) */
+  header nav .btn-outline {
+    padding: 0 20px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #aaa;
+    background: transparent;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+
+  header nav .btn-outline:hover {
+    background: rgba(255, 60, 60, 0.1);
+    /* Subtle red tint */
+    border-color: rgba(255, 60, 60, 0.4);
+    color: #ff6b6b;
+  }
 }
 
 /* --- MARKETPLACE & BOOSTS --- */
 .marketplace-container {
-    padding: 2rem;
-    max-width: 1400px;
-    margin: 0 auto;
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .boost-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-    margin: 2rem 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin: 2rem 0;
 }
 
 .boost-card {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 24px;
-    padding: 2.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 2.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .boost-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--boost-color-1), var(--boost-color-2));
-    opacity: 0.8;
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--boost-color-1), var(--boost-color-2));
+  opacity: 0.8;
 }
 
 .boost-card.boost-daily {
-    --boost-color-1: #3b82f6;
-    --boost-color-2: #60a5fa;
-    --boost-glow: rgba(59, 130, 246, 0.2);
+  --boost-color-1: #3b82f6;
+  --boost-color-2: #60a5fa;
+  --boost-glow: rgba(59, 130, 246, 0.2);
 }
 
 .boost-card.boost-weekly {
-    --boost-color-1: #f59e0b;
-    --boost-color-2: #fbbf24;
-    --boost-glow: rgba(245, 158, 11, 0.2);
+  --boost-color-1: #f59e0b;
+  --boost-color-2: #fbbf24;
+  --boost-glow: rgba(245, 158, 11, 0.2);
 }
 
 .boost-card.boost-super {
-    --boost-color-1: #a855f7;
-    --boost-color-2: #c084fc;
-    --boost-glow: rgba(168, 85, 247, 0.2);
+  --boost-color-1: #a855f7;
+  --boost-color-2: #c084fc;
+  --boost-glow: rgba(168, 85, 247, 0.2);
 }
 
 .boost-card:hover {
-    transform: translateY(-8px);
-    border-color: var(--boost-color-1);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px var(--boost-glow);
+  transform: translateY(-8px);
+  border-color: var(--boost-color-1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px var(--boost-glow);
 }
 
 .boost-card.locked {
-    filter: grayscale(1) opacity(0.5);
-    cursor: not-allowed;
+  filter: grayscale(1) opacity(0.5);
+  cursor: not-allowed;
 }
 
 .boost-header {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .boost-icon {
-    font-size: 3rem;
-    filter: drop-shadow(0 0 10px var(--boost-glow));
+  font-size: 3rem;
+  filter: drop-shadow(0 0 10px var(--boost-glow));
 }
 
 .boost-header h4 {
-    margin: 0;
-    font-size: 1.75rem;
-    font-weight: 800;
-    letter-spacing: -0.5px;
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
 }
 
 .boost-description {
-    color: #94a3b8;
-    font-size: 1rem;
-    line-height: 1.6;
-    margin: 0;
+  color: #94a3b8;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
 }
 
 .boost-price {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    margin-top: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: auto;
 }
 
 .boost-price .price {
-    font-size: 3.5rem;
-    font-weight: 900;
-    background: linear-gradient(135deg, var(--boost-color-1), var(--boost-color-2));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    line-height: 1;
+  font-size: 3.5rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--boost-color-1), var(--boost-color-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1;
 }
 
 .boost-price .currency {
-    font-size: 2rem;
-    opacity: 0.8;
+  font-size: 2rem;
+  opacity: 0.8;
 }
 
 .btn-boost {
-    width: 100%;
-    padding: 1.25rem;
-    border-radius: 16px;
-    border: none;
-    background: linear-gradient(135deg, var(--boost-color-1), var(--boost-color-2));
-    color: white;
-    font-size: 1.1rem;
-    font-weight: 800;
-    cursor: pointer;
-    transition: all 0.3s;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+  width: 100%;
+  padding: 1.25rem;
+  border-radius: 16px;
+  border: none;
+  background: linear-gradient(135deg, var(--boost-color-1), var(--boost-color-2));
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .btn-boost:hover:not(:disabled) {
-    transform: scale(1.02);
-    filter: brightness(1.1);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  transform: scale(1.02);
+  filter: brightness(1.1);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
 .btn-boost:disabled {
-    background: #334155;
-    color: #64748b;
-    cursor: not-allowed;
+  background: #334155;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
 /* Active Boosts Section */
 .active-boosts {
-    margin-top: 5rem;
+  margin-top: 5rem;
 }
 
 .active-boosts h3 {
-    font-size: 2rem;
-    margin-bottom: 2rem;
-    background: linear-gradient(90deg, #fff, #666);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+  font-size: 2rem;
+  margin-bottom: 2rem;
+  background: linear-gradient(90deg, #fff, #666);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .active-boost-item {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 20px;
-    padding: 1.5rem 2rem;
-    margin-bottom: 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: all 0.3s;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  padding: 1.5rem 2rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s;
 }
 
 .active-boost-item:hover {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .boost-info {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .boost-thumb {
-    width: 60px;
-    height: 60px;
-    border-radius: 12px;
-    object-fit: cover;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .prompt-title-boost {
-    font-weight: 700;
-    font-size: 1.1rem;
-    margin-bottom: 0.25rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
 }
 
 .boost-badge-mini {
-    font-size: 0.75rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    color: var(--boost-color-1);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--boost-color-1);
 }
 
 .boost-stats {
-    display: flex;
-    gap: 3rem;
+  display: flex;
+  gap: 3rem;
 }
 
 .stat-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .stat-value {
-    font-weight: 800;
-    font-size: 1.25rem;
+  font-weight: 800;
+  font-size: 1.25rem;
 }
 
 .stat-label {
-    font-size: 0.75rem;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .expiry-box {
-    text-align: right;
+  text-align: right;
 }
 
 .expiry-label {
-    font-size: 0.8rem;
-    color: #64748b;
-    margin-bottom: 0.25rem;
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
 }
 
 .expiry-time {
-    font-weight: 800;
-    color: #f59e0b;
-    font-family: monospace;
-    font-size: 1.1rem;
+  font-weight: 800;
+  color: #f59e0b;
+  font-family: monospace;
+  font-size: 1.1rem;
 }
 
 /* Modal Selector */
 .prompt-selector-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 1rem;
-    max-height: 400px;
-    overflow-y: auto;
-    padding: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 1rem;
 }
 
 .prompt-sel-card {
-    cursor: pointer;
-    border-radius: 12px;
-    overflow: hidden;
-    border: 2px solid transparent;
-    transition: all 0.2s;
-    background: #1e293b;
+  cursor: pointer;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  background: #1e293b;
 }
 
 .prompt-sel-card:hover {
-    border-color: #3b82f6;
-    transform: translateY(-4px);
+  border-color: #3b82f6;
+  transform: translateY(-4px);
 }
 
 .prompt-sel-card.selected {
-    border-color: #3b82f6;
-    background: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
 }
 
 .prompt-sel-card img {
-    width: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
 }
 
 .prompt-sel-info {
-    padding: 0.75rem;
-    text-align: center;
+  padding: 0.75rem;
+  text-align: center;
 }
 
 .prompt-sel-name {
-    font-weight: 600;
-    font-size: 0.8rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  font-weight: 600;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -463,6 +463,52 @@ window.navHeroCarousel = (dir) => {
     }, 3000);
 };
 
+// --- BOOST CAROUSEL NAVIGATION ---
+window._boostSlideIndex = { semanal: 0, diario: 0 };
+
+window.goBoostSlide = (type, index) => {
+    const carouselId = type === 'semanal' ? 'boost-semanal-carousel' : 'boost-diario-carousel';
+    const carousel = document.getElementById(carouselId);
+    if (!carousel) return;
+
+    const slides = carousel.querySelectorAll('.boost-slide');
+    const dots = carousel.querySelectorAll('.boost-dot');
+    if (index < 0 || index >= slides.length) return;
+
+    slides.forEach(s => s.style.display = 'none');
+    dots.forEach(d => d.classList.remove('active'));
+
+    slides[index].style.display = 'flex';
+    dots[index].classList.add('active');
+    window._boostSlideIndex[type] = index;
+};
+
+window.navBoostSlide = (type, dir) => {
+    const carouselId = type === 'semanal' ? 'boost-semanal-carousel' : 'boost-diario-carousel';
+    const carousel = document.getElementById(carouselId);
+    if (!carousel) return;
+
+    const slides = carousel.querySelectorAll('.boost-slide');
+    const current = window._boostSlideIndex[type] || 0;
+    let next = current + dir;
+    if (next < 0) next = slides.length - 1;
+    if (next >= slides.length) next = 0;
+
+    window.goBoostSlide(type, next);
+};
+
+// Auto-rotate boost slides every 5 seconds
+setInterval(() => {
+    ['semanal', 'diario'].forEach(type => {
+        const carouselId = type === 'semanal' ? 'boost-semanal-carousel' : 'boost-diario-carousel';
+        const carousel = document.getElementById(carouselId);
+        if (!carousel) return;
+        const slides = carousel.querySelectorAll('.boost-slide');
+        if (slides.length <= 1) return;
+        window.navBoostSlide(type, 1);
+    });
+}, 5000);
+
 // --- TOP CREATORS STATE ---
 let topCreatorsList = [];
 window.openUserProfile = (username) => {
