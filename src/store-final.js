@@ -646,8 +646,7 @@ const store = {
         const query = rawUsername.trim().replace(/['"]/g, "");
         const lowerQuery = query.toLowerCase();
 
-        // 1. Check Cache (Normalized) with 60s TTL
-        // NOTE: We do NOT rely solely on cache if we need to force a refresh, but for profile view it's fine.
+        // 1. Check Cache
         if (this.usersCache[lowerQuery] && (Date.now() - this.usersCache[lowerQuery]._fetchedAt < 60000)) {
             return this.usersCache[lowerQuery];
         }
@@ -655,18 +654,49 @@ const store = {
         try {
             let found = null;
 
-            // STRATEGY 1: Direct Filter (Fastest) - Check 'username' (system) and 'name' (custom)
-            try {
-                // PocketBase prefiere comillas simples para strings literales en los filtros.
-                const res = await pb.collection('users').getList(1, 1, {
-                    filter: `username='${query}' || name='${query}'`
-                });
-                if (res.items.length > 0) found = res.items[0];
-            } catch (e) {
-                console.warn("[ST_DEBUG] Direct filter error, continuing...");
+            // STRATEGY 0: Buscar en memoria (0 network requests)
+            if (this.allPrompts && this.allPrompts.length > 0) {
+                const memPrompt = this.allPrompts.find(p => (p.author || '').toLowerCase() === lowerQuery);
+                if (memPrompt && memPrompt.author_id) {
+                    try {
+                        found = await pb.collection('users').getOne(memPrompt.author_id);
+                        if (found) return this._cacheUser(lowerQuery, found);
+                    } catch (e) {
+                        console.warn("[ST_DEBUG] Memory getOne failed", e);
+                    }
+                }
             }
 
-            // STRATEGY 2: Dragnet (Latest 100 users) - Case Insensitive
+            // STRATEGY 1: Buscar indirectamente a través de Prompts (Seguro, público y rápido)
+            if (!found) {
+                try {
+                    const promptRes = await pb.collection('prompts').getList(1, 1, {
+                        filter: `author.username='${query}' || author.name='${query}'`,
+                        expand: 'author',
+                        $autoCancel: false
+                    });
+                    if (promptRes.items.length > 0 && promptRes.items[0].expand?.author) {
+                        found = promptRes.items[0].expand.author;
+                        return this._cacheUser(lowerQuery, found);
+                    }
+                } catch (e) {
+                    console.warn("[ST_DEBUG] Búsqueda indirecta por prompts falló:", e.message);
+                }
+            }
+
+            // STRATEGY 2: Direct Filter en 'users' (Puede fallar por permisos en PocketBase)
+            if (!found) {
+                try {
+                    const res = await pb.collection('users').getList(1, 1, {
+                        filter: `username='${query}' || name='${query}'`
+                    });
+                    if (res.items.length > 0) found = res.items[0];
+                } catch (e) {
+                    console.warn("[ST_DEBUG] Direct users filter error, continuing...");
+                }
+            }
+
+            // STRATEGY 3: Dragnet (Solo si todo lo demás falla y el servidor aguanta)
             if (!found) {
                 console.log("[ST_DEBUG] Engaging DRAGNET search...");
                 try {
