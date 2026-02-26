@@ -11,7 +11,7 @@ export const renderTopCreators = (details, currentUser) => {
         <div class="tc-header">
             <div>
                 <div class="tc-title">⭐ TOP CREADORES</div>
-                <div class="tc-subtitle">CUADRO DE HONOR • LOS 10 MEJORES</div>
+                <div class="tc-subtitle">CUADRO DE HONOR • LOS 20 MEJORES</div>
             </div>
         </div>
         <div class="tc-grid" id="tc-grid-container">

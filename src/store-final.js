@@ -223,7 +223,12 @@ const store = {
             try {
                 await this.loadSlimUsers();
             } catch (e) { console.warn("[STORE] Slim users error:", e); }
-            // NO window.render() — data loaded silently for search/tops
+
+            // FIX: Render again so Boosts and Popularity picks (which depend on allPrompts) can show up
+            if (window.render && !isProfilePage) {
+                console.log("[STORE] 🎨 Re-rendering Home to show active Boosts and Top Creators...");
+                window.render();
+            }
         }, 1000);
 
         // === PHASE 3 (deferred 3s): Stats + User Sync (non-critical, no re-render) ===
@@ -971,7 +976,7 @@ const store = {
     async getTopCreators() {
         try {
             // Unico criterio: Cantidad de prompts creados (DESC)
-            const records = await pb.collection('users').getList(1, 10, {
+            const records = await pb.collection('users').getList(1, 20, {
                 sort: '-prompts_count'
             });
             return records.items.map(p => window.normalizeProfile ? window.normalizeProfile(p) : p);
