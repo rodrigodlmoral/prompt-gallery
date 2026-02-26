@@ -2620,9 +2620,20 @@ const init = async () => {
             // 1. CARGA MAESTRA PARA ANÁLISIS (Todos los del usuario para stats/prompts_count)
             await store.loadUserPromptsForAnalysis(user.id);
 
-            // 2. CARGA INICIAL PARA GALERÍA (Primeros 60)
-            const filter = `author = "${user.id}"`;
-            await store.loadPrompts(true, filter);
+            // 2. RECICLAJE DE MEMORIA PARA GALERÍA
+            // PocketHost falla por rate limit si hacemos getList después de getFullList.
+            // Asi que inyectamos los que ya trajimos directamente a store.prompts
+            if (store.userAllPrompts && store.userAllPrompts.length > 0) {
+                store.prompts = store.userAllPrompts.slice(0, 60);
+                store.currentPage = 1;
+                store.hasMore = store.userAllPrompts.length > 60;
+                store.isLoadingMore = false;
+                console.log(`[PROFILE] ♻️ Reutilizados ${store.prompts.length} prompts maestros para la visualización.`);
+            } else {
+                // Caída si por alguna razón falla el master load
+                const filter = `author = "${user.id}"`;
+                await store.loadPrompts(true, filter);
+            }
         }
     }
     window.initDone = true;

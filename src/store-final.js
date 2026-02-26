@@ -657,8 +657,9 @@ const store = {
 
             // STRATEGY 1: Direct Filter (Fastest) - Check 'username' (system) and 'name' (custom)
             try {
+                // PocketBase prefiere comillas simples para strings literales en los filtros.
                 const res = await pb.collection('users').getList(1, 1, {
-                    filter: `username="${query}" || name="${query}"`
+                    filter: `username='${query}' || name='${query}'`
                 });
                 if (res.items.length > 0) found = res.items[0];
             } catch (e) {
