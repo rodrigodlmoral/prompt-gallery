@@ -688,9 +688,9 @@ const store = {
             // STRATEGY 1: Buscar indirectamente a través de Prompts (Seguro, público y rápido)
             if (!found) {
                 try {
-                    // Usamos '~' (LIKE case-insensitive) porque '=' falla si hay mayúsculas diferentes
+                    // Usamos solo 'name' porque 'username' está oculto en la BD y causaría Error 400
                     const promptRes = await pb.collection('prompts').getList(1, 20, {
-                        filter: `author.username~'${query}' || author.name~'${query}'`,
+                        filter: `author.name~'${query}' || author_name~'${query}'`,
                         expand: 'author',
                         $autoCancel: false
                     });
@@ -717,7 +717,7 @@ const store = {
             if (!found) {
                 try {
                     const res = await pb.collection('users').getList(1, 20, {
-                        filter: `username~'${query}' || name~'${query}'`
+                        filter: `name~'${query}'`
                     });
                     if (res.items.length > 0) {
                         const exactUser = res.items.find(u => 
