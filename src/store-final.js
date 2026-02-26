@@ -177,6 +177,8 @@ const store = {
     isInitialized: false,
 
     async init() {
+        const isProfilePage = window.location.pathname.includes('profile');
+
         if (pb.authStore.isValid && pb.authStore.model) {
             this._loadUserProfile(pb.authStore.model.id, true);
         }
@@ -186,17 +188,19 @@ const store = {
         // === PHASE 1: Critical — Gallery + Boosts (loaded together) ===
         this._isInitialLoad = true;
         try {
-            await Promise.allSettled([
-                this.loadPrompts(true),
-                this.initBoostSystem()
-            ]);
+            const phase1Tasks = [this.initBoostSystem()];
+            // SOLO descargamos los prompts globales si no estamos en un Profile
+            if (!isProfilePage) {
+                phase1Tasks.push(this.loadPrompts(true));
+            }
+            await Promise.allSettled(phase1Tasks);
         } catch (e) {
             console.error("[STORE] Phase 1 error:", e);
         }
         this._isInitialLoad = false;
 
-        // Gallery recovery
-        if (this.prompts.length === 0) {
+        // Gallery recovery solo si no es perfil
+        if (!isProfilePage && this.prompts.length === 0) {
             console.warn("[STORE] ⚠️ Gallery vacía tras carga inicial. Reintentando en 2s...");
             await new Promise(r => setTimeout(r, 2000));
             await this.loadPrompts(true);
@@ -209,11 +213,12 @@ const store = {
 
         this.isInitialized = true;
         // Render ONCE after BOTH prompts AND boosts are loaded (main page only)
-        const isProfilePage = window.location.pathname.includes('profile');
         if (window.render && !isProfilePage) window.render();
 
-        // === PHASE 2 (deferred 1s): Analysis + Slim Users (background, no re-render) ===
+        // === PHASE 2 (deferred): Analysis + Slim Users ===
         setTimeout(async () => {
+            // Si estamos en perfil, preferimos evitar inundar la red para que fetchUserProfileByUsername no colapse
+            if (isProfilePage) return;
             try {
                 await this.loadAllPromptsForAnalysis();
             } catch (e) { console.warn("[STORE] Analysis load error:", e); }
@@ -683,14 +688,25 @@ const store = {
             // STRATEGY 1: Buscar indirectamente a través de Prompts (Seguro, público y rápido)
             if (!found) {
                 try {
-                    const promptRes = await pb.collection('prompts').getList(1, 1, {
-                        filter: `author.username='${query}' || author.name='${query}'`,
+                    // Usamos '~' (LIKE case-insensitive) porque '=' falla si hay mayúsculas diferentes
+                    const promptRes = await pb.collection('prompts').getList(1, 20, {
+                        filter: `author.username~'${query}' || author.name~'${query}'`,
                         expand: 'author',
                         $autoCancel: false
                     });
-                    if (promptRes.items.length > 0 && promptRes.items[0].expand?.author) {
-                        found = promptRes.items[0].expand.author;
-                        return this._cacheUser(lowerQuery, found);
+                    
+                    if (promptRes.items.length > 0) {
+                        // Buscar el match exacto insensitivo en los resultados devueltos
+                        const exactMatch = promptRes.items.find(p => 
+                            p.expand && p.expand.author &&
+                            ((p.expand.author.username || '').toLowerCase() === lowerQuery || 
+                             (p.expand.author.name || '').toLowerCase() === lowerQuery)
+                        );
+                        
+                        if (exactMatch) {
+                            found = exactMatch.expand.author;
+                            return this._cacheUser(lowerQuery, found);
+                        }
                     }
                 } catch (e) {
                     console.warn("[ST_DEBUG] Búsqueda indirecta por prompts falló:", e.message);
@@ -700,10 +716,16 @@ const store = {
             // STRATEGY 2: Direct Filter en 'users' (Puede fallar por permisos en PocketBase)
             if (!found) {
                 try {
-                    const res = await pb.collection('users').getList(1, 1, {
-                        filter: `username='${query}' || name='${query}'`
+                    const res = await pb.collection('users').getList(1, 20, {
+                        filter: `username~'${query}' || name~'${query}'`
                     });
-                    if (res.items.length > 0) found = res.items[0];
+                    if (res.items.length > 0) {
+                        const exactUser = res.items.find(u => 
+                            (u.username || '').toLowerCase() === lowerQuery || 
+                            (u.name || '').toLowerCase() === lowerQuery
+                        );
+                        if (exactUser) found = exactUser;
+                    }
                 } catch (e) {
                     console.warn("[ST_DEBUG] Direct users filter error, continuing...");
                 }
