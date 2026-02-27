@@ -1,8 +1,8 @@
 Iniciando despliegue 
-19/02/2026 17:17:34.24 
+26/02/2026 13:22:25.38 
 Resetting repo... 
 Already on 'main'
-HEAD is now at 597b432 Auto-Deploy Update: 19/02/2026 17:11:51.35
+HEAD is now at 0c2871d Auto-Deploy Update: 26/02/2026  1:08:23.86
 From https://github.com/rodrigodlmoral/prompt-gallery
  * branch            main       -> FETCH_HEAD
 Already up to date.
@@ -17,6 +17,7 @@ C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\pocketbase.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\profile.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\store-final.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\style.css
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\style.css.fix
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\style_temp.css
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\uploadService.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\AdvancedFilters.js
@@ -31,9 +32,11 @@ C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\Le
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\LevelProgress.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\LiveChat.css
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\LiveChat.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\MarketplaceTab.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\PromptsDiario.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\PromptsSemanal.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\SearchSuggestions.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\SuperBoostFloat.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\TopCreators.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\Modals\ActivityModal.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\Modals\AuthModal.js
@@ -44,6 +47,8 @@ C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\Mo
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\components\Modals\TipModal.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\data\tagAliases.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\data\tags.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\lib\boost-config.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\lib\BoostSystem.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\lib\constants.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\lib\CopyBonusSystem.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\lib\LedgerService.js
@@ -55,7 +60,7 @@ C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\utils\LevelDe
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\utils\search-logic.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\utils\security.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\src\utils\ui-helpers.js
-48 archivo(s) copiado(s)
+53 archivo(s) copiado(s)
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\public\vite.svg
 1 archivo(s) copiado(s)
         1 archivo(s) copiado(s).
@@ -66,7 +71,9 @@ C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\public\vite.svg
         1 archivo(s) copiado(s).
         1 archivo(s) copiado(s).
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\api\admin-users.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\api\backfill-registration-bonus.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\api\broadcast.js
+C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\api\economy-audit.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\api\facebook-post.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\api\fb-connect.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\api\fb-disconnect.js
@@ -75,9 +82,8 @@ C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\api\fix-acls.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\api\history.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\api\ig-detect.js
 C:\Users\dquiroz\.gemini\antigravity\scratch\prompt-gallery-v2\api\transfer.js
-10 archivo(s) copiado(s)
-warning: in the working copy of 'src/style.css', LF will be replaced by CRLF the next time Git touches it
-[main f194220] Auto-Deploy Update: 19/02/2026 17:17:36.03
- 1 file changed, 1 insertion(+)
+12 archivo(s) copiado(s)
+[main ac8f6c3] Auto-Deploy Update: 26/02/2026 13:22:28.44
+ 1 file changed, 21 insertions(+), 14 deletions(-)
 To https://github.com/rodrigodlmoral/prompt-gallery.git
-   597b432..f194220  main -> main
+   0c2871d..ac8f6c3  main -> main

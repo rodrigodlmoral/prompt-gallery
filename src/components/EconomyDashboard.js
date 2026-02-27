@@ -73,46 +73,71 @@ export function renderEconomyDashboard(stats) {
             <span style="font-size:0.75rem; background:rgba(168,85,247,0.2); color:#a855f7; padding:3px 10px; border-radius:20px">Nivel ${level}</span>
         </h3>
 
-        <!-- Stats Cards Grid -->
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:20px">
-            <!-- Balance -->
-            <div style="background:linear-gradient(135deg, #a855f7, #6366f1); border-radius:12px; padding:16px; text-align:center">
-                <div style="font-size:1.8rem; font-weight:700; color:#fff">${stats.currentBalance}</div>
-                <div style="font-size:0.75rem; color:rgba(255,255,255,0.8)">💎 Balance Actual</div>
+        <!-- Header Stats Grid: 5 Main Stats -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:15px; margin-bottom:20px">
+            <!-- Balance (Purple) -->
+            <div style="background:linear-gradient(135deg, #a855f7, #6366f1); border-radius:15px; padding:20px; text-align:center; box-shadow:0 4px 15px rgba(168, 85, 247, 0.2)">
+                <div style="font-size:1.8rem; font-weight:800; color:white; line-height:1">${stats.currentBalance}</div>
+                <div style="font-size:0.75rem; color:rgba(255,255,255,0.8); margin-top:5px; font-weight:500">
+                    <span style="opacity:0.8">💎</span> Balance Actual
+                </div>
             </div>
 
-            <!-- Earned -->
-            <div style="background:linear-gradient(135deg, #22c55e, #10b981); border-radius:12px; padding:16px; text-align:center">
-                <div style="font-size:1.8rem; font-weight:700; color:#fff">+${stats.totalEarned}</div>
-                <div style="font-size:0.75rem; color:rgba(255,255,255,0.8)">📥 Total Ganado</div>
+            <!-- Ganado (Green) -->
+            <div style="background:linear-gradient(135deg, #22c55e, #10b981); border-radius:15px; padding:20px; text-align:center; box-shadow:0 4px 15px rgba(34, 197, 94, 0.2)">
+                <div style="font-size:1.8rem; font-weight:800; color:white; line-height:1">+${stats.totalEarned}</div>
+                <div style="font-size:0.75rem; color:rgba(255,255,255,0.8); margin-top:5px; font-weight:500">
+                    <span style="opacity:0.8">📥</span> Total Ganado
+                </div>
             </div>
 
-            <!-- Spent -->
-            <div style="background:linear-gradient(135deg, #ef4444, #dc2626); border-radius:12px; padding:16px; text-align:center">
-                <div style="font-size:1.8rem; font-weight:700; color:#fff">-${stats.totalSpent}</div>
-                <div style="font-size:0.75rem; color:rgba(255,255,255,0.8)">📤 Total Gastado</div>
+            <!-- Gastado (Red) -->
+            <div style="background:linear-gradient(135deg, #ef4444, #dc2626); border-radius:15px; padding:20px; text-align:center; box-shadow:0 4px 15px rgba(239, 68, 68, 0.2)">
+                <div style="font-size:1.8rem; font-weight:800; color:white; line-height:1">-${stats.totalSpent}</div>
+                <div style="font-size:0.75rem; color:rgba(255,255,255,0.8); margin-top:5px; font-weight:500">
+                    <span style="opacity:0.8">📤</span> Total Gastado
+                </div>
             </div>
 
-            <!-- Net Flow -->
-            <div style="background:linear-gradient(135deg, ${stats.netFlow >= 0 ? '#f59e0b, #d97706' : '#6b7280, #4b5563'}); border-radius:12px; padding:16px; text-align:center">
-                <div style="font-size:1.8rem; font-weight:700; color:#fff">${stats.netFlow >= 0 ? '+' : ''}${stats.netFlow}</div>
-                <div style="font-size:0.75rem; color:rgba(255,255,255,0.8)">${stats.netFlow >= 0 ? '📈' : '📉'} Flujo Neto</div>
+            <!-- Comprado (Blue) -->
+            <div style="background:linear-gradient(135deg, #3b82f6, #2563eb); border-radius:15px; padding:20px; text-align:center; box-shadow:0 4px 15px rgba(59, 130, 246, 0.2)">
+                <div style="font-size:1.8rem; font-weight:800; color:white; line-height:1">${stats.totalPurchased || 0}</div>
+                <div style="font-size:0.75rem; color:rgba(255,255,255,0.8); margin-top:5px; font-weight:500">
+                    <span style="opacity:0.8">💰</span> Total Comprado
+                </div>
+                <div style="font-size:0.6rem; color:rgba(255,255,255,0.6); font-style:italic">próximamente</div>
+            </div>
+
+            <!-- Flujo Neto (Orange) -->
+            <div style="background:linear-gradient(135deg, #f59e0b, #d97706); border-radius:15px; padding:20px; text-align:center; box-shadow:0 4px 15px rgba(245, 158, 11, 0.2)">
+                <div style="font-size:1.8rem; font-weight:800; color:white; line-height:1">${stats.netFlow >= 0 ? '+' : ''}${stats.netFlow}</div>
+                <div style="font-size:0.75rem; color:rgba(255,255,255,0.8); margin-top:5px; font-weight:500">
+                    <span style="opacity:0.8">📈</span> Flujo Neto
+                </div>
             </div>
         </div>
 
-        <!-- Breakdown -->
-        <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap">
-            <div style="flex:1; min-width:120px; background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
+        <!-- Secondary Breakdown Grid -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:20px">
+            <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
                 <div style="font-size:1.1rem; font-weight:600; color:#a855f7">${stats.totalReceived}</div>
-                <div style="font-size:0.7rem; color:#888">Propinas Recibidas</div>
+                <div style="font-size:0.7rem; color:#888; white-space:nowrap">Propinas Recibidas</div>
             </div>
-            <div style="flex:1; min-width:120px; background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
+            <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
+                <div style="font-size:1.1rem; font-weight:600; color:#ef4444">${stats.totalSent}</div>
+                <div style="font-size:0.7rem; color:#888; white-space:nowrap">Propinas Enviadas</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
+                <div style="font-size:1.1rem; font-weight:600; color:#06b6d4">${stats.totalGifts}</div>
+                <div style="font-size:0.7rem; color:#888; white-space:nowrap">Gifts/Premios</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
                 <div style="font-size:1.1rem; font-weight:600; color:#22c55e">${stats.totalBonuses}</div>
-                <div style="font-size:0.7rem; color:#888">Bonos por Copias</div>
+                <div style="font-size:0.7rem; color:#888; white-space:nowrap">Bono x Copias</div>
             </div>
-            <div style="flex:1; min-width:120px; background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
+            <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; text-align:center">
                 <div style="font-size:1.1rem; font-weight:600; color:#f59e0b">${stats.transactionCount}</div>
-                <div style="font-size:0.7rem; color:#888">Total Transacciones</div>
+                <div style="font-size:0.7rem; color:#888; white-space:nowrap">Transacciones</div>
             </div>
         </div>
 

@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
     try {
         const pbAdmin = new PocketBase(process.env.PB_URL);
-        await pbAdmin.admins.authWithPassword(process.env.PB_ADMIN_EMAIL, process.env.PB_ADMIN_PASS);
+        await pbAdmin.collection('_superusers').authWithPassword(process.env.PB_ADMIN_EMAIL, process.env.PB_ADMIN_PASS);
 
         const BANK_USER_ID = 'z44ierjl0thcczd';
         const BONUS_AMOUNT = 50;

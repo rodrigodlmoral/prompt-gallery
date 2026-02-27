@@ -24,6 +24,7 @@ const getSearchableUsers = (store) => {
     const allKnownUsers = [
         ...Object.values(store.usersCache || {}),
         ...(store.nuclearCache?.items || []),
+        ...(store.slimUsers || []),
         ...promptAuthors
     ];
 
@@ -42,15 +43,15 @@ export const getSearchSuggestions = ({ query, store }) => {
 
     const term = query.toLowerCase();
 
-    // 1. FILTER USERS (Strict StartsWith)
+    // 1. FILTER USERS (Flexible Includes)
     const uniqueUsers = getSearchableUsers(store);
-    const users = uniqueUsers.filter(u => u.username?.toLowerCase().startsWith(term))
+    const users = uniqueUsers.filter(u => u.username?.toLowerCase().includes(term) || u.name?.toLowerCase().includes(term))
         .sort((a, b) => a.username.localeCompare(b.username))
         .map(u => ({ ...u, avatar: u.avatar || getAvatarUrl(u) })) // Ensure avatar
         .slice(0, 5);
 
-    // 2. FILTER PROMPTS (Strict StartsWith)
-    const prompts = store.prompts.filter(p => p.title?.toLowerCase().startsWith(term))
+    // 2. FILTER PROMPTS (Flexible Includes)
+    const prompts = store.prompts.filter(p => p.title?.toLowerCase().includes(term))
         .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
         .slice(0, 5);
 

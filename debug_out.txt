@@ -1,0 +1,22 @@
+FOUND GIFT: amount=249 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="skv9nch5fehjnyq"
+FOUND GIFT: amount=1 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="kaoqf7h9bzl5a18"
+FOUND GIFT: amount=610 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="rkmrhmgh067x7un"
+FOUND GIFT: amount=115 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="m2fevxonc4ewml5"
+FOUND GIFT: amount=1 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="yal4kwom0ntrg9t"
+FOUND GIFT: amount=157 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="0wj3ndw3v3wp4b2"
+FOUND GIFT: amount=125 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="5vdkh65xvoaj1y1"
+FOUND GIFT: amount=31 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="y6y1rwvkvt4p2bx"
+FOUND GIFT: amount=101 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="f8e1phzgc3muh8q"
+FOUND GIFT: amount=109 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="hcp4j439ij3r4dw"
+FOUND GIFT: amount=56 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="p7q62nl1ub9jcyf"
+FOUND GIFT: amount=61 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="gvoebza1ywx4anq"
+FOUND GIFT: amount=70 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="vxahqws07z0iqde"
+FOUND GIFT: amount=112 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="1fmcah0igjzburh"
+FOUND GIFT: amount=205 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="skv9nch5fehjnyq"
+FOUND GIFT: amount=205 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="1fmcah0igjzburh"
+FOUND GIFT: amount=205 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="5vdkh65xvoaj1y1"
+FOUND GIFT: amount=205 fromSystem=true toRealUser=true from_user="z44ierjl0thcczd" to_user="m2fevxonc4ewml5"
+Discrepancy: valentine (skv9nch5fehjnyq) | Actual: 670 | Expected: 465 (Minted: 465, Spent: 0) | Diff: 205
+Discrepancy: Damaso574 (m2fevxonc4ewml5) | Actual: 525 | Expected: 320 (Minted: 320, Spent: 0) | Diff: 205
+Discrepancy: Smangel97 (1fmcah0igjzburh) | Actual: 522 | Expected: 317 (Minted: 317, Spent: 0) | Diff: 205
+Discrepancy: Night9203 (5vdkh65xvoaj1y1) | Actual: 535 | Expected: 330 (Minted: 330, Spent: 0) | Diff: 205

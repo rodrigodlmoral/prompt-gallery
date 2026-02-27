@@ -3,6 +3,30 @@ import { uploadToCloudinary, uploadToCloudinaryHD } from './uploadService.js';
 import { LevelSystem } from './lib/LevelSystem.js';
 import { checkCopyMilestone, getNextMilestone } from './lib/CopyBonusSystem.js';
 import { LedgerService } from './lib/LedgerService.js';
+import { BoostSystem } from './lib/BoostSystem.js';
+import { ReferralSystem } from './lib/ReferralSystem.js';
+import { BOOST_PRICES } from './lib/boost-config.js';
+
+// --- DEBUG ERROR CATCHER ---
+window.onerror = function (msg, url, lineNo, columnNo, error) {
+    if (!document.getElementById('debug-error-panel')) {
+        const div = document.createElement('div');
+        div.id = 'debug-error-panel';
+        div.style.cssText = "position:fixed; bottom:0; left:0; right:0; background:red; color:white; padding:20px; z-index:999999; font-family:monospace";
+        document.body.appendChild(div);
+    }
+    document.getElementById('debug-error-panel').innerHTML += `<br>ERROR: ${msg} <br> LINE: ${lineNo}`;
+    return false;
+};
+window.addEventListener("unhandledrejection", function (promiseRejectionEvent) {
+    if (!document.getElementById('debug-error-panel')) {
+        const div = document.createElement('div');
+        div.id = 'debug-error-panel';
+        div.style.cssText = "position:fixed; bottom:0; left:0; right:0; background:red; color:white; padding:20px; z-index:999999; font-family:monospace";
+        document.body.appendChild(div);
+    }
+    document.getElementById('debug-error-panel').innerHTML += `<br>UNHANDLED REJECTION: ${promiseRejectionEvent.reason}`;
+});
 
 // --- GOOGLE ANALYTICS HELPER ---
 window.trackEvent = (name, params = {}) => {
@@ -65,6 +89,7 @@ export const LEVEL_REQS = [
     {
         posts: 25,
         copies: 0,
+        referrals: 5,
         name: 'Creador Jr',
         benefits: [
             'Level Up Bonus: +20 💎',
@@ -79,6 +104,8 @@ export const LEVEL_REQS = [
     {
         posts: 50,
         copies: 100,
+        referralsOrReactions: { referrals: 10, reactions: 100 },
+        reputation: 10,
         name: 'Creador Elite',
         benefits: [
             'Level Up Bonus: +30 💎',
@@ -93,6 +120,8 @@ export const LEVEL_REQS = [
     {
         posts: 100,
         copies: 200,
+        referralsOrReactions: { referrals: 20, reactions: 200 },
+        reputation: 25,
         name: 'Artista Prompter',
         benefits: [
             'Level Up Bonus: +40 💎',
@@ -107,6 +136,8 @@ export const LEVEL_REQS = [
     {
         posts: 250,
         copies: 500,
+        referralsOrReactions: { referrals: 50, reactions: 500 },
+        reputation: 50,
         name: 'Maestro Prompter',
         benefits: [
             'Level Up Bonus: +50 💎',
@@ -140,7 +171,12 @@ const store = {
     usersCache: {}, // { username: { ...profileData } }
     users: [],      // Admin list
     nuclearCache: { items: [], lastFetch: 0 },
+    slimUsers: [], // Lightweight user list for global search
     stats: { users: 0, prompts: 0, visits: 0 },
+    boostSystem: null,
+    referralSystem: null,
+    BOOST_PRICES,
+    activeBoosts: { daily: [], weekly: [], super: [] },
 
     // --- INFINITE SCROLL STATE (PAGINACIÓN MANUAL) ---
     currentPage: 1,
@@ -150,25 +186,133 @@ const store = {
     isInitialized: false,
 
     async init() {
+        const isProfilePage = window.location.pathname.includes('profile');
+
         if (pb.authStore.isValid && pb.authStore.model) {
-            // Carga de perfil no bloquea el inicio
-            this._loadUserProfile(pb.authStore.model.id);
+            this._loadUserProfile(pb.authStore.model.id, true);
         }
 
-        console.log("[STORE] ⚡ Iniciando Carga Optimizada...");
+        console.log("[STORE] ⚡ Iniciando Carga Optimizada (Serializada)...");
 
-        // Lanzamos procesos en paralelo
-        const [galleryResult, analysisResult] = await Promise.allSettled([
-            this.loadPrompts(true), // Prioridad 1: Que el usuario vea posts
-            this.loadAllPromptsForAnalysis() // Prioridad 2: Cálculo de Tops en background
-        ]);
+        // === PHASE 1: Critical — Gallery + Boosts + Referrals (loaded together) ===
+        this._isInitialLoad = true;
+        try {
+            const phase1Tasks = [this.initBoostSystem(), this.initReferralSystem()];
+            // SOLO descargamos los prompts globales si no estamos en un Profile
+            if (!isProfilePage) {
+                phase1Tasks.push(this.loadPrompts(true));
+            }
+            await Promise.allSettled(phase1Tasks);
+        } catch (e) {
+            console.error("[STORE] Phase 1 error:", e);
+        }
+        this._isInitialLoad = false;
 
-        if (galleryResult.status === 'rejected') console.error("❌ Gallery Load Error:", galleryResult.reason);
-        if (analysisResult.status === 'rejected') console.warn("⚠️ Analysis Load Error:", analysisResult.reason);
+        // Gallery recovery solo si no es perfil
+        if (!isProfilePage && this.prompts.length === 0) {
+            console.warn("[STORE] ⚠️ Gallery vacía tras carga inicial. Reintentando en 2s...");
+            await new Promise(r => setTimeout(r, 2000));
+            await this.loadPrompts(true);
+            if (this.prompts.length === 0) {
+                console.warn("[STORE] ⚠️ Segundo intento falló. Reintentando en 5s...");
+                await new Promise(r => setTimeout(r, 5000));
+                await this.loadPrompts(true);
+            }
+        }
 
-        await this.getPublicStats();
-        this.trackVisit();
         this.isInitialized = true;
+        // Render ONCE after BOTH prompts AND boosts are loaded (main page only)
+        if (window.render && !isProfilePage) window.render();
+
+        // === PHASE 2 (deferred): Analysis + Slim Users ===
+        setTimeout(async () => {
+            // Si estamos en perfil, preferimos evitar inundar la red para que fetchUserProfileByUsername no colapse
+            if (isProfilePage) return;
+            try {
+                await this.loadAllPromptsForAnalysis();
+            } catch (e) { console.warn("[STORE] Analysis load error:", e); }
+
+            await new Promise(r => setTimeout(r, 500));
+
+            try {
+                await this.loadSlimUsers();
+            } catch (e) { console.warn("[STORE] Slim users error:", e); }
+
+            // FIX: Render again so Boosts and Popularity picks (which depend on allPrompts) can show up
+            if (window.render && !isProfilePage) {
+                console.log("[STORE] 🎨 Re-rendering Home to show active Boosts and Top Creators...");
+                window.render();
+            }
+        }, 1000);
+
+        // === PHASE 3 (deferred 3s): Stats + User Sync (non-critical) ===
+        setTimeout(async () => {
+            try {
+                await this.getPublicStats();
+                // Re-render to show stats in the guest "Unlock Gallery" banner
+                if (window.render && !isProfilePage) {
+                    window.render();
+                }
+                // Surgical DOM update for visitor stats (works on ANY page without re-render)
+                const u = document.getElementById('visStatsUsers');
+                const p = document.getElementById('visStatsPrompts');
+                const v = document.getElementById('visStatsVisits');
+                if (u) u.innerText = this.stats.users.toLocaleString();
+                if (p) p.innerText = this.stats.prompts.toLocaleString();
+                if (v) v.innerText = this.stats.visits.toLocaleString();
+            } catch (e) { console.warn("[STORE] Stats error:", e); }
+
+            this.trackVisit();
+
+            if (pb.authStore.isValid && pb.authStore.model && this.currentUser) {
+                try {
+                    await this.syncUserStats(pb.authStore.model.id, this.currentUser);
+                } catch (e) {
+                    console.warn("[STORE] Deferred sync error:", e);
+                }
+            }
+        }, 3000);
+    },
+
+    async initBoostSystem() {
+        try {
+            this.boostSystem = new BoostSystem(pb, this);
+            console.log('✅ Boost system ready');
+
+            // Verificar boosts expirados cada 5 minutos
+            setInterval(() => {
+                if (this.boostSystem) this.boostSystem.expireBoosts();
+            }, 5 * 60 * 1000);
+
+            // Precarga inicial de boosts activos
+            await this.refreshActiveBoosts();
+
+        } catch (error) {
+            console.error('❌ Error initializing boost system:', error);
+        }
+    },
+
+    async initReferralSystem() {
+        try {
+            this.referralSystem = new ReferralSystem(pb, this);
+            console.log('✅ Referral system ready');
+        } catch (error) {
+            console.error('❌ Error initializing referral system:', error);
+        }
+    },
+
+    async refreshActiveBoosts() {
+        if (!this.boostSystem) return;
+        try {
+            const types = ['daily', 'weekly', 'super'];
+            const boosts = await Promise.all(types.map(t => this.boostSystem.getActiveBoostsByType(t)));
+            this.activeBoosts.daily = boosts[0].map(b => b.prompt);
+            this.activeBoosts.weekly = boosts[1].map(b => b.prompt);
+            this.activeBoosts.super = boosts[2].map(b => b.prompt);
+            console.log(`[STORE] 🚀 Boosts activos sincronizados: D:${this.activeBoosts.daily.length} W:${this.activeBoosts.weekly.length} S:${this.activeBoosts.super.length}`);
+        } catch (err) {
+            console.error('[STORE] Error al refrescar boosts:', err);
+        }
     },
 
     async loadAllPromptsForAnalysis() {
@@ -187,12 +331,32 @@ const store = {
         }
     },
 
-    async _loadUserProfile(userId) {
+    async loadSlimUsers() {
         try {
-            const record = await pb.collection('users').getOne(userId);
+            console.log("[STORE] 🔍 Cargando Slim Users para el buscador...");
+            const records = await pb.collection('users').getFullList({
+                fields: 'id,username,name,avatar,avatar_url',
+                $autoCancel: false
+            });
+            this.slimUsers = records.map(r => {
+                try {
+                    return window.normalizeProfile ? window.normalizeProfile(r) : r;
+                } catch (e) { return r; }
+            });
+        } catch (err) {
+            console.warn("[STORE] ⚠️ Error cargando Slim Users:", err);
+            this.slimUsers = [];
+        }
+    },
+
+    async _loadUserProfile(userId, deferSync = false) {
+        try {
+            const record = await pb.collection('users').getOne(userId, { $autoCancel: false });
             if (record) {
                 const profile = window.normalizeProfile ? window.normalizeProfile(record) : record;
-                await this.syncUserStats(userId, profile);
+                if (!deferSync) {
+                    await this.syncUserStats(userId, profile);
+                }
                 this.currentUser = profile;
             }
         } catch (error) {
@@ -246,6 +410,50 @@ const store = {
                     console.warn("[STORE] ⚠️ Error persistiendo (permisos?), pero la UI está OK localmente.");
                 }
             }
+
+            // --- PASSIVE LEVEL-UP CHECK (on login/sync) ---
+            try {
+                const levelSystem = new LevelSystem(pb);
+                const levelCheck = await levelSystem.checkLevelUp(userId);
+                if (levelCheck && levelCheck.shouldLevelUp) {
+                    const { oldLevel, newLevel, levelName } = levelCheck;
+                    const LEVEL_UP_BONUSES = [0, 10, 20, 30, 40, 50];
+                    const bonus = LEVEL_UP_BONUSES[newLevel] || 10;
+
+                    console.log(`[ECONOMY] 🎉 Passive Level Up on login! ${oldLevel} -> ${newLevel} (${levelName}). Bonus: ${bonus}`);
+
+                    // Update user with new level + bonus
+                    const progress = levelSystem.calculateProgress(newLevel, realPosts, realCopies);
+                    await pb.collection('users').update(userId, {
+                        level: newLevel,
+                        level_progress: progress,
+                        'tokens+': bonus,
+                        'total_earned+': bonus,
+                        'total_rewards+': bonus
+                    });
+
+                    // Ledger entry for level-up bonus
+                    await LedgerService.systemReward(
+                        userId, bonus, 'LEVEL_UP',
+                        `Bono por subir al Nivel ${newLevel}: ${levelName} (detectado al iniciar sesión)`
+                    );
+
+                    // Update local profile
+                    profile.level = newLevel;
+                    profile.tokens = (profile.tokens || 0) + bonus;
+
+                    // Show level-up modal after a short delay (DOM needs to be ready)
+                    setTimeout(() => {
+                        if (window.showLevelUpModal) {
+                            window.showLevelUpModal(newLevel);
+                        } else if (window.showToast) {
+                            window.showToast(`🎉 ¡Subiste a Nivel ${newLevel}: ${levelName}! +${bonus} 💎 Bonus`, 'success');
+                        }
+                    }, 2000);
+                }
+            } catch (levelErr) {
+                console.warn("[STORE] Level check on sync error:", levelErr);
+            }
         } catch (e) {
             console.warn("[STORE] Sync stats error:", e);
         }
@@ -265,17 +473,27 @@ const store = {
             console.log(`[STORE] 📦 Loading Batch (Filter: ${customFilter || 'none'}): Page ${this.currentPage} (Size ${this.batchSize})`);
 
             let records;
-            try {
-                // EL ÚNICO MAESTRO ES created_at_custom
-                records = await pb.collection('prompts').getList(this.currentPage, this.batchSize, {
-                    sort: '-created_at_custom',
-                    filter: customFilter || '',
-                    expand: 'author',
-                    $autoCancel: false
-                });
-            } catch (sortErr) {
-                console.error("[STORE] ❌ Error crítico: created_at_custom falló.", sortErr);
-                records = { items: [], totalItems: 0 };
+            let retryCount = 0;
+            const maxRetries = 2;
+            while (retryCount <= maxRetries) {
+                try {
+                    records = await pb.collection('prompts').getList(this.currentPage, this.batchSize, {
+                        sort: '-created_at_custom',
+                        filter: customFilter || '',
+                        expand: 'author',
+                        $autoCancel: false
+                    });
+                    break; // Success, exit retry loop
+                } catch (sortErr) {
+                    retryCount++;
+                    if (retryCount > maxRetries) {
+                        console.error(`[STORE] ❌ Error crítico tras ${maxRetries + 1} intentos:`, sortErr);
+                        records = { items: [], totalItems: 0 };
+                    } else {
+                        console.warn(`[STORE] ⚠️ Intento ${retryCount} falló, reintentando en ${retryCount * 1000}ms...`, sortErr.message);
+                        await new Promise(r => setTimeout(r, retryCount * 1000));
+                    }
+                }
             }
 
             const newPrompts = this._mapPrompts(records.items);
@@ -300,7 +518,8 @@ const store = {
             this.hasMore = records.items.length === this.batchSize;
             if (this.hasMore) this.currentPage++;
 
-            if (window.render && reset) window.render();
+            // Skip render during initial load (init() handles render after ALL Phase 1 tasks complete)
+            if (window.render && reset && !this._isInitialLoad) window.render();
             return result;
         } catch (error) {
             console.error("Error loading prompts batch:", error);
@@ -461,8 +680,7 @@ const store = {
         const query = rawUsername.trim().replace(/['"]/g, "");
         const lowerQuery = query.toLowerCase();
 
-        // 1. Check Cache (Normalized) with 60s TTL
-        // NOTE: We do NOT rely solely on cache if we need to force a refresh, but for profile view it's fine.
+        // 1. Check Cache
         if (this.usersCache[lowerQuery] && (Date.now() - this.usersCache[lowerQuery]._fetchedAt < 60000)) {
             return this.usersCache[lowerQuery];
         }
@@ -470,47 +688,80 @@ const store = {
         try {
             let found = null;
 
-            // STRATEGY 1: Direct Filter (Fastest) - Check 'username' (system) and 'name' (custom)
-            try {
-                const res = await pb.collection('users').getList(1, 1, {
-                    filter: `username="${query}" || name="${query}"`
-                });
-                if (res.items.length > 0) found = res.items[0];
-            } catch (e) {
-                console.warn("[ST_DEBUG] Direct filter error, continuing...");
-            }
-
-            // STRATEGY 2: Dragnet (Latest 100 users) - Case Insensitive
-            if (!found) {
-                console.log("[ST_DEBUG] Engaging DRAGNET search...");
-                try {
-                    const dragnet = await pb.collection('users').getList(1, 100, { $autoCancel: false });
-                    found = dragnet.items.find(u =>
-                        (u.name && u.name.toLowerCase() === lowerQuery) ||
-                        (u.username && u.username.toLowerCase() === lowerQuery)
-                    );
-                } catch (e) {
-                    console.warn("[ST_DEBUG] Dragnet failed, continuing...");
+            // STRATEGY 0: Buscar en memoria (0 network requests)
+            if (this.allPrompts && this.allPrompts.length > 0) {
+                const memPrompt = this.allPrompts.find(p => (p.author || '').toLowerCase() === lowerQuery);
+                if (memPrompt && memPrompt.author_id) {
+                    try {
+                        found = await pb.collection('users').getOne(memPrompt.author_id);
+                        if (found) return this._cacheUser(lowerQuery, found);
+                    } catch (e) {
+                        console.warn("[ST_DEBUG] Memory getOne failed", e);
+                    }
                 }
             }
 
-            // STRATEGY 3: ID Check (If looks like PB ID)
-            if (!found && query.length === 15) {
-                try {
-                    found = await pb.collection('users').getOne(query);
-                } catch (e) { }
+            // STRATEGY 0.5: Buscar en Slim Users (Memoria ya cargada en init)
+            if (!found && this.slimUsers && this.slimUsers.length > 0) {
+                const slim = this.slimUsers.find(u => (u.username || '').toLowerCase() === lowerQuery || (u.name || '').toLowerCase() === lowerQuery);
+                if (slim && slim.id) {
+                    try {
+                        found = await pb.collection('users').getOne(slim.id);
+                        if (found) return this._cacheUser(lowerQuery, found);
+                    } catch (e) {
+                        console.warn("[ST_DEBUG] Slim User getOne failed", e);
+                    }
+                }
             }
 
-            // STRATEGY 4: NUCLEAR FALLBACK (Total Registry)
+            // STRATEGY 1: Buscar indirectamente a través de Prompts (Seguro, público y rápido)
             if (!found) {
-                console.log("[ST_DEBUG] Engaging NUCLEAR search...");
-                const items = await this.loadGlobalUsers(); // REFACTORED: Use shared method
+                try {
+                    // Usamos solo 'name' porque 'username' está oculto en la BD y causaría Error 400
+                    const promptRes = await pb.collection('prompts').getList(1, 20, {
+                        filter: `author.name~'${query}' || author_name~'${query}'`,
+                        expand: 'author',
+                        $autoCancel: false
+                    });
 
-                found = items.find(u =>
-                    (u.name && u.name.toLowerCase() === lowerQuery) ||
-                    (u.username && u.username.toLowerCase() === lowerQuery)
-                );
+                    if (promptRes.items.length > 0) {
+                        // Buscar el match exacto insensitivo en los resultados devueltos
+                        const exactMatch = promptRes.items.find(p =>
+                            p.expand && p.expand.author &&
+                            ((p.expand.author.username || '').toLowerCase() === lowerQuery ||
+                                (p.expand.author.name || '').toLowerCase() === lowerQuery)
+                        );
+
+                        if (exactMatch) {
+                            found = exactMatch.expand.author;
+                            return this._cacheUser(lowerQuery, found);
+                        }
+                    }
+                } catch (e) {
+                    console.warn("[ST_DEBUG] Búsqueda indirecta por prompts falló:", e.message);
+                }
             }
+
+            // STRATEGY 2: Direct Filter en 'users' (Puede fallar por permisos en PocketBase)
+            if (!found) {
+                try {
+                    const res = await pb.collection('users').getList(1, 20, {
+                        filter: `name~'${query}'`
+                    });
+                    if (res.items.length > 0) {
+                        const exactUser = res.items.find(u =>
+                            (u.username || '').toLowerCase() === lowerQuery ||
+                            (u.name || '').toLowerCase() === lowerQuery
+                        );
+                        if (exactUser) found = exactUser;
+                    }
+                } catch (e) {
+                    console.warn("[ST_DEBUG] Direct users filter error, continuing...");
+                }
+            }
+
+            // Eliminamos las peticiones masivas (Dragnet/Nuclear) que tiran el servidor con CORS/429
+            // Si después de memoria, cache, prompts directos y filtro directo no aparece, simplemente no existe o está capado.
 
             if (found) {
                 const userId = found.id;
@@ -727,17 +978,15 @@ const store = {
 
                 // Estimates based on available data
                 totalReceived = Math.max(0, totalEarned - (user.total_rewards || 0)); // Simplified
-                transactionCount = (user.prompts_count || 0) + (user.total_copies || 0); // Placeholder if no real count
+                transactionCount = 0; // Initialize at 0
             }
         } catch (e) {
             console.error('[ECONOMY] Error getting user stats:', e);
         }
 
-        // 2. Fetch Transaction History via Secure API (Bypasses ACLs)
-        // 2. Fetch Transaction History (Hybrid Strategy: API Proxy -> Native Fallback)
-        let fetchedViaApi = false;
+        // 2. Fetch Transaction History and Aggregated Metrics via Secure API
+        let data = null;
         try {
-            // Priority: Use Secure API Proxy (Bypasses ACLs on Vercel)
             const token = pb.authStore.token;
             if (token) {
                 // Add timestamp to bypass browser cache
@@ -746,9 +995,17 @@ const store = {
                 });
 
                 if (res.ok) {
-                    const data = await res.json();
+                    data = await res.json();
+
+                    // Unified Metrics from API (The Absolute Truth)
+                    currentBalance = data.currentBalance ?? currentBalance;
+                    totalEarned = data.totalEarned ?? 0;
+                    totalSpent = data.totalSpent ?? 0;
+                    totalReceived = data.totalReceived ?? 0;
+                    totalBonuses = data.totalBonuses ?? 0;
+                    transactionCount = data.transactionCount ?? 0;
+
                     if (data.items && Array.isArray(data.items)) {
-                        // Pre-process items to ensure consistent icons even if API is older
                         transactions = data.items.map(tx => {
                             if (!tx.icon) {
                                 if (tx.type === 'sent') tx.icon = '📤';
@@ -758,117 +1015,27 @@ const store = {
                             }
                             return tx;
                         });
-                        fetchedViaApi = true;
                     }
                 }
             }
         } catch (err) {
-            console.warn('[ECONOMY] API Proxy failed, falling back to native fetch:', err);
+            console.warn('[ECONOMY] Secure API failed:', err);
+            // In case of total API failure, we could stay with 0s or try a native fallback,
+            // but the user wants absolute Ledger consistency, and the API is the way.
         }
-
-        if (!fetchedViaApi) {
-            // Fallback: Native Fetch (Works if ACLs are fixed by server hook)
-            console.log('[ECONOMY] Using native fetch fallback...');
-            try {
-                // A) Ledger (Native Fallback)
-                // Removed 'expand' to avoid 400 Bad Request if relation data is inconsistent
-                // Removed 'sort' as it caused 400 Bad Request in backfill logs previously
-                // Sorting is handled client-side anyway.
-                const ledgerRecords = await pb.collection('ledger').getList(1, 40, {
-                    filter: `from_user="${uid}" || to_user="${uid}"`,
-                    sort: '-updated',
-                    $autoCancel: false
-                });
-
-                const ledgerTxs = ledgerRecords.items
-                    // Phase C: Filter double-entry TIPs to avoid duplicates
-                    .filter(rec => {
-                        // Legacy records (no entry_type) always pass through
-                        if (!rec.entry_type) return true;
-                        // For TIPs with double-entry: show DEBIT to sender, CREDIT to receiver
-                        if (rec.type === 'TIP' || rec.type === 'PURCHASE' || rec.type === 'FEE') {
-                            if (rec.from_user === uid) return rec.entry_type === 'DEBIT';
-                            if (rec.to_user === uid) return rec.entry_type === 'CREDIT';
-                        }
-                        // System rewards (CREDIT) always pass through
-                        return true;
-                    })
-                    .map(rec => {
-                        const isSender = rec.from_user === uid;
-                        const txDate = rec.created || rec.updated;
-                        if (rec.type === 'TIP' || rec.type === 'PURCHASE') {
-                            if (isSender) {
-                                return { type: 'sent', amount: -rec.amount, description: rec.description || `Enviado`, date: txDate, icon: '📤', id: rec.id };
-                            } else {
-                                return { type: 'received', amount: rec.amount, description: rec.description || `Recibido`, date: txDate, icon: '📥', id: rec.id };
-                            }
-                        }
-                        if (rec.type === 'POST_REWARD') {
-                            return { type: 'income', amount: rec.amount, description: rec.description || 'Publicación', date: txDate, icon: '🖼️', id: rec.id };
-                        }
-                        if (rec.type === 'LEVEL_UP') {
-                            return { type: 'income', amount: rec.amount, description: rec.description || 'Bono de Nivel', date: txDate, icon: '✨', id: rec.id };
-                        }
-                        if (rec.type === 'COPY_MILESTONE') {
-                            return { type: 'bonus', amount: rec.amount, description: rec.description || 'Bono de Copias', date: txDate, icon: '🏆', id: rec.id };
-                        }
-                        return { type: isSender ? 'expense' : 'income', amount: isSender ? -rec.amount : rec.amount, description: rec.description || 'Transacción', date: txDate, icon: isSender ? '📉' : '📈', id: rec.id };
-                    });
-                transactions = [...transactions, ...ledgerTxs];
-
-                // B) Activity Logs (Bonuses)
-                // Simplified client-side filter
-                // Removed 'sort' to prevent 400 Bad Request
-                const logRecords = await pb.collection('activity_logs').getList(1, 40, {
-                    filter: `user="${uid}" || details.recipientId="${uid}"`,
-                    sort: '-updated',
-                    $autoCancel: false
-                });
-
-                const logTxs = logRecords.items.map(log => {
-                    const details = log.details || {};
-                    const logDate = log.created || log.updated;
-                    if (log.action === 'copy_milestone_bonus') {
-                        return { type: 'bonus', amount: details.bonus || 0, description: `🎉 Milestone: ${details.copies} copias`, date: logDate, icon: '🏆', id: log.id };
-                    }
-                    if (log.action === 'send_tip') {
-                        const isSender = log.user === uid;
-                        if (isSender) return { type: 'sent', amount: -(details.amount || 0), description: `Enviado a @${details.recipient || 'Usuario'}`, date: logDate, icon: '📤', id: log.id };
-                        else return { type: 'received', amount: details.amount || 0, description: `Recibido de @${log.expand?.user?.username || 'Usuario'}`, date: logDate, icon: '📥', id: log.id };
-                    }
-                    return null;
-                }).filter(Boolean);
-                transactions = [...transactions, ...logTxs];
-
-            } catch (nativeErr) {
-                console.error('[ECONOMY] Native fetch failed too:', nativeErr);
-            }
-        }
-
-        // Final Sort & Dedupe (by ID)
-        const seenIds = new Set();
-        transactions = transactions.filter(tx => {
-            if (tx.id && seenIds.has(tx.id)) return false;
-            if (tx.id) seenIds.add(tx.id);
-            return true;
-        });
-
-        // Transactions are already sorted and formatted by the API
-
-        // 4. Sort and Dedupe (Simple ID check if possible, otherwise just sort)
-        // We sort descending by date
-        transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-        transactions = transactions.slice(0, 20);
 
         return {
             currentBalance,
             totalEarned,
             totalSpent,
-            netFlow: totalEarned - totalSpent,
-            totalReceived,   // Fixed: Added
-            totalBonuses,    // Fixed: Added (default 0 for now)
-            transactionCount, // Fixed: Added
-            transactions
+            totalSent: data?.totalSent ?? 0,
+            totalPurchased: data?.totalPurchased ?? 0,
+            netFlow: totalEarned - totalSpent - (data?.totalSent ?? 0),
+            totalReceived,
+            totalBonuses,
+            totalGifts: data?.totalGifts ?? 0,
+            transactionCount,
+            transactions: (data?.items || []).slice(0, 20)
         };
     },
 
@@ -899,67 +1066,69 @@ const store = {
     getTopWeeklyPrompts() {
         if (!this.allPrompts || this.allPrompts.length === 0) return [];
 
-        const now = Date.now();
-        const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
+        // ONLY return active Weekly Boosts — no fallbacks
+        const boosted = [];
+        for (const promptId of this.activeBoosts.weekly) {
+            const p = this.allPrompts.find(x => x.id === promptId && !x.is_private);
+            if (p) boosted.push(p);
+        }
 
-        // 1. Prioritize explicitly "featured" prompts that haven't expired
-        const featured = this.allPrompts.filter(p =>
-            !p.is_private &&
-            (p.is_featured || p.admin_featured) &&
-            (!p.featured_until || new Date(p.featured_until) > now)
-        ).sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0)); // Paid first, then admin
+        if (boosted.length > 0) {
+            console.log(`[CEREBRO] 🧠 Top Semanal: Mostrando ${boosted.length} Boosts activos.`);
+        }
+        return boosted;
+    },
 
-        // 2. Take recent prompts (last 7 days) and sort by score
-        const recent = this.allPrompts.filter(p =>
-            !p.is_private &&
-            !p.is_featured &&
-            !p.admin_featured &&
-            p.createdAt >= weekAgo
-        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
+    /**
+     * getTopGalleryPrompts (CEREBRO v2.0)
+     * Independent algorithmic ranking for HeroCarousel (TOP 20 PROMPTS)
+     * Does NOT give priority to Weekly Boosts, but counts them as featured.
+     */
+    getTopGalleryPrompts() {
+        if (!this.allPrompts || this.allPrompts.length === 0) return [];
 
-        // 3. Fallback: If not enough recent, take the all-time best
-        const fallbacks = this.allPrompts.filter(p =>
-            !p.is_private &&
-            !p.is_featured &&
-            !p.admin_featured &&
-            p.createdAt < weekAgo
-        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
+        const isGuest = !(this.currentUser || pb.authStore.isValid);
 
-        const result = [...featured, ...recent, ...fallbacks].slice(0, 20);
-        console.log(`[CEREBRO] 🧠 Top Semanal calculado: ${result.length} items (Featured: ${featured.length})`);
-        return result;
+        // We just sort everyone by a mix of featured status and popularity.
+        return [...this.allPrompts]
+            .filter(p => {
+                if (p.is_private) return false;
+                // Exclude NSFW/Suggestive for visitors from the Hero Carousel entirely
+                if (isGuest) {
+                    const r = p.type === 'sequence' && p.content && p.content.length > 0 ? p.content[0].rating : p.rating;
+                    if (r === 'Sugestivo' || r === 'NSFW / +18') return false;
+                }
+                return true;
+            })
+            .sort((a, b) => {
+                // Priority 1: Organic Featured (admin picks)
+                const aFeatured = a.is_featured || a.admin_featured;
+                const bFeatured = b.is_featured || b.admin_featured;
+
+                // If both are featured (or both not), use popularity score
+                if (aFeatured && bFeatured) return this._getPopularityScore(b) - this._getPopularityScore(a);
+                if (aFeatured && !bFeatured) return -1;
+                if (!aFeatured && bFeatured) return 1;
+
+                // Priority 2: Pure popularity score for common prompts
+                return this._getPopularityScore(b) - this._getPopularityScore(a);
+            });
     },
 
     getTopDailyPrompts() {
         if (!this.allPrompts || this.allPrompts.length === 0) return [];
 
-        const now = Date.now();
-        const dayAgo = now - (24 * 60 * 60 * 1000);
-
-        // 1. Prioritize featured prompts (Spotlight)
-        const featured = this.allPrompts.filter(p =>
-            !p.is_private &&
-            (p.is_featured || p.admin_featured) &&
-            (!p.featured_until || new Date(p.featured_until) > now)
-        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
-
-        // 2. Take prompts from last 24h sorted by score
-        const recent = this.allPrompts.filter(p =>
-            !p.is_private &&
-            !p.is_featured &&
-            !p.admin_featured &&
-            p.createdAt >= dayAgo
-        ).sort((a, b) => this._getPopularityScore(b) - this._getPopularityScore(a));
-
-        // 3. Fallback: If very few recent, use the top from the week
-        if (featured.length + recent.length < 3) {
-            const weekly = this.getTopWeeklyPrompts();
-            return [...featured, ...recent, ...weekly].slice(0, 5);
+        // ONLY return active Daily Boosts — no fallbacks
+        const boosted = [];
+        for (const promptId of this.activeBoosts.daily) {
+            const p = this.allPrompts.find(x => x.id === promptId && !x.is_private);
+            if (p) boosted.push(p);
         }
 
-        const result = [...featured, ...recent].slice(0, 5);
-        console.log(`[CEREBRO] 🔥 Top Diario calculado: ${result.length} items.`);
-        return result;
+        if (boosted.length > 0) {
+            console.log(`[CEREBRO] 🔥 Top Diario: Mostrando ${boosted.length} Boosts activos.`);
+        }
+        return boosted;
     },
 
     // --- CONTENT ACTIONS ---
@@ -1163,6 +1332,21 @@ const store = {
             // --- AUTO-POST TO FACEBOOK ---
             // Lo hacemos de forma asíncrona para no bloquear el UI del usuario
             this._bridgeToFacebook(record);
+
+            // --- REFERRAL ACTIVATION CHECK ---
+            try {
+                if (this.referralSystem) {
+                    const refCheck = await this.referralSystem.checkReferralActivation(this.currentUser.id);
+                    if (refCheck && refCheck.shouldActivate) {
+                        const actRes = await this.referralSystem.activateReferral(refCheck.referral.id);
+                        if (actRes.success && window.showToast) {
+                            window.showToast('🎉 ¡Tu referido se activó! Quien te invitó recibió 5 💎', 'success');
+                        }
+                    }
+                }
+            } catch (refErr) {
+                console.warn('[REFERRAL] Activation check error:', refErr);
+            }
 
             return {
                 success: true,
@@ -1985,14 +2169,15 @@ const store = {
                 return { success: true };
             }
         } catch (error) {
-            // Check for "User is not verified" error (400 or 403)
-            if (error.status === 400 || error.data?.message?.includes('verified')) {
+            // Check for specific "User is not verified" API rule error if it exists
+            if (error.data?.message?.toLowerCase().includes('verified')) {
                 return {
                     success: false,
                     msg: "🔒 Debes verificar tu correo para entrar. Revisa tu bandeja de entrada (o spam)."
                 };
             }
-            return { success: false, msg: "Credenciales inválidas o error de conexión" };
+            // A standard 400 error here usually means wrong email or password
+            return { success: false, msg: "Credenciales inválidas. Verifica tu correo y contraseña." };
         }
     },
 
@@ -2000,7 +2185,7 @@ const store = {
         try {
             // 1. CREACIÓN DE CUENTA DIRECTA (Confiamos en las restricciones de PB)
             // HACK: Auto-follow Admin (rodrigodlmoral) ID: rkmrhmgh067x7un
-            await pb.collection('users').create({
+            const newUser = await pb.collection('users').create({
                 username, email, password, passwordConfirm: password,
                 name: username, tokens: 50, level: 0, xp: 0, role: 'user',
                 moderation: { suggestive: 'BLUR', nsfw: 'BLUR' },
@@ -2016,7 +2201,6 @@ const store = {
 
             // 3. AUTO-FOLLOW AL ADMIN (rkmrhmgh067x7un - @rodrigodlmoral)
             try {
-                const newUser = await pb.collection('users').getFirstListItem(`email="${email}"`);
                 if (newUser) {
                     const adminId = 'rkmrhmgh067x7un';
                     const admin = await pb.collection('users').getOne(adminId);
@@ -2029,20 +2213,49 @@ const store = {
                     batch.collection('users').update(adminId, { followers });
                     await batch.send();
                     console.log("[REGISTER] Auto-follow completo.");
-
-                    // 4. REGISTRAR BONO DE REGISTRO EN LEDGER (fire-and-forget)
-                    try {
-                        await LedgerService.systemReward(
-                            newUser.id, 50, 'REGISTRATION_BONUS',
-                            `Bono de bienvenida para @${username}`
-                        );
-                        console.log(`[REGISTER] ✅ Ledger: +50💎 registro para ${newUser.id}`);
-                    } catch (ledgerErr) {
-                        console.warn('[REGISTER] Ledger entry failed (non-blocking):', ledgerErr.message);
-                    }
                 }
             } catch (fErr) {
                 console.warn("[REGISTER] Error en auto-follow (no crítico):", fErr);
+            }
+
+            // 4. LEDGER: Bono de bienvenida (INDEPENDIENTE del auto-follow)
+            // Este bloque SIEMPRE se ejecuta si newUser existe, sin importar
+            // si el auto-follow falló o no.
+            try {
+                if (newUser) {
+                    const ledgerRes = await LedgerService.systemReward(
+                        newUser.id,
+                        50,
+                        'REGISTRATION_BONUS',
+                        `Bono de bienvenida para @${newUser.username || 'Usuario'}`
+                    );
+                    if (ledgerRes?.success) {
+                        console.log(`[REGISTER] ✅ Ledger bienvenida OK para ${newUser.username}. TX: ${ledgerRes.txHash}`);
+                    } else {
+                        console.error(`[REGISTER] ⚠️ Ledger bienvenida FALLÓ para ${newUser.username}:`, ledgerRes?.error);
+                    }
+                }
+            } catch (ledgerErr) {
+                console.error("[REGISTER] ❌ Error CRÍTICO al generar ledger de bienvenida:", ledgerErr);
+            }
+
+            // --- REFERRAL REGISTRATION PROCESSING ---
+            const savedRef = localStorage.getItem('pg_referral_code');
+            if (savedRef && this.referralSystem) {
+                try {
+                    await this.referralSystem.registerReferral(savedRef, newUser.id);
+                    localStorage.removeItem('pg_referral_code');
+                    if (window.showToast) window.showToast('✅ Código de referido aplicado', 'success');
+                } catch (e) {
+                    console.warn('[REFERRAL] Registration failed:', e);
+                }
+            }
+
+            // Generate own referral code for the new user in the background
+            try {
+                this.referralSystem?.generateReferralCode(newUser.id);
+            } catch (e) {
+                console.warn('[REFERRAL] Code gen failed:', e);
             }
 
             return { success: true };

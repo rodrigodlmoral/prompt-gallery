@@ -33,9 +33,24 @@ import { SearchSuggestions } from './components/SearchSuggestions.js';
 import { filterPrompts } from './utils/gallery-filter.js';
 import { getSearchSuggestions } from './utils/search-logic.js';
 import { initLiveChat } from './components/LiveChat.js';
+import { initSuperBoostFloat } from './components/SuperBoostFloat.js';
 
 // --- MODO MANTENIMIENTO (Activar/Desactivar aquí) ---
 const MAINTENANCE_MODE = false;
+
+// --- REFERRAL CODE CAPTURE ---
+try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    if (refCode && /^PG[A-Z0-9]{8}$/.test(refCode)) {
+        localStorage.setItem('pg_referral_code', refCode);
+        const cleanUrl = new URL(window.location);
+        cleanUrl.searchParams.delete('ref');
+        window.history.replaceState({}, '', cleanUrl);
+    }
+} catch (e) {
+    console.warn('URL parsing error', e);
+}
 
 // Script Initialization
 console.log("🚀 Prompt Gallery Initialized");
@@ -462,6 +477,52 @@ window.navHeroCarousel = (dir) => {
     }, 3000);
 };
 
+// --- BOOST CAROUSEL NAVIGATION ---
+window._boostSlideIndex = { semanal: 0, diario: 0 };
+
+window.goBoostSlide = (type, index) => {
+    const carouselId = type === 'semanal' ? 'boost-semanal-carousel' : 'boost-diario-carousel';
+    const carousel = document.getElementById(carouselId);
+    if (!carousel) return;
+
+    const slides = carousel.querySelectorAll('.boost-slide');
+    const dots = carousel.querySelectorAll('.boost-dot');
+    if (index < 0 || index >= slides.length) return;
+
+    slides.forEach(s => s.style.display = 'none');
+    dots.forEach(d => d.classList.remove('active'));
+
+    slides[index].style.display = 'flex';
+    dots[index].classList.add('active');
+    window._boostSlideIndex[type] = index;
+};
+
+window.navBoostSlide = (type, dir) => {
+    const carouselId = type === 'semanal' ? 'boost-semanal-carousel' : 'boost-diario-carousel';
+    const carousel = document.getElementById(carouselId);
+    if (!carousel) return;
+
+    const slides = carousel.querySelectorAll('.boost-slide');
+    const current = window._boostSlideIndex[type] || 0;
+    let next = current + dir;
+    if (next < 0) next = slides.length - 1;
+    if (next >= slides.length) next = 0;
+
+    window.goBoostSlide(type, next);
+};
+
+// Auto-rotate boost slides every 5 seconds
+setInterval(() => {
+    ['semanal', 'diario'].forEach(type => {
+        const carouselId = type === 'semanal' ? 'boost-semanal-carousel' : 'boost-diario-carousel';
+        const carousel = document.getElementById(carouselId);
+        if (!carousel) return;
+        const slides = carousel.querySelectorAll('.boost-slide');
+        if (slides.length <= 1) return;
+        window.navBoostSlide(type, 1);
+    });
+}, 5000);
+
 // --- TOP CREATORS STATE ---
 let topCreatorsList = [];
 window.openUserProfile = (username) => {
@@ -677,6 +738,19 @@ const render = () => {
         if (modalsMount) modalsMount.innerHTML = Modals();
     }
 
+    // --- SAFE MODAL INJECTION ---
+    if (store.currentUser) {
+        const modalsMount = document.getElementById('modals-mount');
+        if (modalsMount) {
+            const settingsModal = document.getElementById('settingsModal');
+            if (!settingsModal) {
+                modalsMount.insertAdjacentHTML('beforeend', SettingsModal());
+            } else if (settingsModal.style.display === 'none') {
+                settingsModal.outerHTML = SettingsModal();
+            }
+        }
+    }
+
     // Advanced Filter Panel
     const advFilterMount = document.getElementById('adv-filter-mount');
     if (advFilterMount) advFilterMount.innerHTML = AdvancedFilters(filters);
@@ -692,13 +766,13 @@ const render = () => {
     if (filtersMount) filtersMount.innerHTML = (currentView === 'home') ? FilterBar({ currentUser: store.currentUser, filters }) : '';
 
     const heroMount = document.getElementById('hero-mount');
-    if (heroMount) heroMount.innerHTML = (currentView === 'home' && !searchQuery) ? HeroCarousel({ currentView, prompts: store.getTopWeeklyPrompts().slice(0, 20) }) : '';
+    if (heroMount) heroMount.innerHTML = (currentView === 'home' && !searchQuery) ? HeroCarousel({ currentView, prompts: store.getTopGalleryPrompts().slice(0, 20) }) : '';
 
     const semanalMount = document.getElementById('semanal-mount');
-    if (semanalMount) semanalMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsSemanal({ currentView, prompts: store.getTopWeeklyPrompts().slice(0, 3) }) : '';
+    if (semanalMount) semanalMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsSemanal({ currentView, prompts: store.getTopWeeklyPrompts() }) : '';
 
     const diarioMount = document.getElementById('diario-mount');
-    if (diarioMount) diarioMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsDiario({ currentView, prompts: store.getTopDailyPrompts().slice(0, 1) }) : '';
+    if (diarioMount) diarioMount.innerHTML = (currentView === 'home' && !searchQuery) ? PromptsDiario({ currentView, prompts: store.getTopDailyPrompts() }) : '';
 
     const profileMount = document.getElementById('profile-mount');
     if (profileMount) {
@@ -1271,6 +1345,11 @@ try {
 
             // --- INIT LIVE CHAT (Después de que el store tiene al usuario) ---
             initLiveChat();
+
+            // --- INIT SUPER BOOST FLOAT (Cascarón) ---
+            setTimeout(() => {
+                initSuperBoostFloat(store);
+            }, 3000); // Dar un poco de tiempo para que cargue lo demás
         })
         .catch(err => {
             console.error("❌ FATAL STORE INIT ERROR:", err);

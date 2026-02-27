@@ -16,15 +16,33 @@ export class LevelSystem {
     }
 
     /**
-     * Calculate user's current level based on posts and copies
+     * Calculate user's current level based on all stats
      * @param {number} totalPosts - Total prompts published
      * @param {number} totalCopies - Total copies received across all prompts
+     * @param {number} referrals - Total active referrals
+     * @param {number} reactions - Total reactions received
+     * @param {number} reputation - Prompts with 20+ copies
      * @returns {number} Current level (0-5)
      */
-    calculateLevel(totalPosts, totalCopies) {
+    calculateLevel(totalPosts, totalCopies, referrals = 0, reactions = 0, reputation = 0) {
         let level = 0;
         LEVEL_REQS.forEach((req, idx) => {
-            if (totalPosts >= req.posts && totalCopies >= req.copies) {
+            let meetsReqs = totalPosts >= req.posts && totalCopies >= req.copies;
+
+            if (req.referrals !== undefined) {
+                meetsReqs = meetsReqs && (referrals >= req.referrals);
+            }
+            if (req.referralsOrReactions !== undefined) {
+                meetsReqs = meetsReqs && (
+                    referrals >= req.referralsOrReactions.referrals ||
+                    reactions >= req.referralsOrReactions.reactions
+                );
+            }
+            if (req.reputation !== undefined) {
+                meetsReqs = meetsReqs && (reputation >= req.reputation);
+            }
+
+            if (meetsReqs) {
                 level = idx;
             }
         });
@@ -36,27 +54,45 @@ export class LevelSystem {
      * @param {number} currentLevel - Current level
      * @param {number} totalPosts - Total prompts published
      * @param {number} totalCopies - Total copies received
+     * @param {number} referrals - Total active referrals
+     * @param {number} reactions - Total reactions received
+     * @param {number} reputation - Prompts with 20+ copies
      * @returns {number} Progress percentage (0-100)
      */
-    calculateProgress(currentLevel, totalPosts, totalCopies) {
+    calculateProgress(currentLevel, totalPosts, totalCopies, referrals = 0, reactions = 0, reputation = 0) {
         // Max level = 100% always
         if (currentLevel >= LEVEL_REQS.length - 1) return 100;
 
         const current = LEVEL_REQS[currentLevel];
         const next = LEVEL_REQS[currentLevel + 1];
 
-        // Calculate progress for posts
-        const postProgress = next.posts > current.posts
-            ? Math.min(100, ((totalPosts - current.posts) / (next.posts - current.posts)) * 100)
-            : 100;
+        const calcObjProg = (currentVal, nextReq, curReq) =>
+            nextReq > (curReq || 0) ? Math.min(100, Math.max(0, ((currentVal - (curReq || 0)) / (nextReq - (curReq || 0))) * 100)) : 100;
 
-        // Calculate progress for copies
-        const copyProgress = next.copies > current.copies
-            ? Math.min(100, ((totalCopies - current.copies) / (next.copies - current.copies)) * 100)
-            : 100;
+        const postProgress = calcObjProg(totalPosts, next.posts, current.posts);
+        const copyProgress = calcObjProg(totalCopies, next.copies, current.copies);
 
-        // Progress = minimum of both (both requirements must be met)
-        return Math.floor(Math.min(postProgress, copyProgress));
+        // Basic progress is min of posts and copies
+        let progress = Math.floor(Math.min(postProgress, copyProgress));
+
+        // Evaluate extra conditions if next level requires them
+        if (next.referrals !== undefined) {
+            const refProg = calcObjProg(referrals, next.referrals, current.referrals);
+            progress = Math.min(progress, refProg);
+        }
+
+        if (next.referralsOrReactions !== undefined) {
+            const refProg = calcObjProg(referrals, next.referralsOrReactions.referrals, current.referralsOrReactions?.referrals);
+            const reactProg = calcObjProg(reactions, next.referralsOrReactions.reactions, current.referralsOrReactions?.reactions);
+            progress = Math.min(progress, Math.max(refProg, reactProg)); // Only one needs to be met
+        }
+
+        if (next.reputation !== undefined) {
+            const repProg = calcObjProg(reputation, next.reputation, current.reputation);
+            progress = Math.min(progress, repProg);
+        }
+
+        return Math.floor(progress);
     }
 
     /**
@@ -96,19 +132,32 @@ export class LevelSystem {
 
             const allPrompts = await this.pb.collection('prompts').getFullList({
                 filter: `author = "${userId}"`,
-                fields: 'copy_count'
+                fields: 'copy_count,reactions'
             });
+
             const totalCopies = allPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
 
+            // New metrics
+            const referrals = user.active_referrals_count || 0;
+            const reactions = allPrompts.reduce((sum, p) => {
+                const r = p.reactions || {};
+                return sum + Object.keys(r).filter(k => k !== '_u').reduce((s, k) => s + (r[k] || 0), 0);
+            }, 0);
+            const reputation = allPrompts.filter(p => (p.copy_count || 0) >= 20).length;
+
             // Calculate level and progress
-            const currentLevel = this.calculateLevel(totalPosts, totalCopies);
-            const progress = this.calculateProgress(currentLevel, totalPosts, totalCopies);
-            const levelInfo = this.getLevelInfo(currentLevel);
-            const nextReqs = this.getNextLevelRequirements(currentLevel);
+            const currentLevel = this.calculateLevel(totalPosts, totalCopies, referrals, reactions, reputation);
+            const progress = this.calculateProgress(currentLevel, totalPosts, totalCopies, referrals, reactions, reputation);
+
+            // Fix: User's actual level in DB might be higher (we never downgrade)
+            const actualLevel = Math.max(user.level || 0, currentLevel);
+
+            const levelInfo = this.getLevelInfo(actualLevel);
+            const nextReqs = this.getNextLevelRequirements(actualLevel);
 
             return {
                 current: {
-                    level: currentLevel,
+                    level: actualLevel,
                     name: levelInfo.name,
                     icon: levelInfo.icon,
                     color: levelInfo.color,
@@ -117,18 +166,25 @@ export class LevelSystem {
                 stats: {
                     totalPosts,
                     totalCopies,
+                    referrals,
+                    reactions,
+                    reputation,
                     progress
                 },
                 next: nextReqs ? {
-                    level: currentLevel + 1,
+                    level: actualLevel + 1,
                     name: nextReqs.name,
                     requirements: {
                         posts: nextReqs.posts,
-                        copies: nextReqs.copies
+                        copies: nextReqs.copies,
+                        referrals: nextReqs.referrals,
+                        referralsOrReactions: nextReqs.referralsOrReactions,
+                        reputation: nextReqs.reputation
                     },
                     remaining: {
                         posts: Math.max(0, nextReqs.posts - totalPosts),
-                        copies: Math.max(0, nextReqs.copies - totalCopies)
+                        copies: Math.max(0, nextReqs.copies - totalCopies),
+                        referrals: nextReqs.referrals !== undefined ? Math.max(0, nextReqs.referrals - referrals) : undefined
                     }
                 } : null
             };
@@ -146,6 +202,9 @@ export class LevelSystem {
                 stats: {
                     totalPosts: 0,
                     totalCopies: 0,
+                    referrals: 0,
+                    reactions: 0,
+                    reputation: 0,
                     progress: 0
                 },
                 next: {
@@ -183,12 +242,21 @@ export class LevelSystem {
 
             const allPrompts = await this.pb.collection('prompts').getFullList({
                 filter: `author = "${userId}"`,
-                fields: 'copy_count'
+                fields: 'copy_count,reactions'
             });
+
             const totalCopies = allPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
 
+            // New metrics
+            const referrals = user.active_referrals_count || 0;
+            const reactions = allPrompts.reduce((sum, p) => {
+                const r = p.reactions || {};
+                return sum + Object.keys(r).filter(k => k !== '_u').reduce((s, k) => s + (r[k] || 0), 0);
+            }, 0);
+            const reputation = allPrompts.filter(p => (p.copy_count || 0) >= 20).length;
+
             // Calculate new level
-            const newLevel = this.calculateLevel(totalPosts, totalCopies);
+            const newLevel = this.calculateLevel(totalPosts, totalCopies, referrals, reactions, reputation);
 
             if (newLevel > oldLevel) {
                 return {

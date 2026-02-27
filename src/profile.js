@@ -12,6 +12,7 @@ import { initEconomyDashboard } from './components/EconomyDashboard.js';
 import { initLiveChat } from './components/LiveChat.js';
 import { setupLevelModals } from './components/Modals/LevelModals.js';
 import { toast } from './utils/ui-helpers.js';
+import { MarketplaceTab } from './components/MarketplaceTab.js';
 import './utils/LevelDebug.js'; // Load Debug Tools
 
 // Initialize Modals
@@ -333,6 +334,14 @@ const Header = () => `
                 <button class="btn-outline" onclick="window.doLogout()">Salir</button>
             ` : ''}
             </nav>
+
+            <!-- Mobile Search & Menu Toggle -->
+            ${store.currentUser ? `
+            <div style="display:flex; align-items:center; gap:10px" class="mobile-only-flex">
+                <div class="search-mobile-btn" onclick="document.querySelector('.search-mobile-overlay').classList.add('active'); document.getElementById('searchMobileInput').focus()">🔍</div>
+                <button class="mobile-menu-btn" onclick="window.toggleMobileNav()">☰</button>
+            </div>
+            ` : ''}
         </div>
         ${store.currentUser ? `
         <div class="container filters-bar" style="padding:10px 20px; display:flex; gap:8px; overflow-x:auto; background:rgba(0,0,0,0.3); align-items:center; justify-content: flex-end">
@@ -354,7 +363,40 @@ const Header = () => `
             </button>
         </div>
         ` : ''}
-</header> `;
+
+        <!-- Mobile Navigation Overlay (Unified Menu) -->
+        <div class="mobile-nav-overlay" id="mobileNavOverlay">
+            ${store.currentUser ? `
+            <div class="mobile-nav-item" onclick="window.location.href='/profile.html?u=${store.currentUser.username}'; window.toggleMobileNav();">
+                <i>👤</i> MI PERFIL
+            </div>
+            <div class="mobile-nav-item" onclick="window.openCreate(); window.toggleMobileNav();">
+                <i>🚀</i> COMPARTIR PROMPT
+            </div>
+            <div class="mobile-nav-divider"></div>
+            <div class="mobile-nav-item" onclick="window.location.href='/'">
+                <i>🏠</i> VOLVER AL CREADOR (HOME)
+            </div>
+            <div class="mobile-nav-divider"></div>
+            <div class="mobile-nav-item" onclick="window.doLogout(); window.toggleMobileNav();" style="color:#ff6b6b">
+                <i>🚪</i> SALIR O CERRAR SESIÓN
+            </div>
+            ` : ''}
+        </div>
+
+        <div class="search-mobile-overlay">
+            <div class="container" style="display:flex; flex-direction:column; gap:10px; height:100%; padding-top:20px">
+                <div style="display:flex; align-items:center; gap:10px; width:100%">
+                    <button class="btn-icon" onclick="document.querySelector('.search-mobile-overlay').classList.remove('active')" style="font-size:1.2rem; color:#fff">✕</button>
+                    <div class="search-bar" style="flex:1; max-width:none; position:relative">
+                        <input type="password" style="display:none" autocomplete="new-password">
+                        <input type="text" class="search-input" id="searchMobileInput" placeholder="Buscar en perfil..." value="${searchQuery}" autocomplete="chrome-off-v2" spellcheck="false" name="mgprof_find" oninput="if(window.handleSearchTyping) window.handleSearchTyping(this.value)" onkeydown="if(event.key === 'Enter'){ window.handleSearch(this.value); document.querySelector('.search-mobile-overlay').classList.remove('active'); }">
+                    </div>
+                </div>
+                <div id="search-mobile-suggestions-mount" style="flex:1; overflow-y:auto; margin-top:10px"></div>
+            </div>
+        </div>
+    </header> `;
 
 const ProfileHeader = () => {
     console.log(`[PROFILE] ProfileHeader: profileUser = "${profileUser}"`);
@@ -506,7 +548,9 @@ const ProfileHeader = () => {
         <div class="container" style="margin-top:20px; display:flex; gap:25px; border-bottom:1px solid #333">
             <button class="profile-tab ${profileTab === 'creations' ? 'active' : ''}" onclick="window.setProfileTab('creations')">CREACIONES</button>
             ${isMe ? `<button class="profile-tab ${profileTab === 'saved' ? 'active' : ''}" onclick="window.setProfileTab('saved')">GUARDADOS</button>` : ''}
+            ${isMe ? `<button class="profile-tab ${profileTab === 'marketplace' ? 'active' : ''}" onclick="window.setProfileTab('marketplace')">MARKETPLACE</button>` : ''}
             ${isMe ? `<button class="profile-tab ${profileTab === 'economy' ? 'active' : ''}" onclick="window.setProfileTab('economy')">ECONOMÍA</button>` : ''}
+            ${isMe ? `<button class="profile-tab ${profileTab === 'referrals' ? 'active' : ''}" onclick="window.setProfileTab('referrals')" style="color:var(--accent);">👥 REFERIDOS</button>` : ''}
         </div>
     </div> `;
 };
@@ -518,6 +562,9 @@ const Gallery = () => {
         : (store.users.find(u => u.username?.toLowerCase() === target || u.name?.toLowerCase() === target) || store.usersCache[target]);
 
     if (!user) return '<div class="container" style="padding:40px 0; color:#666">Cargando galería...</div>';
+
+    console.log(`[GALLERY_DEBUG] store.prompts.length = ${store.prompts.length}`);
+    console.log(`[GALLERY_DEBUG] profileTab = ${profileTab}`);
 
     let list = [...store.prompts].filter(p => {
         const isMine = p.author_id === user.id;
@@ -545,6 +592,8 @@ const Gallery = () => {
         return true;
     });
 
+    console.log(`[GALLERY_DEBUG] filtered list.length = ${list.length}`);
+
     // Sort Logic (Default: newest first)
     list.sort((a, b) => {
         if (filters.sort === 'popular') {
@@ -563,7 +612,10 @@ const Gallery = () => {
     // La galería ahora usa store.prompts (los cargados incrementalmente)
     const itemsToShow = isVisitor ? list.slice(0, 12) : list;
 
-    if (list.length === 0) return `<div class="container" style="padding:100px; text-align:center; color:#666">No hay prompts que coincidan con los filtros.</div>`;
+    if (list.length === 0) {
+        console.warn(`[GALLERY_DEBUG] 🚨 La lista final es 0! user.id=${user.id}, store.prompts.length=${store.prompts.length}`);
+        return `<div class="container" style="padding:100px; text-align:center; color:#666">No hay prompts que coincidan con los filtros.</div>`;
+    }
 
     return `
     <div class="container gallery-grid" id="gallery-root" style="margin-top:20px">
@@ -591,7 +643,6 @@ const Gallery = () => {
                 </div>
                 ${(store.currentUser?.username === profileUser && p.author === store.currentUser?.username) ? `
                 <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px; z-index:10;">
-                    ${(store.currentUser?.level >= 4 && !p.is_featured) ? `<button class="btn-icon" style="background:rgba(241,196,15,0.8); padding:5px; width:auto; height:30px; font-size:0.75rem; color:black; font-weight:700" onclick="event.stopPropagation(); window.doPromotePrompt('${p.id}')" title="Destacar por 1 semana (50 PromptBits)">💎 50 PromptBits</button>` : ''}
                     <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doEditPrompt('${p.id}')" title="Editar">✏️</button>
                     <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doDeletePrompt('${p.id}')" title="Eliminar Post">🗑️</button>
                 </div>` : ''}
@@ -655,17 +706,17 @@ const Gallery = () => {
             <!-- Stats Bar -->
             <div style="display: flex; gap: 30px; justify-content: center; margin-bottom: 35px; background: rgba(255,255,255,0.03); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05);">
                 <div style="text-align: center;">
-                    <div style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.users.toLocaleString()}</div>
+                    <div id="visStatsUsers" style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.users.toLocaleString()}</div>
                     <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">👤 Usuarios</div>
                 </div>
                 <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
                 <div style="text-align: center;">
-                    <div style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.prompts.toLocaleString()}</div>
+                    <div id="visStatsPrompts" style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.prompts.toLocaleString()}</div>
                     <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">🖼️ Prompts</div>
                 </div>
                 <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
                 <div style="text-align: center;">
-                    <div style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.visits.toLocaleString()}</div>
+                    <div id="visStatsVisits" style="font-size: 1.5rem; font-weight: 800; color: #fff;">${store.stats.visits.toLocaleString()}</div>
                     <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">🔥 Visitas</div>
                 </div>
             </div>
@@ -1126,7 +1177,6 @@ const render = () => {
             <div id="profile-gallery-container"></div>
             <div id="modals-mount"></div>
             <div id="adv-filter-mount"></div>
-            ${SettingsModal()}
             ${CreateModal()}
             ${ConfirmModal()}
             ${AuthModal()}
@@ -1136,15 +1186,64 @@ const render = () => {
         if (modalsMount) modalsMount.innerHTML = DetailModalTemplateLocal();
     }
 
+    // --- SAFE MODAL INJECTION ---
+    if (store.currentUser) {
+        const modalsMount = document.getElementById('modals-mount');
+        if (modalsMount) {
+            const settingsModal = document.getElementById('settingsModal');
+            if (!settingsModal) {
+                modalsMount.insertAdjacentHTML('beforeend', SettingsModal());
+            } else if (settingsModal.style.display === 'none') {
+                settingsModal.outerHTML = SettingsModal();
+            }
+        }
+    }
+
     const headerMount = document.getElementById('header-mount');
     if (headerMount) headerMount.innerHTML = Header();
 
     const pHeaderMount = document.getElementById('profile-header-mount');
     if (pHeaderMount) pHeaderMount.innerHTML = ProfileHeader();
 
+    // Economy Dashboard (own profile only)
+    const targetNorm = profileUser.toLowerCase();
+    const isOwnProfile = store.currentUser && (
+        (store.currentUser.username || '').toLowerCase() === targetNorm ||
+        (store.currentUser.name || '').toLowerCase() === targetNorm
+    );
     const galleryMount = document.getElementById('profile-gallery-container');
+    const ecoContainer = document.getElementById('economyDashboardContainer');
+
     if (galleryMount) {
-        galleryMount.innerHTML = profileTab === 'economy' ? '' : Gallery();
+        try {
+            if (profileTab === 'marketplace') {
+                galleryMount.innerHTML = MarketplaceTab(store);
+                setTimeout(() => {
+                    if (window.loadActiveBoosts) window.loadActiveBoosts();
+                }, 100);
+            } else if (profileTab === 'economy') {
+                galleryMount.innerHTML = '';
+            } else if (profileTab === 'referrals') {
+                galleryMount.innerHTML = '<div id="referrals-wrapper"></div>';
+                setTimeout(() => {
+                    const targetNorm = profileUser.toLowerCase();
+                    const u = (store.currentUser && (store.currentUser.username?.toLowerCase() === targetNorm || store.currentUser.name?.toLowerCase() === targetNorm))
+                        ? store.currentUser
+                        : (store.users.find(uu => uu.username?.toLowerCase() === targetNorm || uu.name?.toLowerCase() === targetNorm) || store.usersCache[targetNorm]);
+                    if (u) ReferralsTab(u);
+                }, 50);
+            } else {
+                galleryMount.innerHTML = Gallery();
+            }
+        } catch (err) {
+            console.error("❌ Component Render Error:", err);
+            galleryMount.innerHTML = `<div class="container" style="padding:100px; text-align:center; color:#ff4444">
+                <div style="font-size:3rem">⚠️</div>
+                <h3>Error de Carga</h3>
+                <p>Ocurrió un error al renderizar esta sección. Por favor, intenta de nuevo.</p>
+                <code style="font-size:0.8rem; opacity:0.6">${err.message}</code>
+            </div>`;
+        }
     }
 
     // Advanced Filter Panel
@@ -1152,10 +1251,6 @@ const render = () => {
     if (advFilterMount) advFilterMount.innerHTML = profileTab === 'economy' ? '' : AdvancedFilters(filters);
 
     attachEvents();
-
-    // Economy Dashboard (own profile only)
-    const isOwnProfile = store.currentUser && (store.currentUser.username === profileUser || store.currentUser.name === profileUser);
-    const ecoContainer = document.getElementById('economyDashboardContainer');
 
     if (isOwnProfile && profileTab === 'economy') {
         const ecoContainer = document.getElementById('economyDashboardContainer');
@@ -1179,6 +1274,21 @@ const render = () => {
 };
 window.render = render;
 
+// --- MOBILE NAVIGATION LOGIC ---
+window.toggleMobileNav = () => {
+    const nav = document.getElementById('mobileNavOverlay');
+    if (nav) nav.classList.toggle('active');
+};
+// Close mobile nav when clicking outside
+document.addEventListener('click', (e) => {
+    const nav = document.getElementById('mobileNavOverlay');
+    const btn = document.querySelector('.mobile-menu-btn');
+    if (nav && nav.classList.contains('active')) {
+        if (!nav.contains(e.target) && btn && !btn.contains(e.target)) {
+            nav.classList.remove('active');
+        }
+    }
+});
 const attachEvents = () => {
     document.getElementById('searchInput')?.addEventListener('input', (e) => {
         if (window.handleSearchTyping) window.handleSearchTyping(e.target.value);
@@ -1715,7 +1825,6 @@ const appendSurgicalPrompts = (newItems) => {
                 </div>
                 ${(store.currentUser?.username === profileUser && p.author === store.currentUser?.username) ? `
                 <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px; z-index:10;">
-                    ${(store.currentUser?.level >= 4 && !p.is_featured) ? `<button class="btn-icon" style="background:rgba(241,196,15,0.8); padding:5px; width:auto; height:30px; font-size:0.75rem; color:black; font-weight:700" onclick="event.stopPropagation(); window.doPromotePrompt('${p.id}')" title="Destacar por 1 semana (50 PromptBits)">💎 50 PromptBits</button>` : ''}
                     <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doEditPrompt('${p.id}')" title="Editar">✏️</button>
                     <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:30px; height:30px; font-size:0.9rem" onclick="event.stopPropagation(); window.doDeletePrompt('${p.id}')" title="Eliminar Post">🗑️</button>
                 </div>` : ''}
@@ -2196,7 +2305,13 @@ window.setProfileTab = (tab) => {
 
 window.openSettings = () => {
     const modal = document.getElementById('settingsModal');
-    if (modal) modal.style.display = 'flex';
+    if (modal) {
+        if (modal.parentNode !== document.body) {
+            document.body.appendChild(modal);
+        }
+        modal.style.display = 'flex';
+        modal.style.zIndex = '9999999';
+    }
 };
 
 window.previewAvatar = (input) => {
@@ -2282,146 +2397,10 @@ window.togglePass = (id, btn) => {
     else { el.type = 'password'; btn.innerText = '👁️'; }
 };
 
-window.openLevelProgress = () => {
-
-    if (!store.currentUser) { alert("Error: No has iniciado sesión."); return; }
-
-    // Bloquear scroll del fondo
-    document.body.style.overflow = 'hidden';
-
-    // Clean old instances
-    const oldModal = document.getElementById('levelModalDynamic');
-    if (oldModal) oldModal.remove();
-
-    const u = store.currentUser;
-    const postsCount = u.prompts_count || 0;
-    const copiesCount = u.total_copies || 0;
-    const currentLvl = u.level || 0;
-
-    // Find next level requirements
-    const nextLvlIdx = Math.min(currentLvl + 1, LEVEL_REQS.length - 1);
-    const nextLvlReq = LEVEL_REQS[nextLvlIdx];
-    const isMax = currentLvl >= LEVEL_REQS.length - 1;
-
-    // Calcular progreso
-    let progressPosts = 0;
-    let progressCopies = 0;
-
-    if (!isMax) {
-        const prevReqPosts = LEVEL_REQS[currentLvl].posts;
-        const nextReqPosts = nextLvlReq.posts;
-        progressPosts = Math.min(100, Math.max(0, ((postsCount - prevReqPosts) / (nextReqPosts - prevReqPosts)) * 100));
-
-        if (nextLvlReq.copies > 0) {
-            const prevReqCopies = LEVEL_REQS[currentLvl].copies || 0;
-            const nextReqCopies = nextLvlReq.copies;
-            progressCopies = Math.min(100, Math.max(0, ((copiesCount - prevReqCopies) / (nextReqCopies - prevReqCopies)) * 100));
-        } else {
-            progressCopies = 100; // Si no pide copias, está al 100%
-        }
-    } else {
-        progressPosts = 100;
-        progressCopies = 100;
-    }
-
-    // El progreso real es el MÍNIMO de ambos (el que falte más)
-    const totalProgress = isMax ? 100 : (progressPosts + progressCopies) / 2;
-    // O mejor, mostrar ambas barras si el nivel pide ambas
-    const needsCopies = nextLvlReq.copies > 0;
-
-    const html = `
-                        <div style="text-align:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #222">
-                            <div style="font-size:3.5rem; margin-bottom:10px">${LEVEL_REQS[currentLvl].icon}</div>
-                            <h2 style="margin:0; font-size:1.8rem; color:#fff">Nivel ${currentLvl}</h2>
-                            <p style="color:#aaa; margin-top:5px; font-weight:600; text-transform:uppercase; letter-spacing:1px">${LEVEL_REQS[currentLvl].name}</p>
-                        </div>
-
-                        <div style="background:#000; padding:25px; border-radius:16px; border:1px solid #333; margin-bottom:25px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5)">
-                            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
-                                <span style="color:#888">${isMax ? 'Rango Ápice Alcanzado' : 'Progreso de Posts'}</span>
-                                <span style="color:#2563eb">${postsCount} / ${isMax ? '∞' : nextLvlReq.posts}</span>
-                            </div>
-                            <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333; margin-bottom:15px">
-                                <div style="width:${progressPosts}%; height:100%; background:linear-gradient(90deg, #2563eb, #a29bfe); transition:width 1s ease"></div>
-                            </div>
-
-                            ${needsCopies ? `
-            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
-                <span style="color:#888">Progreso de Copias</span>
-                <span style="color:#f1c40f">${copiesCount} / ${nextLvlReq.copies}</span>
-            </div>
-            <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333">
-                <div style="width:${progressCopies}%; height:100%; background:linear-gradient(90deg, #f1c40f, #e67e22); transition:width 1s ease"></div>
-            </div>
-            ` : ''}
-
-                            ${!isMax ? `
-                <p style="font-size:0.85rem; color:#888; margin-top:15px; text-align:center">
-                    ${postsCount < nextLvlReq.posts ? `Te faltan <strong>${nextLvlReq.posts - postsCount}</strong> posts. ` : ''}
-                    ${needsCopies && copiesCount < nextLvlReq.copies ? `Te faltan <strong>${nextLvlReq.copies - copiesCount}</strong> copias recibidas.` : ''}
-                </p>
-            ` : ''}
-                        </div>
-
-                        <h3 style="font-size:1.2rem; margin-bottom:18px; color:#fff; display:flex; align-items:center; gap:10px">
-                            <span>Beneficios y Jerarquía</span>
-                            <div style="flex:1; height:1px; background:#222"></div>
-                        </h3>
-
-                        <div style="display:flex; flex-direction:column; gap:12px">
-                            ${LEVEL_REQS.map((l, idx) => {
-        const isUnlocked = postsCount >= l.posts && copiesCount >= (l.copies || 0);
-        const isCurrent = currentLvl === idx;
-        return `
-                <div style="display:flex; gap:15px; align-items:start; padding:15px; border-radius:12px; border:1px solid ${isCurrent ? '#2563eb' : (isUnlocked ? '#333' : '#1a1a1a')}; background:${isCurrent ? 'rgba(37, 99, 235, 0.1)' : (isUnlocked ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.3)')}; opacity:${isUnlocked ? 1 : 0.4}; transition:0.3s">
-                    <div style="font-size:1.6rem; background:#111; min-width:50px; height:50px; border-radius:10px; display:flex; align-items:center; justify-content:center; border:2px solid ${l.color}">${l.icon}</div>
-                    <div style="flex:1">
-                        <div style="display:flex; justify-content:space-between; align-items:center">
-                            <strong style="color:${l.color}; font-size:1.05rem;">Nivel ${idx}: ${l.name}</strong>
-                            <span style="font-size:0.75rem; background:#333; color:#fff; padding:3px 10px; border-radius:100px; font-weight:700">${l.posts} Posts ${l.copies > 0 ? `+ ${l.copies} Copias` : ''}</span>
-                        </div>
-                        <ul style="margin:8px 0 0 0; padding-left:18px; font-size:0.9rem; color:#999; line-height:1.4">
-                            ${l.benefits.map(b => `<li>${b}</li>`).join('')}
-                        </ul>
-                    </div>
-                </div>`;
-    }).join('')}
-                        </div>
-
-                        <button class="btn" style="width:100%; margin-top:30px; height:54px; font-weight:800; font-size:1.1rem; background:#2563eb; color:white; border:none; border-radius:14px; cursor:pointer; box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2)" onclick="window.closeLevelProgress(this)">Entendido</button>
-                        `;
-
-    window.closeLevelProgress = (btn) => {
-        btn.closest('.modal-overlay').remove();
-        document.body.style.overflow = '';
-    };
-
-    const modalDiv = document.createElement('div');
-    modalDiv.id = 'levelModalDynamic';
-    modalDiv.className = 'modal-overlay';
-    modalDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; z-index:2147483647; padding:20px; color:white; font-family:Inter, sans-serif;';
-
-    modalDiv.onclick = (e) => {
-        if (e.target === modalDiv) {
-            modalDiv.remove();
-            document.body.style.overflow = '';
-        }
-    };
-
-    modalDiv.innerHTML = `
-                        <style>
-                            #levelModalDynamic .modal-container::-webkit-scrollbar {width: 6px; }
-                            #levelModalDynamic .modal-container::-webkit-scrollbar-track {background: transparent; }
-                            #levelModalDynamic .modal-container::-webkit-scrollbar-thumb {background: #333; border-radius: 10px; }
-                            #levelModalDynamic .modal-container::-webkit-scrollbar-thumb:hover {background: #444; }
-                        </style>
-                        <div class="modal-container" style="max-width:550px; background:#111; border:1px solid #333; border-radius:28px; width:100%; padding:35px; max-height:85vh; overflow-y:auto; box-shadow: 0 30px 60px rgba(0,0,0,0.8); position:relative; scroll-behavior: smooth;">
-                            ${html}
-                        </div>
-                        `;
-
-    document.body.appendChild(modalDiv);
-};
+// => window.openLevelProgress se ha movido y centralizado en:
+// src/components/Modals/LevelModals.js
+// Esto permite que el sistema de niveles sea global y soporte los nuevos
+// requerimientos complejos (Referidos, Reacciones y Reputación).
 
 
 
@@ -2571,9 +2550,20 @@ const init = async () => {
             // 1. CARGA MAESTRA PARA ANÁLISIS (Todos los del usuario para stats/prompts_count)
             await store.loadUserPromptsForAnalysis(user.id);
 
-            // 2. CARGA INICIAL PARA GALERÍA (Primeros 60)
-            const filter = `author = "${user.id}"`;
-            await store.loadPrompts(true, filter);
+            // 2. RECICLAJE DE MEMORIA PARA GALERÍA
+            // PocketHost falla por rate limit si hacemos getList después de getFullList.
+            // Asi que inyectamos los que ya trajimos directamente a store.prompts
+            if (store.userAllPrompts && store.userAllPrompts.length > 0) {
+                store.prompts = store.userAllPrompts.slice(0, 60);
+                store.currentPage = 1;
+                store.hasMore = store.userAllPrompts.length > 60;
+                store.isLoadingMore = false;
+                console.log(`[PROFILE] ♻️ Reutilizados ${store.prompts.length} prompts maestros para la visualización.`);
+            } else {
+                // Caída si por alguna razón falla el master load
+                const filter = `author = "${user.id}"`;
+                await store.loadPrompts(true, filter);
+            }
         }
     }
     window.initDone = true;
@@ -2700,6 +2690,167 @@ window.doClaimGhosts = async () => {
         console.error("Claim handler error:", err);
         alert("Error crítico en la reparación");
     }
+};
+
+window.copyReferralText = function (text, btnElement) {
+    navigator.clipboard.writeText(text).then(() => {
+        const originalText = btnElement.innerText;
+        btnElement.innerText = "✅ Copiado";
+        setTimeout(() => btnElement.innerText = originalText, 2000);
+    }).catch(err => {
+        if (window.toast) window.toast("Error al copiar: " + err, "error");
+    });
+};
+
+const ReferralsTab = async (user) => {
+    const isMe = store.currentUser && store.currentUser.id === user.id;
+    const wrapper = document.getElementById('referrals-wrapper');
+    if (!wrapper) return;
+
+    if (!isMe) {
+        wrapper.innerHTML = `<div class="container" style="padding:40px; text-align:center; color:#888;">Esta información es privada.</div>`;
+        return;
+    }
+
+    if (!user.level || user.level < 1) {
+        wrapper.innerHTML = `
+        <div class="container" style="margin-top: 40px; padding: 40px 20px;">
+            <div style="background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%); padding: 60px 20px; border-radius: 20px; border: 2px solid var(--accent); box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center;">
+                <div style="font-size: 4rem; margin-bottom: 20px;">🔰</div>
+                <h2 style="font-size: 2rem; color: #fff; margin-bottom: 10px;">¡Sube de nivel para invitar amigos!</h2>
+                <p style="color: #888; font-size: 1.1rem; margin-bottom: 25px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                    Necesitas alcanzar el <b>Nivel 1 (Novato)</b> para desbloquear tu link de referido. ¡Comparte 5 prompts en la galería comunitaria para subir!
+                </p>
+                <button class="btn" onclick="window.openCreate()" style="padding: 15px 40px; font-size: 1.2rem; border-radius: 50px;">
+                    🚀 Compartir un Prompt Ahora
+                </button>
+            </div>
+        </div>
+        `;
+        return;
+    }
+
+    wrapper.innerHTML = `<div class="container" style="padding:40px 0; color:#666; text-align:center"><div class="spinner"></div> Cargando datos de referidos...</div>`;
+
+    let stats = { total: 0, active: 0, pending: 0, totalEarned: 0 };
+    let list = [];
+    let link = '';
+    let code = '';
+
+    try {
+        if (store.referralSystem) {
+            code = await store.referralSystem.getReferralCode(user.id);
+            link = await store.referralSystem.getReferralLink(user.id);
+            stats = await store.referralSystem.getReferralStats(user.id) || stats;
+            list = await store.referralSystem.getUserReferrals(user.id) || [];
+        }
+    } catch (e) {
+        console.error("Referral fetch error:", e);
+    }
+
+    wrapper.innerHTML = `
+    <div class="container" style="max-width: 800px; margin-top: 20px; animation: fadeIn 0.4s ease;">
+        
+        <!-- Header / Link Section -->
+        <div style="background: rgba(20,20,20,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; margin-bottom: 20px; text-align: center;">
+            <div style="font-size: 3rem; margin-bottom: 10px;">🤝</div>
+            <h2 style="margin-bottom: 10px; font-size: 1.5rem;">Invita Creadores, Gana PromptBits</h2>
+            <p style="color: #aaa; margin-bottom: 25px; font-size: 0.95rem;">Comparte tu código con amigos. Cuando se registren y publiquen 5 prompts, <strong style="color:var(--accent)">ganarás 5 💎 PromptBits</strong> y ellos entrarán a la galería.</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px; max-width: 500px; margin: 0 auto;">
+                <!-- Code Box -->
+                <div style="display: flex; align-items: center; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; overflow: hidden;">
+                    <div style="padding: 12px 15px; color: #888; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); display: flex; align-items: center; gap: 8px;">
+                        <span>🎫</span> Código
+                    </div>
+                    <div style="flex: 1; padding: 12px 15px; text-align: left; font-family: monospace; font-size: 1.1rem; letter-spacing: 2px; color: #fff; font-weight: bold;">
+                        ${code}
+                    </div>
+                    <button class="btn-glass" style="border: none; border-radius: 0; padding: 12px 20px; border-left: 1px solid rgba(255,255,255,0.1); height: 100%; display: flex; align-items: center;" onclick="window.copyReferralText('${code}', this)">
+                        📋 Copiar
+                    </button>
+                </div>
+
+                <!-- Link Box -->
+                <div style="display: flex; align-items: center; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; overflow: hidden;">
+                    <div style="flex: 1; padding: 12px 15px; text-align: left; font-size: 0.85rem; color: #aaa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        ${link}
+                    </div>
+                    <button class="btn-primary" style="border: none; border-radius: 0; padding: 12px 20px; font-weight: bold; height: 100%;" onclick="window.copyReferralText('${link}', this)">
+                        🔗 Copiar Link
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Section -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px;">
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 5px;">${stats.total}</div>
+                <div style="font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px;">Referidos Totales</div>
+            </div>
+            <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); padding: 20px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 2rem; font-weight: 800; color: #60a5fa; margin-bottom: 5px;">${stats.active}</div>
+                <div style="font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px;">Activos / Completados</div>
+            </div>
+            <div style="background: rgba(255, 171, 0, 0.05); border: 1px solid rgba(255, 171, 0, 0.2); padding: 20px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 2rem; font-weight: 800; color: #ffb142; margin-bottom: 5px;">${stats.pending}</div>
+                <div style="font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px;">En Progreso</div>
+            </div>
+            <div style="background: rgba(162, 155, 254, 0.05); border: 1px solid rgba(162, 155, 254, 0.2); padding: 20px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 2rem; font-weight: 800; color: #a29bfe; margin-bottom: 5px;">+${stats.totalEarned} 💎</div>
+                <div style="font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px;">Total Ganado</div>
+            </div>
+        </div>
+
+        <!-- List Section -->
+        <h3 style="margin-bottom: 15px; font-size: 1.2rem; display: flex; align-items: center; gap: 10px;">
+            <span>📋</span> Historial de Referidos
+        </h3>
+        
+        ${list.length === 0 ? `
+            <div style="background: rgba(0,0,0,0.2); border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px; padding: 40px; text-align: center; color: #777;">
+                <span style="font-size: 2rem; display: block; margin-bottom: 10px;">👻</span>
+                Aún no tienes referidos. ¡Comparte tu link para empezar!
+            </div>
+        ` : `
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                ${list.map(r => {
+        const isAct = r.status === 'active';
+        const pct = Math.min((r.prompts_count / 5) * 100, 100);
+
+        return `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background-image: url('${r.user?.avatar || 'https://robohash.org/' + r.user?.username}'); background-size: cover; background-color: #222;"></div>
+                            <div>
+                                <div style="font-weight: bold; font-size: 1rem;">@${r.user?.username || 'Usuario'}</div>
+                                <div style="font-size: 0.75rem; color: #888;">Registrado: ${new Date(r.registeredAt).toLocaleDateString()}</div>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: right; min-width: 150px;">
+                            ${isAct ? `
+                                <div style="color: #4cd137; font-weight: bold; display: flex; align-items: center; gap: 5px; justify-content: flex-end;">
+                                    ✅ <span style="background: rgba(76, 209, 55, 0.1); padding: 2px 8px; border-radius: 10px;">Completado</span>
+                                </div>
+                                <div style="font-size: 0.75rem; color: #a29bfe; margin-top: 4px;">+ 5 💎 PromptBits</div>
+                            ` : `
+                                <div style="color: #ffb142; font-weight: bold; font-size: 0.85rem; margin-bottom: 5px; display: flex; align-items: center; justify-content: flex-end; gap: 5px;">
+                                    ⏳ ${r.prompts_count}/5 Prompts
+                                </div>
+                                <div style="width: 150px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; float: right;">
+                                    <div style="width: ${pct}%; height: 100%; background: #ffb142; border-radius: 10px;"></div>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                    `;
+    }).join('')}
+            </div>
+        `}
+    </div>
+    `;
 };
 
 init();

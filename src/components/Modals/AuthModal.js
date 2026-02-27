@@ -38,12 +38,18 @@ export const AuthModal = () => `
                     <p style="font-size: 0.8rem; color: #888; margin-top: 15px; margin-bottom: 15px; text-align: center; opacity: 0.8;">Al continuar, aceptas nuestros términos y condiciones</p>
                 </div>
                 <input type="text" id="regEmail" class="form-input" placeholder="Email">
-                    <input type="text" id="regUser" class="form-input" placeholder="Usuario">
-                        <div style="position:relative">
-                            <input type="password" id="regPass" class="form-input" placeholder="Contraseña" style="padding-right:40px">
-                                <span onclick="window.togglePass('regPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
-                        </div>
-                        <button class="btn" style="width:100%" onclick="window.doRegisterSubmit()">Registrar</button>
+                <input type="text" id="regUser" class="form-input" placeholder="Usuario">
+                <div style="position:relative">
+                    <input type="password" id="regPass" class="form-input" placeholder="Contraseña" style="padding-right:40px">
+                    <span onclick="window.togglePass('regPass', this)" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem; user-select:none">👁️</span>
+                </div>
+                
+                <div style="margin-top: 15px; margin-bottom: 20px; text-align: left;">
+                    <label class="form-label" style="font-size:0.75rem; color:#888; margin-bottom: 5px; display: block;">CÓDIGO DE REFERIDO (Opcional)</label>
+                    <input type="text" id="regReferral" class="form-input" placeholder="PG..." style="background: rgba(255,171,66,0.05); border-color: rgba(255,171,66,0.3);">
+                </div>
+
+                <button class="btn" style="width:100%" onclick="window.doRegisterSubmit()">Registrar</button>
                         <p>¿Ya tienes cuenta? <a href="#" onclick="window.toggleAuth('log')">Login</a></p>
                     </div>
                     <div id="recoverForm" style="display:none;">
@@ -88,11 +94,17 @@ window.doRegisterSubmit = async () => {
     const email = document.getElementById('regEmail').value.trim().toLowerCase();
     const user = document.getElementById('regUser').value;
     const pass = document.getElementById('regPass').value;
+    const referralInput = document.getElementById('regReferral')?.value.trim();
     const domain = email.split('@')[1];
 
     if (!ALLOWED_DOMAINS.includes(domain)) {
         toast("Por seguridad no puedes registrarte con ese correo, prueba con otro.", "error");
         return;
+    }
+
+    // Guardar el referral manual para que el hook post-registro lo atrape
+    if (referralInput) {
+        localStorage.setItem('pg_referral_code', referralInput);
     }
 
     const res = await store.register(email, user, pass);
@@ -187,6 +199,15 @@ window.openLogin = () => {
 window.openRegister = () => {
     document.getElementById('authModal').style.display = 'flex';
     window.toggleAuth('reg');
+
+    // Auto-fill code if present in memory (from URL ?ref= code scenario)
+    setTimeout(() => {
+        const urlRef = localStorage.getItem('pg_referral_code');
+        const refInput = document.getElementById('regReferral');
+        if (urlRef && refInput && !refInput.value) {
+            refInput.value = urlRef;
+        }
+    }, 50);
 };
 
 window.doLogout = () => {

@@ -101,7 +101,23 @@ export const setupLevelModals = () => {
         const lvlData = await levelSystem.getUserLevelInfo(store.currentUser.id);
         const { current, stats, next } = lvlData;
 
-        const isEligible = next && stats.totalPosts >= next.requirements.posts && stats.totalCopies >= next.requirements.copies;
+        // Check eligibility considering ALL requirements
+        let isEligible = false;
+        if (next) {
+            isEligible = stats.totalPosts >= next.requirements.posts && stats.totalCopies >= next.requirements.copies;
+            if (isEligible && next.requirements.referrals !== undefined) {
+                isEligible = isEligible && (stats.referrals >= next.requirements.referrals);
+            }
+            if (isEligible && next.requirements.referralsOrReactions !== undefined) {
+                isEligible = isEligible && (
+                    stats.referrals >= next.requirements.referralsOrReactions.referrals ||
+                    stats.reactions >= next.requirements.referralsOrReactions.reactions
+                );
+            }
+            if (isEligible && next.requirements.reputation !== undefined) {
+                isEligible = isEligible && (stats.reputation >= next.requirements.reputation);
+            }
+        }
         const isMax = !next;
 
         // Bloquear scroll
@@ -132,15 +148,56 @@ export const setupLevelModals = () => {
                     <span style="color:#888">Progreso de Copias</span>
                     <span style="color:#f1c40f">${stats.totalCopies} / ${next.requirements.copies}</span>
                 </div>
-                <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333">
+                <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333; margin-bottom:15px">
                     <div style="width:${Math.min(100, (stats.totalCopies / next.requirements.copies) * 100)}%; height:100%; background:linear-gradient(90deg, #f1c40f, #e67e22); transition:width 1s ease"></div>
                 </div>
                 ` : ''}
 
-                <p style="font-size:0.85rem; color:#888; margin-top:15px; text-align:center">
-                    ${stats.totalPosts < next.requirements.posts ? `Te faltan <strong>${next.requirements.posts - stats.totalPosts}</strong> posts. ` : ''}
-                    ${next.requirements.copies > 0 && stats.totalCopies < next.requirements.copies ? `Te faltan <strong>${next.requirements.copies - stats.totalCopies}</strong> copias recibidas.` : ''}
-                </p>
+                ${next.requirements.referrals !== undefined ? `
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
+                    <span style="color:#888">👥 Referidos Activos</span>
+                    <span style="color:#22c55e">${stats.referrals || 0} / ${next.requirements.referrals}</span>
+                </div>
+                <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333; margin-bottom:15px">
+                    <div style="width:${Math.min(100, ((stats.referrals || 0) / next.requirements.referrals) * 100)}%; height:100%; background:linear-gradient(90deg, #22c55e, #16a34a); transition:width 1s ease"></div>
+                </div>
+                ` : ''}
+
+                ${next.requirements.referralsOrReactions !== undefined ? `
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; font-weight:700">
+                    <span style="color:#888">👥 Referidos <span style="color:#555; font-weight:400">(opción A)</span></span>
+                    <span style="color:${(stats.referrals || 0) >= next.requirements.referralsOrReactions.referrals ? '#22c55e' : '#666'}">${stats.referrals || 0} / ${next.requirements.referralsOrReactions.referrals}</span>
+                </div>
+                <div style="width:100%; height:10px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333; margin-bottom:8px">
+                    <div style="width:${Math.min(100, ((stats.referrals || 0) / next.requirements.referralsOrReactions.referrals) * 100)}%; height:100%; background:linear-gradient(90deg, #22c55e, #16a34a); transition:width 1s ease"></div>
+                </div>
+                <div style="text-align:center; color:#555; font-size:0.75rem; font-weight:700; margin-bottom:8px">— ó —</div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; font-weight:700">
+                    <span style="color:#888">❤️ Reacciones <span style="color:#555; font-weight:400">(opción B)</span></span>
+                    <span style="color:${(stats.reactions || 0) >= next.requirements.referralsOrReactions.reactions ? '#e74c3c' : '#666'}">${stats.reactions || 0} / ${next.requirements.referralsOrReactions.reactions}</span>
+                </div>
+                <div style="width:100%; height:10px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333; margin-bottom:15px">
+                    <div style="width:${Math.min(100, ((stats.reactions || 0) / next.requirements.referralsOrReactions.reactions) * 100)}%; height:100%; background:linear-gradient(90deg, #e74c3c, #c0392b); transition:width 1s ease"></div>
+                </div>
+                ` : ''}
+
+                ${next.requirements.reputation !== undefined ? `
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:1rem; font-weight:700">
+                    <span style="color:#888">⭐ Reputación <span style="color:#555; font-size:0.75rem; font-weight:400">(prompts con 20+ copias)</span></span>
+                    <span style="color:#a855f7">${stats.reputation || 0} / ${next.requirements.reputation}</span>
+                </div>
+                <div style="width:100%; height:12px; background:#222; border-radius:6px; overflow:hidden; border:1px solid #333; margin-bottom:15px">
+                    <div style="width:${Math.min(100, ((stats.reputation || 0) / next.requirements.reputation) * 100)}%; height:100%; background:linear-gradient(90deg, #a855f7, #7c3aed); transition:width 1s ease"></div>
+                </div>
+                ` : ''}
+
+                <div class="missing-reqs" style="color:#888; margin-top:15px; text-align:center;">
+                    ${stats.totalPosts < next.requirements.posts ? `📝 Te faltan <strong>${next.requirements.posts - stats.totalPosts}</strong> posts.<br>` : ''}
+                    ${next.requirements.copies > 0 && stats.totalCopies < next.requirements.copies ? `📋 Te faltan <strong>${next.requirements.copies - stats.totalCopies}</strong> copias recibidas.<br>` : ''}
+                    ${next.requirements.referrals !== undefined && (stats.referrals || 0) < next.requirements.referrals ? `👥 Te faltan <strong>${next.requirements.referrals - (stats.referrals || 0)}</strong> referidos activos.<br>` : ''}
+                    ${next.requirements.referralsOrReactions !== undefined && !((stats.referrals || 0) >= next.requirements.referralsOrReactions.referrals || (stats.reactions || 0) >= next.requirements.referralsOrReactions.reactions) ? `🔄 Necesitas <strong>${next.requirements.referralsOrReactions.referrals - (stats.referrals || 0)}</strong> referidos más ó <strong>${next.requirements.referralsOrReactions.reactions - (stats.reactions || 0)}</strong> reacciones más.<br>` : ''}
+                    ${next.requirements.reputation !== undefined && (stats.reputation || 0) < next.requirements.reputation ? `⭐ Te faltan <strong>${next.requirements.reputation - (stats.reputation || 0)}</strong> prompts con 20+ copias.<br>` : ''}
+                </div>
                 ` : `
                 <div style="text-align:center; padding:20px">
                     <span style="font-size:2rem">🏆</span>
@@ -173,9 +230,9 @@ export const setupLevelModals = () => {
                 <div style="display:flex; gap:15px; align-items:start; padding:15px; border-radius:12px; border:1px solid ${isCurrent ? '#2563eb' : (isUnlocked ? '#333' : '#1a1a1a')}; background:${isCurrent ? 'rgba(37, 99, 235, 0.1)' : (isUnlocked ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.3)')}; opacity:${isUnlocked ? 1 : 0.4}; transition:0.3s">
                     <div style="font-size:1.6rem; background:#111; min-width:50px; height:50px; border-radius:10px; display:flex; align-items:center; justify-content:center; border:2px solid ${l.color}">${l.icon}</div>
                     <div style="flex:1">
-                        <div style="display:flex; justify-content:space-between; align-items:center">
-                            <strong style="color:${l.color}; font-size:1.05rem;">Nivel ${idx}: ${l.name}</strong>
-                            <span style="font-size:0.75rem; background:#333; color:#fff; padding:3px 10px; border-radius:100px; font-weight:700">${l.posts} Posts ${l.copies > 0 ? `+ ${l.copies} Copias` : ''}</span>
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center;">
+                            <strong style="color:${l.color}; font-size:0.95rem;">Nivel ${idx}: ${l.name}</strong>
+                            <span style="font-size:0.65rem; background:#333; color:#ccc; padding:4px 8px; border-radius:8px; font-weight:600; display:inline-block; line-height:1.2; word-break:break-word;">${l.posts} Posts${l.copies > 0 ? ` + ${l.copies} Copias` : ''}${l.referrals ? ` + ${l.referrals} Ref` : ''}${l.referralsOrReactions ? ` + ${l.referralsOrReactions.referrals} Ref ó ${l.referralsOrReactions.reactions} React` : ''}${l.reputation ? ` + ${l.reputation} Rep` : ''}</span>
                         </div>
                         <ul style="margin:8px 0 0 0; padding-left:18px; font-size:0.9rem; color:#999; line-height:1.4">
                             ${l.benefits.map(b => `<li>${b}</li>`).join('')}
@@ -249,8 +306,13 @@ export const setupLevelModals = () => {
                 #levelModalDynamic .modal-container::-webkit-scrollbar-track {background: transparent; }
                 #levelModalDynamic .modal-container::-webkit-scrollbar-thumb {background: #333; border-radius: 10px; }
                 #levelModalDynamic .modal-container::-webkit-scrollbar-thumb:hover {background: #444; }
+                
+                #levelModalDynamic .missing-reqs { font-size: 0.85rem; line-height: 1.6; }
+                @media (max-width: 600px) {
+                    #levelModalDynamic .missing-reqs { font-size: 0.70rem; line-height: 1.3; }
+                }
             </style>
-            <div class="modal-container" style="max-width:550px; background:#111; border:1px solid #333; border-radius:28px; width:100%; padding:35px; max-height:85vh; overflow-y:auto; box-shadow: 0 30px 60px rgba(0,0,0,0.8); position:relative; scroll-behavior: smooth;">
+            <div class="modal-container" style="max-width:1000px; background:#111; border:1px solid #333; border-radius:32px; width:98%; padding:40px; min-height:95vh; max-height:95vh; overflow-y:auto; box-shadow: 0 40px 80px rgba(0,0,0,0.9); position:relative; scroll-behavior: smooth;">
                 ${html}
             </div>
             `;

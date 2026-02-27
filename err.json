@@ -1,0 +1,14 @@
+{
+  "data": {
+    "fields": {
+      "2": {
+        "collectionId": {
+          "code": "validation_field_relation_missing_collection",
+          "message": "The relation collection doesn't exist."
+        }
+      }
+    }
+  },
+  "message": "Failed to create collection.",
+  "status": 400
+}

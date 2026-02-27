@@ -39,6 +39,7 @@ if exist "%DESTINO%" (
 
 echo [1/4] Limpiando carpeta de destino...
 if exist "%DESTINO%\src" rmdir /s /q "%DESTINO%\src"
+if exist "%DESTINO%\api" rmdir /s /q "%DESTINO%\api"
 echo Limpieza OK. >> "%LOGFILE%"
 
 echo [2/4] Copiando nueva version...
