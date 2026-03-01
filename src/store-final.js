@@ -381,6 +381,15 @@ const store = {
      */
     async _checkRegistrationBonus() {
         if (!this.currentUser) return;
+
+        // ONLY FOR NEW USERS (Registered after the fix)
+        const userCreated = new Date(this.currentUser.created || 0);
+        const cutoffDate = new Date('2026-03-01T00:00:00.000Z');
+
+        if (userCreated < cutoffDate) {
+            return; // Ignore existing users
+        }
+
         try {
             const bonusEntries = await pb.collection('ledger').getList(1, 1, {
                 filter: `to_user = "${this.currentUser.id}" && type = "REGISTRATION_BONUS"`,
