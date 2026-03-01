@@ -49,7 +49,9 @@ export default async function handler(req, res) {
                 username: u.name || u.username || 'Usuario',
                 actual: u.tokens || 0,
                 minted: 0,
-                spent: 0
+                spent: 0,
+                received_p2p: 0,
+                sent_p2p: 0
             };
         });
 
@@ -67,6 +69,9 @@ export default async function handler(req, res) {
             const toRealUser = entry.to_user && userStats[entry.to_user];
             const fromRealUser = entry.from_user && userStats[entry.from_user];
 
+            const isCredit = entry.entry_type === 'CREDIT';
+            const isDebit = entry.entry_type === 'DEBIT';
+
             // Detectar ajustes contables por descripción
             if (desc.includes('AJUSTE CONTABLE')) {
                 type = 'AUDIT_ADJUSTMENT';
@@ -79,7 +84,7 @@ export default async function handler(req, res) {
             }
 
             // A) EMISSIONS (System -> User)
-            if (fromSystem && toRealUser) {
+            if (fromSystem && toRealUser && (!entry.entry_type || isCredit)) {
                 userStats[entry.to_user].minted += amount;
 
                 // Detectar el Ajuste de Febrero como tipo especial
@@ -97,19 +102,32 @@ export default async function handler(req, res) {
             }
 
             // B) SPENDING (User -> System)
-            if (fromRealUser && (toSystem || ['PURCHASE', 'BOOST', 'FEE'].includes(type) || type === 'AUDIT_ADJUSTMENT')) {
+            if (fromRealUser && (toSystem || ['PURCHASE', 'BOOST', 'FEE'].includes(type) || type === 'AUDIT_ADJUSTMENT') && (!entry.entry_type || isDebit)) {
                 userStats[entry.from_user].spent += amount;
 
                 if (!spending[type]) spending[type] = { count: 0, total: 0 };
                 spending[type].count++;
                 spending[type].total += amount;
             }
+
+            // C) P2P TRANSFERS (User -> User)
+            if (fromRealUser && toRealUser) {
+                if (isCredit) {
+                    userStats[entry.to_user].received_p2p += amount;
+                } else if (isDebit) {
+                    userStats[entry.from_user].sent_p2p += amount;
+                } else if (!entry.entry_type) {
+                    // Legacy entries en caso de que un registro antiguo represente la transferencia total
+                    userStats[entry.to_user].received_p2p += amount;
+                    userStats[entry.from_user].sent_p2p += amount;
+                }
+            }
         });
 
         // 3. IDENTIFY DISCREPANCIES (Should be 0 now after fix)
         const rawDiscrepancies = [];
         Object.values(userStats).forEach(s => {
-            const expected = s.minted - s.spent;
+            const expected = s.minted - s.spent + s.received_p2p - s.sent_p2p;
             const diff = s.actual - expected;
             if (Math.abs(diff) > 0.1) { // Floating point safety
                 rawDiscrepancies.push({
