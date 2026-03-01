@@ -189,7 +189,9 @@ const store = {
         const isProfilePage = window.location.pathname.includes('profile');
 
         if (pb.authStore.isValid && pb.authStore.model) {
-            this._loadUserProfile(pb.authStore.model.id, true);
+            await this._loadUserProfile(pb.authStore.model.id, true);
+            // Check if new user needs to claim their registration bonus
+            this._checkRegistrationBonus();
         }
 
         console.log("[STORE] ⚡ Iniciando Carga Optimizada (Serializada)...");
@@ -370,6 +372,172 @@ const store = {
             }
         }
         return this.currentUser;
+    },
+
+    /**
+     * CHECK REGISTRATION BONUS — Called on every init after login.
+     * Queries the ledger to see if this user already got their REGISTRATION_BONUS.
+     * If not, shows a floating claim banner. Fire-and-forget (non-blocking).
+     */
+    async _checkRegistrationBonus() {
+        if (!this.currentUser) return;
+        try {
+            const bonusEntries = await pb.collection('ledger').getList(1, 1, {
+                filter: `to_user = "${this.currentUser.id}" && type = "REGISTRATION_BONUS"`,
+                $autoCancel: false
+            });
+            if (bonusEntries.totalItems === 0) {
+                console.log('[BONUS] 🎁 User has NOT claimed registration bonus. Showing claim banner.');
+                this._showClaimBonusBanner();
+            }
+        } catch (err) {
+            console.warn('[BONUS] Error checking registration bonus:', err.message);
+        }
+    },
+
+    /**
+     * Show the floating claim banner for unclaimed registration bonus.
+     */
+    _showClaimBonusBanner() {
+        // Prevent duplicate banners
+        if (document.getElementById('claimBonusBanner')) return;
+
+        const banner = document.createElement('div');
+        banner.id = 'claimBonusBanner';
+        banner.style.cssText = `
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 9999999;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid rgba(162, 155, 254, 0.6);
+            border-radius: 16px; padding: 20px 28px;
+            box-shadow: 0 10px 40px rgba(162, 155, 254, 0.3), 0 0 60px rgba(162, 155, 254, 0.1);
+            display: flex; align-items: center; gap: 18px;
+            max-width: 520px; width: 92%;
+            animation: claimBannerSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            backdrop-filter: blur(10px);
+        `;
+
+        banner.innerHTML = `
+            <div style="font-size: 2.5rem; animation: claimBounce 1s ease infinite;">🎉</div>
+            <div style="flex:1">
+                <div style="font-weight: 800; font-size: 1.05rem; color: #fff; margin-bottom: 4px;">
+                    ¡Bienvenido! Tienes 50 💎 de regalo
+                </div>
+                <div style="font-size: 0.82rem; color: #aaa;">
+                    Reclama tu bono de bienvenida de PromptBits
+                </div>
+            </div>
+            <button id="claimBonusBtn" style="
+                background: linear-gradient(135deg, #a855f7, #6366f1);
+                border: none; color: #fff; padding: 10px 22px;
+                border-radius: 10px; cursor: pointer;
+                font-weight: 700; font-size: 0.9rem;
+                white-space: nowrap;
+                transition: transform 0.2s, box-shadow 0.2s;
+                box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                🎁 Reclamar
+            </button>
+        `;
+
+        // Inject keyframe animations if they don't exist
+        if (!document.getElementById('claimBonusStyles')) {
+            const style = document.createElement('style');
+            style.id = 'claimBonusStyles';
+            style.textContent = `
+                @keyframes claimBannerSlideUp {
+                    from { opacity: 0; transform: translateX(-50%) translateY(40px); }
+                    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+                }
+                @keyframes claimBounce {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-6px); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        document.body.appendChild(banner);
+
+        // Button handler
+        document.getElementById('claimBonusBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('claimBonusBtn');
+            if (btn) { btn.disabled = true; btn.innerText = '⏳ Reclamando...'; }
+            await window.store.claimRegistrationBonus();
+        });
+    },
+
+    /**
+     * CLAIM REGISTRATION BONUS — Called when user clicks the claim button.
+     * Awards 50 PromptBits + creates the ledger entry.
+     */
+    async claimRegistrationBonus() {
+        if (!this.currentUser) return;
+
+        try {
+            // 1. Double-check it hasn't been claimed already (race condition protection)
+            const check = await pb.collection('ledger').getList(1, 1, {
+                filter: `to_user = "${this.currentUser.id}" && type = "REGISTRATION_BONUS"`,
+                $autoCancel: false
+            });
+            if (check.totalItems > 0) {
+                console.log('[BONUS] Already claimed. Removing banner.');
+                const banner = document.getElementById('claimBonusBanner');
+                if (banner) banner.remove();
+                return;
+            }
+
+            // 2. Create ledger entry
+            const ledgerRes = await LedgerService.systemReward(
+                this.currentUser.id,
+                50,
+                'REGISTRATION_BONUS',
+                `Bono de bienvenida para @${this.currentUser.username || this.currentUser.name || 'Usuario'}`
+            );
+
+            if (!ledgerRes.success) {
+                console.error('[BONUS] Ledger write failed:', ledgerRes.error);
+                if (window.showToast) window.showToast('Error al reclamar el bonus. Intenta recargando la página.', 'error');
+                const btn = document.getElementById('claimBonusBtn');
+                if (btn) { btn.disabled = false; btn.innerText = '🎁 Reclamar'; }
+                return;
+            }
+
+            // 3. Update user tokens
+            const newTokens = (this.currentUser.tokens || 0) + 50;
+            await pb.collection('users').update(this.currentUser.id, { tokens: newTokens });
+            this.currentUser.tokens = newTokens;
+
+            console.log(`[BONUS] ✅ Registration bonus claimed! +50 💎 (TX: ${ledgerRes.txHash})`);
+
+            // 4. Remove banner with animation
+            const banner = document.getElementById('claimBonusBanner');
+            if (banner) {
+                banner.style.transition = 'opacity 0.3s, transform 0.3s';
+                banner.style.opacity = '0';
+                banner.style.transform = 'translateX(-50%) translateY(40px)';
+                setTimeout(() => banner.remove(), 300);
+            }
+
+            // 5. Show success toast
+            if (window.showToast) {
+                window.showToast('🎉 ¡Has recibido 50 💎 PromptBits de bienvenida!', 'success');
+            } else if (window.toast) {
+                window.toast('🎉 ¡Has recibido 50 💎 PromptBits de bienvenida!', 'success');
+            }
+
+            // 6. Log activity
+            this.logActivity('registration_bonus', { bonus: 50, message: 'Bono de bienvenida reclamado' });
+
+            // 7. Re-render to update token display
+            if (window.render) window.render();
+
+        } catch (err) {
+            console.error('[BONUS] Claim failed:', err);
+            if (window.showToast) window.showToast('Error al reclamar. Intenta de nuevo.', 'error');
+            const btn = document.getElementById('claimBonusBtn');
+            if (btn) { btn.disabled = false; btn.innerText = '🎁 Reclamar'; }
+        }
     },
 
     async syncUserStats(userId, profile) {
@@ -2187,7 +2355,7 @@ const store = {
             // HACK: Auto-follow Admin (rodrigodlmoral) ID: rkmrhmgh067x7un
             const newUser = await pb.collection('users').create({
                 username, email, password, passwordConfirm: password,
-                name: username, tokens: 50, level: 0, xp: 0, role: 'user',
+                name: username, tokens: 0, level: 0, xp: 0, role: 'user',
                 moderation: { suggestive: 'BLUR', nsfw: 'BLUR' },
                 following: ['rkmrhmgh067x7un']
             });
@@ -2218,26 +2386,10 @@ const store = {
                 console.warn("[REGISTER] Error en auto-follow (no crítico):", fErr);
             }
 
-            // 4. LEDGER: Bono de bienvenida (INDEPENDIENTE del auto-follow)
-            // Este bloque SIEMPRE se ejecuta si newUser existe, sin importar
-            // si el auto-follow falló o no.
-            try {
-                if (newUser) {
-                    const ledgerRes = await LedgerService.systemReward(
-                        newUser.id,
-                        50,
-                        'REGISTRATION_BONUS',
-                        `Bono de bienvenida para @${newUser.username || 'Usuario'}`
-                    );
-                    if (ledgerRes?.success) {
-                        console.log(`[REGISTER] ✅ Ledger bienvenida OK para ${newUser.username}. TX: ${ledgerRes.txHash}`);
-                    } else {
-                        console.error(`[REGISTER] ⚠️ Ledger bienvenida FALLÓ para ${newUser.username}:`, ledgerRes?.error);
-                    }
-                }
-            } catch (ledgerErr) {
-                console.error("[REGISTER] ❌ Error CRÍTICO al generar ledger de bienvenida:", ledgerErr);
-            }
+            // 4. BONUS: Ya NO se otorga aquí. El usuario lo reclamará en su primer login
+            // via _checkRegistrationBonus() + claimRegistrationBonus().
+            // Esto asegura que solo usuarios que verifican y hacen login reciben el bonus,
+            // Y que siempre se cree el registro en el ledger junto con los tokens.
 
             // --- REFERRAL REGISTRATION PROCESSING ---
             const savedRef = localStorage.getItem('pg_referral_code');
