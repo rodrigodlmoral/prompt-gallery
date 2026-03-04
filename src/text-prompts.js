@@ -297,6 +297,9 @@ const TextDetailModalTemplate = () => `
                         <button class="react-btn">👍 <small id="txt-like-count">0</small></button>
                         <button class="react-btn">❤️ <small id="txt-love-count">0</small></button>
                         <button class="react-btn">🔥 <small id="txt-fire-count">0</small></button>
+                        <button class="react-btn">😂 <small id="txt-funny-count">0</small></button>
+                        <button class="react-btn">👎 <small id="txt-dislike-count">0</small></button>
+                        <button class="react-btn">😢 <small id="txt-sad-count">0</small></button>
                     </div>
                 </div>
                 
@@ -332,10 +335,13 @@ window.openTextDetail = (id) => {
     document.getElementById('txtCopyCountBadge').innerText = `📋 Copiado ${promptData.copy_count || 0} veces`;
 
     // Fill stats safely
-    const reactions = promptData.reactions || { like: 0, love: 0, fire: 0, funny: 0 };
+    const reactions = promptData.reactions || { like: 0, love: 0, fire: 0, funny: 0, dislike: 0, sad: 0 };
     document.getElementById('txt-like-count').innerText = reactions.like || 0;
     document.getElementById('txt-love-count').innerText = reactions.love || 0;
     document.getElementById('txt-fire-count').innerText = reactions.fire || 0;
+    document.getElementById('txt-funny-count').innerText = reactions.funny || 0;
+    document.getElementById('txt-dislike-count').innerText = reactions.dislike || 0;
+    document.getElementById('txt-sad-count').innerText = reactions.sad || 0;
 
     // Show modal
     document.getElementById('textModalOverlay').style.display = 'flex';
