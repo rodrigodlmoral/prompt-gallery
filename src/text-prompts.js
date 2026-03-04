@@ -256,8 +256,8 @@ const renderGallery = () => {
 // ---- ISOLATED DETAIL MODAL FOR TEXT PROMPTS ----
 const TextDetailModalTemplate = () => `
 <div id="textModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target === this) window.closeTextModal()">
-    <div class="view-modal-wrapper" style="max-width: 900px;"> <!-- Ligeramente más angosto que imágenes -->
-        <div class="view-modal" style="flex-direction: column;"> <!-- Para texto es mejor Vertical -->
+    <div class="view-modal-wrapper" style="max-width: 1000px; margin: 20px auto; width: 100%;">
+        <div class="view-modal" style="flex-direction: column; height: auto !important; padding-bottom: 20px;">
             <button class="modal-close-x" onclick="window.closeTextModal()">✕</button>
             
             <div class="view-info-side" style="width: 100%; border-left: none; padding: 40px;">
