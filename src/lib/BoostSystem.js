@@ -38,17 +38,19 @@ export class BoostSystem {
 
   async getUserPrompts(userId) {
     try {
+      console.log(`[BoostSystem] 🔍 Fetching prompts for user: ${userId}`);
+
       // Fetch from both collections in parallel
       const [imagePrompts, textPrompts] = await Promise.all([
         this.pb.collection('prompts').getFullList({
-          filter: `author="${userId}"`,
-          sort: '-created'
+          filter: `author = "${userId}"`
         }),
         this.pb.collection('text_prompts').getFullList({
-          filter: `author="${userId}"`,
-          sort: '-created'
+          filter: `author = "${userId}"`
         })
       ]);
+
+      console.log(`[BoostSystem] ✅ Found: ${imagePrompts.length} images, ${textPrompts.length} texts`);
 
       // Normalize results
       const normalizedImages = imagePrompts.map(p => ({
@@ -68,7 +70,10 @@ export class BoostSystem {
         new Date(b.created) - new Date(a.created)
       );
     } catch (error) {
-      console.error('Error getting user prompts:', error);
+      console.error('❌ [BoostSystem] Error getting user prompts:', error);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast(`Error base de datos: ${error.message}`, 'error');
+      }
       return [];
     }
   }
