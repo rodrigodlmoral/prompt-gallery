@@ -123,7 +123,7 @@ window.openBoostSelector = async (type) => {
     const prompts = await window.store.boostSystem.getUserPrompts(window.store.currentUser.id);
 
     if (prompts.length === 0) {
-        return alert("¡Aún no tienes prompts públicos de imagen! El Marketplace por el momento solo soporta Boosts para tus creaciones de imágenes. Comparte una imagen primero para continuar.");
+        return alert("¡Aún no tienes prompts públicos! Comparte algo primero para poder usar el Marketplace.");
     }
 
     const overlay = document.createElement('div');
@@ -146,9 +146,9 @@ window.openBoostSelector = async (type) => {
             <div class="prompt-selector-grid">
                 ${prompts.map(p => `
                     <div class="prompt-sel-card" onclick="window.confirmBoostPurchase('${type}', '${p.id}', '${p.title.replace(/'/g, "\\'")}')">
-                        <img src="${p.image}" alt="${p.title}">
+                        <img src="${p.displayImage}" alt="${p.title}" style="object-fit: cover;">
                         <div class="prompt-sel-info">
-                            <div class="prompt-sel-name">${p.title}</div>
+                            <div class="prompt-sel-name">${p.title} ${p.isText ? '<span style="font-size:0.7rem; color:#3b82f6;">[Texto]</span>' : ''}</div>
                         </div>
                     </div>
                 `).join('')}

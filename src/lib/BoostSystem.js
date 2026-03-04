@@ -38,10 +38,35 @@ export class BoostSystem {
 
   async getUserPrompts(userId) {
     try {
-      return await this.pb.collection('prompts').getFullList({
-        filter: `author="${userId}"`,
-        sort: '-created'
-      });
+      // Fetch from both collections in parallel
+      const [imagePrompts, textPrompts] = await Promise.all([
+        this.pb.collection('prompts').getFullList({
+          filter: `author="${userId}"`,
+          sort: '-created'
+        }),
+        this.pb.collection('text_prompts').getFullList({
+          filter: `author="${userId}"`,
+          sort: '-created'
+        })
+      ]);
+
+      // Normalize results
+      const normalizedImages = imagePrompts.map(p => ({
+        ...p,
+        isText: false,
+        displayImage: p.image // prompts usually have an image field
+      }));
+
+      const normalizedTexts = textPrompts.map(p => ({
+        ...p,
+        isText: true,
+        // Text prompts might not have 'image', use a placeholder or branding
+        displayImage: '/logo-bits.png'
+      }));
+
+      return [...normalizedImages, ...normalizedTexts].sort((a, b) =>
+        new Date(b.created) - new Date(a.created)
+      );
     } catch (error) {
       console.error('Error getting user prompts:', error);
       return [];
