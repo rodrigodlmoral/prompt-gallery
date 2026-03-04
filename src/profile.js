@@ -1314,7 +1314,7 @@ const render = () => {
 
                         const filter = `author = "${user.id}"`;
                         const result = await pb.collection('text_prompts').getList(1, 100, {
-                            sort: '-created',
+                            sort: '-id',
                             expand: 'author',
                             filter: filter
                         });
@@ -1325,7 +1325,7 @@ const render = () => {
                         galleryMount.innerHTML = TextGallery();
                     } catch (err) {
                         console.error('Error loading text prompts for profile:', err);
-                        galleryMount.innerHTML = '<div class="container" style="padding:60px; text-align:center; color:#ff4444"><p>Error al cargar prompts de texto</p></div>';
+                        galleryMount.innerHTML = `<div class="container" style="padding:60px; text-align:center; color:#ff4444"><p>Error al cargar prompts de texto: ${err.message}</p></div>`;
                     }
                 })();
             } else {
