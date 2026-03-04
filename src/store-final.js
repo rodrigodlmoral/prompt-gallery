@@ -1587,7 +1587,7 @@ const store = {
                 extra_config: data.extraConfig,
                 tags: data.tags // NUEVO
             });
-            await this.loadPrompts();
+            await this.loadPrompts(true);
             return { success: true };
         } catch (err) {
             console.error("Update error:", err);

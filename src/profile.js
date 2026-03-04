@@ -1977,7 +1977,8 @@ window.doPublish = () => {
             extraConfig,
             rating: document.getElementById('upRating').value,
             prompt: document.getElementById('upPrompt').value,
-            negative_prompt: document.getElementById('upNegPrompt')?.value || ''
+            negative_prompt: document.getElementById('upNegPrompt')?.value || '',
+            tags: Array.from(window.selectedTags || [])
         };
 
         if (pubBtn) {
