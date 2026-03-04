@@ -177,7 +177,7 @@ window.openBoostSelector = async (type) => {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; gap:15px; flex-wrap:wrap;">
                 <div class="sel-tabs" style="display:flex; background:rgba(0,0,0,0.2); padding:4px; border-radius:12px; border:1px solid #1e293b;">
                     <button class="sel-tab-btn active" data-tab="images" style="padding:8px 16px; border:none; border-radius:8px; background:transparent; color:#64748b; font-weight:600; cursor:pointer; transition:0.2s;">IMÁGENES</button>
-                    <button class="sel-tab-btn" data-tab="texts" style="padding:8px 16px; border:none; border-radius:8px; background:transparent; color:#64748b; font-weight:600; cursor:pointer; transition:0.2s;">TEXTOS</button>
+                    <button class="sel-tab-btn" data-tab="texts" disabled title="Próximamente!" style="padding:8px 16px; border:none; border-radius:8px; background:transparent; color:#334155; font-weight:600; cursor:not-allowed; transition:0.2s; opacity:0.5;">TEXTOS</button>
                 </div>
 
                 <div style="display:flex; align-items:center; gap:10px;">
@@ -216,7 +216,7 @@ window.openBoostSelector = async (type) => {
     // Listeners for Interactive Elements
     const gridContainer = overlay.querySelector('#sel-grid-container');
 
-    overlay.querySelectorAll('.sel-tab-btn').forEach(btn => {
+    overlay.querySelectorAll('.sel-tab-btn:not([disabled])').forEach(btn => {
         btn.addEventListener('click', () => {
             overlay.querySelectorAll('.sel-tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
