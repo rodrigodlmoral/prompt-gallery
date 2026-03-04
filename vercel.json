@@ -56,6 +56,10 @@
             "destination": "/profile.html"
         },
         {
+            "source": "/text-prompts",
+            "destination": "/text-prompts.html"
+        },
+        {
             "source": "/api/:path*",
             "destination": "/api/:path*"
         },

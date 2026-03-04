@@ -14,7 +14,8 @@ export default defineConfig({
                 main: 'index.html',
                 admin: 'admin.html',
                 profile: 'profile.html',
-                batch_upload: 'batch_upload.html'
+                batch_upload: 'batch_upload.html',
+                text_prompts: 'text-prompts.html'
             }
         }
     },

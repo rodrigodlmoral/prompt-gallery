@@ -46,6 +46,99 @@ function renderGalleryGrid() {
     gridContainer.innerHTML = textPrompts.map(p => TextPromptCard(p)).join('');
 }
 
+// ---- CREATE TEXT PROMPT MODAL ----
+const CreateTextPromptModal = () => `
+<div id="createTextOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target === this) window.closeCreateTextModal()">
+    <div class="view-modal-wrapper" style="max-width: 650px;">
+        <div class="view-modal" style="flex-direction: column; padding: 40px;">
+            <button class="modal-close-x" onclick="window.closeCreateTextModal()">✕</button>
+            
+            <h2 style="margin:0 0 25px 0; background: linear-gradient(135deg, #a855f7, #6366f1); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">📝 Compartir Prompt de Texto</h2>
+            
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                <div>
+                    <label style="color:#94a3b8; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; display:block;">Título *</label>
+                    <input id="txtCreateTitle" type="text" placeholder="Ej: Tutor de Inglés Nativo" maxlength="200" style="width:100%; background:#111; border:1px solid #333; color:#fff; padding:12px 16px; border-radius:8px; font-size:1rem; outline:none; box-sizing: border-box;">
+                </div>
+                
+                <div>
+                    <label style="color:#94a3b8; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; display:block;">Descripción corta *</label>
+                    <textarea id="txtCreateDesc" placeholder="Explica brevemente qué hace este prompt..." maxlength="500" rows="2" style="width:100%; background:#111; border:1px solid #333; color:#fff; padding:12px 16px; border-radius:8px; font-size:0.95rem; outline:none; resize:vertical; box-sizing: border-box;"></textarea>
+                </div>
+                
+                <div>
+                    <label style="color:#94a3b8; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; display:block;">Categoría *</label>
+                    <select id="txtCreateCategory" style="width:100%; background:#111; border:1px solid #333; color:#fff; padding:12px 16px; border-radius:8px; font-size:0.95rem; outline:none; box-sizing: border-box;">
+                        <option value="">Selecciona una categoría</option>
+                        <option value="💻 Código">💻 Código</option>
+                        <option value="✍️ Marketing">✍️ Marketing</option>
+                        <option value="🗣️ Idiomas">🗣️ Idiomas</option>
+                        <option value="📄 Documentos">📄 Documentos</option>
+                        <option value="🎨 Creatividad">🎨 Creatividad</option>
+                        <option value="📊 Negocios">📊 Negocios</option>
+                        <option value="🧠 Educación">🧠 Educación</option>
+                        <option value="🤖 Chatbot">🤖 Chatbot</option>
+                        <option value="🔧 Productividad">🔧 Productividad</option>
+                        <option value="📱 Redes Sociales">📱 Redes Sociales</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="color:#94a3b8; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; display:block;">Texto del Prompt *</label>
+                    <textarea id="txtCreatePrompt" placeholder="Escribe aquí el prompt completo que los usuarios podrán copiar..." maxlength="10000" rows="6" style="width:100%; background:#0a0a0a; border:1px solid #333; color:#a855f7; padding:12px 16px; border-radius:8px; font-family:monospace; font-size:0.9rem; outline:none; resize:vertical; line-height:1.6; box-sizing: border-box;"></textarea>
+                </div>
+                
+                <button id="txtPublishBtn" class="btn" onclick="window.doPublishTextPrompt()" style="width:100%; background: linear-gradient(135deg, #a855f7, #6366f1); border:none; padding:15px; font-size:1.1rem; font-weight:bold; margin-top:10px; cursor:pointer;">🚀 PUBLICAR PROMPT DE TEXTO</button>
+            </div>
+        </div>
+    </div>
+</div>`;
+
+window.openCreateTextModal = () => {
+    document.getElementById('createTextOverlay').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+};
+
+window.closeCreateTextModal = () => {
+    document.getElementById('createTextOverlay').style.display = 'none';
+    document.body.style.overflow = '';
+};
+
+window.doPublishTextPrompt = async () => {
+    const title = document.getElementById('txtCreateTitle').value.trim();
+    const description = document.getElementById('txtCreateDesc').value.trim();
+    const category = document.getElementById('txtCreateCategory').value;
+    const prompt_text = document.getElementById('txtCreatePrompt').value.trim();
+
+    if (!title || !description || !category || !prompt_text) {
+        window.toast('Por favor completa todos los campos obligatorios', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('txtPublishBtn');
+    btn.disabled = true;
+    btn.innerText = '⏳ Publicando...';
+
+    try {
+        const result = await store.addTextPrompt({ title, description, category, prompt_text });
+
+        if (result.success) {
+            window.toast('🎉 ¡Prompt de texto publicado exitosamente! +' + (result.tokensEarned || 1) + ' 💎', 'success');
+            window.closeCreateTextModal();
+            // Reload prompts
+            await loadTextPrompts();
+        } else {
+            window.toast(result.msg || 'Error al publicar', 'error');
+        }
+    } catch (err) {
+        console.error('Error publishing text prompt:', err);
+        window.toast('Error inesperado al publicar', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerText = '🚀 PUBLICAR PROMPT DE TEXTO';
+    }
+};
+
 // ---- HEADER COMPONENT (ISOLATED) ----
 const TextDashboardHeader = ({ currentUser }) => {
     return `
@@ -58,7 +151,7 @@ const TextDashboardHeader = ({ currentUser }) => {
             
             <nav style="display:flex; align-items:center; gap:15px;">
                 ${currentUser ? `
-                    <button class="btn" style="background: linear-gradient(135deg, #a855f7, #6366f1); border:none;">Compartir Texto</button>
+                    <button class="btn" onclick="window.openCreateTextModal()" style="background: linear-gradient(135deg, #a855f7, #6366f1); border:none;">📝 Compartir Texto</button>
                     <div class="user-info" onclick="window.location.href='/profile.html?user=${currentUser.username}'" style="cursor:pointer; display:flex; align-items:center; gap:10px;">
                         <div class="user-avatar-sm" style="width:32px; height:32px; background-size:cover; border-radius:50%; background-image:url('${currentUser.avatar || 'https://robohash.org/' + currentUser.username}')"></div>
                         <span style="font-weight:600;">${currentUser.username}</span>
@@ -304,6 +397,7 @@ async function initPage() {
             
             <div id="text-modals-mount">
                 ${TextDetailModalTemplate()}
+                ${CreateTextPromptModal()}
             </div>
         `;
 

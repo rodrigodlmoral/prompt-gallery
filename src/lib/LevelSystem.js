@@ -123,17 +123,32 @@ export class LevelSystem {
         try {
             const user = await this.pb.collection('users').getOne(userId);
 
-            // Get real counts from database
+            // Get real counts from database (image prompts)
             const postsResult = await this.pb.collection('prompts').getList(1, 1, {
                 filter: `author = "${userId}"`,
                 fields: 'id'
             });
-            const totalPosts = postsResult.totalItems || 0;
+            let totalPosts = postsResult.totalItems || 0;
 
             const allPrompts = await this.pb.collection('prompts').getFullList({
                 filter: `author = "${userId}"`,
                 fields: 'copy_count,reactions'
             });
+
+            // Also count text prompts
+            try {
+                const textPostsResult = await this.pb.collection('text_prompts').getList(1, 1, {
+                    filter: `author = "${userId}"`,
+                    fields: 'id'
+                });
+                totalPosts += (textPostsResult.totalItems || 0);
+
+                const allTextPrompts = await this.pb.collection('text_prompts').getFullList({
+                    filter: `author = "${userId}"`,
+                    fields: 'copy_count,reactions'
+                });
+                allPrompts.push(...allTextPrompts);
+            } catch (e) { /* text_prompts collection might not exist yet */ }
 
             const totalCopies = allPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
 
@@ -233,17 +248,32 @@ export class LevelSystem {
             const user = await this.pb.collection('users').getOne(userId);
             const oldLevel = user.level || 0;
 
-            // Get real counts
+            // Get real counts (image prompts)
             const postsResult = await this.pb.collection('prompts').getList(1, 1, {
                 filter: `author = "${userId}"`,
                 fields: 'id'
             });
-            const totalPosts = postsResult.totalItems || 0;
+            let totalPosts = postsResult.totalItems || 0;
 
             const allPrompts = await this.pb.collection('prompts').getFullList({
                 filter: `author = "${userId}"`,
                 fields: 'copy_count,reactions'
             });
+
+            // Also count text prompts
+            try {
+                const textPostsResult = await this.pb.collection('text_prompts').getList(1, 1, {
+                    filter: `author = "${userId}"`,
+                    fields: 'id'
+                });
+                totalPosts += (textPostsResult.totalItems || 0);
+
+                const allTextPrompts = await this.pb.collection('text_prompts').getFullList({
+                    filter: `author = "${userId}"`,
+                    fields: 'copy_count,reactions'
+                });
+                allPrompts.push(...allTextPrompts);
+            } catch (e) { /* text_prompts collection might not exist yet */ }
 
             const totalCopies = allPrompts.reduce((sum, p) => sum + (p.copy_count || 0), 0);
 
