@@ -217,14 +217,14 @@ const TextPromptCard = (p) => {
             </p>
             
             <div style="margin-top: 5px; flex: 1; padding: 12px 15px; background: rgba(0,0,0,0.5); border-radius: 6px; border: 1px inset rgba(255,255,255,0.05); font-family: monospace; font-size: 0.75rem; color: #6366f1; overflow: hidden; position: relative; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;">
-                <div style="display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; white-space: pre-wrap; word-break: break-word;">&gt; ${p.prompt_text}</div>
+                <div style="display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; white-space: pre-wrap; word-break: break-word;">${p.prompt_text}</div>
             </div>
         </div>
 
         <!-- METADATA FOOTER (Bottom 30%) -->
         <div style="background: linear-gradient(0deg, rgba(8,8,8,1) 0%, rgba(17,17,17,0.8) 100%); padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.05); z-index: 1; display: flex; flex-direction: column; gap: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="font-size:0.8rem; opacity:0.8; color: #ccc; cursor:pointer" onclick="event.stopPropagation(); window.location.href='/profile.html?user=${p.author}'">por <span style="color: #fff; font-weight: 600;">@${window.escapeHTML(p.author)}</span></div>
+                <div style="font-size:0.8rem; opacity:0.8; color: #ccc; cursor:pointer" onclick="event.stopPropagation(); window.location.href='/profile.html?user=${p.author}'">por <span style="color: #fff; font-weight: 600;">@${window.escapeHTML(p.expand?.author?.username || p.author_name || p.author)}</span></div>
             </div>
             
             <div style="display: flex; gap: 12px; font-size: 0.8rem; font-weight: 600; color: #999;">
@@ -277,7 +277,7 @@ const TextDetailModalTemplate = () => `
                             <span style="color:#666; font-family:monospace; font-size:0.8rem;">Prompt Estructurado</span>
                             <span id="txtCopyCountBadge" style="color:var(--accent); font-weight:700; font-size: 0.8rem;">📋 Copiado 0 veces</span>
                         </div>
-                        <div id="txtPrompt" class="prompt-area" style="background:#0a0a0a; font-family: monospace; white-space: pre-wrap; font-size:0.95rem; line-height: 1.6; color: #a855f7; border-top-left-radius: 0; border-top-right-radius: 0; min-height: 200px; border-color: #333;"></div>
+                        <div id="txtPrompt" class="prompt-area" style="background:#0a0a0a; font-family: monospace; white-space: pre-wrap; font-size:0.95rem; line-height: 1.6; color: #a855f7; border-top-left-radius: 0; border-top-right-radius: 0; min-height: 200px; border-color: #333; user-select: none; -webkit-user-select: none; pointer-events: none;"></div>
                         
                         <div style="margin-top:20px">
                             <button class="btn" onclick="window.doCopyTextPrompt()" style="width:100%; background: linear-gradient(135deg, #a855f7, #6366f1); border:none; padding:15px; font-size:1.1rem; font-weight:bold;">📋 COPIAR PROMPT AL PORTAPAPELES</button>
