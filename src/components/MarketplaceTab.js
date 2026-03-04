@@ -113,6 +113,7 @@ export const MarketplaceTab = (store) => {
 };
 
 // Functions to handle Marketplace logic
+// Functions to handle Marketplace logic
 window.openBoostSelector = async (type) => {
     if (!window.store.currentUser) return;
 
@@ -120,9 +121,9 @@ window.openBoostSelector = async (type) => {
     window.toast('Cargando tus creaciones...', 'info');
 
     // Get user prompts
-    const prompts = await window.store.boostSystem.getUserPrompts(window.store.currentUser.id);
+    const allPrompts = await window.store.boostSystem.getUserPrompts(window.store.currentUser.id);
 
-    if (prompts.length === 0) {
+    if (allPrompts.length === 0) {
         return alert("¡Aún no tienes prompts públicos! Comparte algo primero para poder usar el Marketplace.");
     }
 
@@ -133,32 +134,101 @@ window.openBoostSelector = async (type) => {
     const boostName = { daily: 'TOP DIARIO', weekly: 'TOP SEMANAL', super: 'SUPERBOOST' }[type];
     const price = window.store.boostSystem.calculatePrice(type, window.store.currentUser.level);
 
-    overlay.innerHTML = `
-        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:24px; width:100%; max-width:700px; padding:2.5rem; position:relative;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
-                <div>
-                    <h3 style="margin:0; font-size:1.75rem; color:#fff;">Selecciona un Prompt</h3>
-                    <p style="color:#64748b; margin-top:0.25rem;">Estás comprando: <strong>${boostName}</strong> (💎 ${price})</p>
-                </div>
-                <button onclick="this.closest('.modal-overlay').remove()" style="background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;">✕</button>
-            </div>
+    // Initial State for Selector
+    let currentTab = 'images';
+    let currentSort = 'newest';
 
-            <div class="prompt-selector-grid">
-                ${prompts.map(p => `
-                    <div class="prompt-sel-card" onclick="window.confirmBoostPurchase('${type}', '${p.id}', '${p.title.replace(/'/g, "\\'")}')">
-                        <img src="${p.displayImage}" alt="${p.title}" style="object-fit: cover;">
-                        <div class="prompt-sel-info">
-                            <div class="prompt-sel-name">${p.title} ${p.isText ? '<span style="font-size:0.7rem; color:#3b82f6;">[Texto]</span>' : ''}</div>
-                        </div>
+    const renderSelectorContent = () => {
+        // Filter and Sort local data
+        let filtered = allPrompts.filter(p => currentTab === 'images' ? !p.isText : p.isText);
+
+        filtered.sort((a, b) => {
+            const timeA = new Date(a.created_at_custom || a.created).getTime();
+            const timeB = new Date(b.created_at_custom || b.created).getTime();
+            return currentSort === 'newest' ? timeB - timeA : timeA - timeB;
+        });
+
+        return filtered.map(p => `
+            <div class="prompt-sel-card ${p.isText ? 'is-text-card' : ''}" onclick="window.confirmBoostPurchase('${type}', '${p.id}', '${p.title.replace(/'/g, "\\'")}')">
+                ${p.isText ? `
+                    <div class="prompt-sel-placeholder">
+                        <span class="placeholder-icon">📝</span>
                     </div>
-                `).join('')}
+                ` : `
+                    <img src="${p.displayImage}" alt="${p.title}" style="object-fit: cover;">
+                `}
+                <div class="prompt-sel-info">
+                    <div class="prompt-sel-name" title="${p.title}">${p.title}</div>
+                </div>
+            </div>
+        `).join('') || `<div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #475569;">No se encontraron ${currentTab === 'images' ? 'imágenes' : 'textos'} en esta vista.</div>`;
+    };
+
+    overlay.innerHTML = `
+        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:32px; width:100%; max-width:800px; padding:2.5rem; position:relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:2rem;">
+                <div>
+                    <h3 style="margin:0; font-size:1.75rem; color:#fff; font-weight:900;">Selecciona un Prompt</h3>
+                    <p style="color:#64748b; margin-top:0.25rem;">Estás comprando: <strong style="color:#3b82f6;">${boostName}</strong> (💎 ${price})</p>
+                </div>
+                <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,0.05); border:none; color:#fff; width:40px; height:40px; border-radius:12px; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:0.2s;">✕</button>
             </div>
 
-            <div style="margin-top:20px; text-align:center; color:#475569; font-size:0.9rem;">
-                Haz clic en una imagen para confirmar la compra.
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; gap:15px; flex-wrap:wrap;">
+                <div class="sel-tabs" style="display:flex; background:rgba(0,0,0,0.2); padding:4px; border-radius:12px; border:1px solid #1e293b;">
+                    <button class="sel-tab-btn active" data-tab="images" style="padding:8px 16px; border:none; border-radius:8px; background:transparent; color:#64748b; font-weight:600; cursor:pointer; transition:0.2s;">IMÁGENES</button>
+                    <button class="sel-tab-btn" data-tab="texts" style="padding:8px 16px; border:none; border-radius:8px; background:transparent; color:#64748b; font-weight:600; cursor:pointer; transition:0.2s;">TEXTOS</button>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="color:#64748b; font-size:0.85rem;">Ordenar por:</span>
+                    <select id="sel-sort" style="background:#1e293b; border:1px solid #334155; color:#fff; padding:6px 12px; border-radius:8px; cursor:pointer; outline:none;">
+                        <option value="newest">Más Recientes</option>
+                        <option value="oldest">Más Antiguos</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="sel-grid-container" class="prompt-selector-grid" style="max-height: 450px; overflow-y: auto; padding-right: 5px;">
+                ${renderSelectorContent()}
+            </div>
+
+            <div style="margin-top:25px; text-align:center; color:#475569; font-size:0.85rem; padding-top:20px; border-top:1px solid #1e293b;">
+                Selecciona la creación que deseas destacar en el Marketplace.
             </div>
         </div>
+        <style>
+            .sel-tab-btn.active { background: #3b82f6 !important; color: #fff !important; }
+            .prompt-sel-card { transition: transform 0.2s, border-color 0.2s; border: 2px solid transparent; border-radius: 16px; overflow: hidden; background: #1e293b; cursor: pointer; }
+            .prompt-sel-card:hover { transform: translateY(-4px); border-color: #3b82f6; }
+            .prompt-sel-placeholder { width: 100%; aspect-ratio: 16/10; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); display: flex; align-items: center; justify-content: center; position: relative; }
+            .placeholder-icon { font-size: 2.5rem; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); }
+            .is-text-card .prompt-sel-name { font-weight: 700; color: #94a3b8; }
+            .prompt-sel-info { padding: 12px; background: rgba(0,0,0,0.3); }
+            .prompt-sel-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.9rem; color: #fff; }
+            
+            #sel-grid-container::-webkit-scrollbar { width: 6px; }
+            #sel-grid-container::-webkit-scrollbar-track { background: transparent; }
+            #sel-grid-container::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        </style>
     `;
+
+    // Listeners for Interactive Elements
+    const gridContainer = overlay.querySelector('#sel-grid-container');
+
+    overlay.querySelectorAll('.sel-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            overlay.querySelectorAll('.sel-tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentTab = btn.dataset.tab;
+            gridContainer.innerHTML = renderSelectorContent();
+        });
+    });
+
+    overlay.querySelector('#sel-sort').addEventListener('change', (e) => {
+        currentSort = e.target.value;
+        gridContainer.innerHTML = renderSelectorContent();
+    });
 
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();
