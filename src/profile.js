@@ -123,6 +123,7 @@ const renderMaintenance = () => {
 let currentView = 'profile'; // Fixed view for this file
 let profileUser = new URLSearchParams(window.location.search).get('u') || '';
 let profileTab = 'creations';
+let profileTextPrompts = []; // Cache for text prompts on the profile page
 let searchQuery = '';
 let filters = {
     source: 'community',
@@ -546,7 +547,8 @@ const ProfileHeader = () => {
 
         <!-- Tabs Navigation inside Header -->
         <div class="container" style="margin-top:20px; display:flex; gap:25px; border-bottom:1px solid #333">
-            <button class="profile-tab ${profileTab === 'creations' ? 'active' : ''}" onclick="window.setProfileTab('creations')">CREACIONES</button>
+            <button class="profile-tab ${profileTab === 'creations' ? 'active' : ''}" onclick="window.setProfileTab('creations')">IMAGEN</button>
+            <button class="profile-tab ${profileTab === 'text' ? 'active' : ''}" onclick="window.setProfileTab('text')">TEXTO</button>
             ${isMe ? `<button class="profile-tab ${profileTab === 'saved' ? 'active' : ''}" onclick="window.setProfileTab('saved')">GUARDADOS</button>` : ''}
             ${isMe ? `<button class="profile-tab ${profileTab === 'marketplace' ? 'active' : ''}" onclick="window.setProfileTab('marketplace')">MARKETPLACE</button>` : ''}
             ${isMe ? `<button class="profile-tab ${profileTab === 'economy' ? 'active' : ''}" onclick="window.setProfileTab('economy')">ECONOMÍA</button>` : ''}
@@ -735,6 +737,53 @@ const Gallery = () => {
     `;
 };
 
+const TextGallery = () => {
+    if (profileTextPrompts.length === 0) {
+        return `<div class="container" style="padding:100px; text-align:center; color:#666">
+            <div style="font-size:3rem; margin-bottom:15px">📝</div>
+            <p>No hay prompts de texto aún.</p>
+        </div>`;
+    }
+
+    return `
+    <div class="container" style="margin-top:20px">
+        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
+            ${profileTextPrompts.map(p => {
+        const authorUsername = p.expand?.author?.username || p.author_name || p.author || 'Usuario';
+        const reactions = p.reactions || {};
+        const totalReactions = Object.values(reactions).reduce((sum, v) => typeof v === 'number' ? sum + v : sum, 0);
+        const isMe = store.currentUser && (store.currentUser.username === authorUsername || store.currentUser.id === p.author);
+        return `
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid #222; border-radius: 16px; padding: 25px; cursor:pointer; transition: all 0.3s ease; position:relative;"
+                     onmouseover="this.style.borderColor='var(--accent)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 30px rgba(168,85,247,0.15)';"
+                     onmouseout="this.style.borderColor='#222'; this.style.transform='none'; this.style.boxShadow='none';"
+                     onclick="window.location.href='/text-prompts.html'">
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                        <span style="font-size:0.65rem; color:#a855f7; font-weight:800; text-transform:uppercase; letter-spacing:1px; background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.2); padding:3px 8px; border-radius:10px;">${window.escapeHTML(p.category || 'General')}</span>
+                        ${p.is_private ? '<span style="font-size:0.65rem; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); padding:3px 8px; border-radius:10px;">🔒 Privado</span>' : ''}
+                    </div>
+
+                    <h3 style="margin:0 0 8px 0; font-size:1.15rem; color:#fff; font-weight:700;">${window.escapeHTML(p.title || 'Sin título')}</h3>
+                    <p style="color:#94a3b8; font-size:0.85rem; line-height:1.5; margin-bottom:15px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${window.escapeHTML(p.description || p.prompt_text?.substring(0, 120) || '')}</p>
+                    
+                    <div style="display:flex; gap:12px; font-size:0.78rem; color:#666; flex-wrap:wrap;">
+                        ${p.tool ? `<span style="color:var(--accent)">🛠 ${window.escapeHTML(p.tool)}</span>` : ''}
+                        <span>📋 ${p.copy_count || 0} copias</span>
+                        ${totalReactions > 0 ? `<span>💜 ${totalReactions} reacciones</span>` : ''}
+                        ${p.comments?.length ? `<span>💬 ${p.comments.length}</span>` : ''}
+                    </div>
+
+                    ${isMe ? `
+                    <div style="position:absolute; top:12px; right:12px; display:flex; gap:5px; z-index:10;">
+                        <button class="btn-icon" style="background:rgba(0,0,0,0.6); padding:5px; width:28px; height:28px; font-size:0.8rem" onclick="event.stopPropagation(); window.doDeleteTextPromptFromProfile('${p.id}')" title="Eliminar">🗑️</button>
+                    </div>` : ''}
+                </div>`;
+    }).join('')}
+        </div>
+    </div>`;
+};
+
 // --- ACTION FUNCTIONS ---
 window.doEditPrompt = (id) => {
     isEditing = true;
@@ -893,6 +942,26 @@ window.doPromotePrompt = async (id) => {
             render();
         } else {
             alert(res.msg);
+        }
+    }
+};
+
+window.doDeleteTextPromptFromProfile = async (id) => {
+    if (!store.currentUser) return;
+    if (confirm("¿Estás seguro de que quieres eliminar este prompt de texto? Esta acción no se puede deshacer.")) {
+        try {
+            await pb.collection('text_prompts').delete(id);
+            // Remove from local array
+            profileTextPrompts = profileTextPrompts.filter(p => p.id !== id);
+
+            // Re-render gallery portion
+            const galleryMount = document.getElementById('profile-gallery-container');
+            if (galleryMount) galleryMount.innerHTML = TextGallery();
+
+            if (window.toast) window.toast("✅ ¡Prompt eliminado!", "success");
+        } catch (err) {
+            console.error("Error deleting text prompt:", err);
+            if (window.toast) window.toast("Error al eliminar el prompt", "error");
         }
     }
 };
@@ -1232,6 +1301,33 @@ const render = () => {
                         : (store.users.find(uu => uu.username?.toLowerCase() === targetNorm || uu.name?.toLowerCase() === targetNorm) || store.usersCache[targetNorm]);
                     if (u) ReferralsTab(u);
                 }, 50);
+            } else if (profileTab === 'text') {
+                galleryMount.innerHTML = '<div class="container" style="padding:60px; text-align:center; color:#666"><div style="font-size:2rem; animation: pulse 1s infinite">📝</div><p style="margin-top:15px">Cargando prompts de texto...</p></div>';
+                // Fetch text prompts for this user
+                (async () => {
+                    try {
+                        const targetNorm = profileUser.toLowerCase();
+                        const user = (store.currentUser && (store.currentUser.username?.toLowerCase() === targetNorm || store.currentUser.name?.toLowerCase() === targetNorm))
+                            ? store.currentUser
+                            : (store.users.find(u => u.username?.toLowerCase() === targetNorm || u.name?.toLowerCase() === targetNorm) || store.usersCache[targetNorm]);
+                        if (!user) return;
+
+                        const filter = `author = "${user.id}"`;
+                        const result = await pb.collection('text_prompts').getList(1, 100, {
+                            sort: '-created',
+                            expand: 'author',
+                            filter: filter
+                        });
+                        profileTextPrompts = result.items.map(item => ({
+                            ...item,
+                            author_name: item.expand?.author?.username || item.expand?.author?.name || 'Usuario'
+                        }));
+                        galleryMount.innerHTML = TextGallery();
+                    } catch (err) {
+                        console.error('Error loading text prompts for profile:', err);
+                        galleryMount.innerHTML = '<div class="container" style="padding:60px; text-align:center; color:#ff4444"><p>Error al cargar prompts de texto</p></div>';
+                    }
+                })();
             } else {
                 galleryMount.innerHTML = Gallery();
             }
