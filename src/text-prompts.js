@@ -16,7 +16,7 @@ let isLoading = true;
 async function loadTextPrompts() {
     try {
         const result = await pb.collection('text_prompts').getList(1, 50, {
-            sort: '-created',
+            sort: '-id',
             expand: 'author'
         });
         textPrompts = result.items;
