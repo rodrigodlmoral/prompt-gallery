@@ -82,11 +82,28 @@ const CreateTextPromptModal = () => `
                         <option value="📱 Redes Sociales">📱 Redes Sociales</option>
                     </select>
                 </div>
+
+                <div>
+                    <label style="color:#94a3b8; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; display:block;">Herramienta</label>
+                    <select id="txtCreateTool" style="width:100%; background:#111; border:1px solid #333; color:#fff; padding:12px 16px; border-radius:8px; font-size:0.95rem; outline:none; box-sizing: border-box;">
+                        <option value="">Selecciona una herramienta (opcional)</option>
+                        <option value="ChatGPT">🟢 ChatGPT</option>
+                        <option value="Gemini">🔵 Gemini</option>
+                        <option value="Grok">⚡ Grok</option>
+                        <option value="Claude">🟠 Claude</option>
+                        <option value="Perplexity">🟣 Perplexity</option>
+                    </select>
+                </div>
                 
                 <div>
                     <label style="color:#94a3b8; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; display:block;">Texto del Prompt *</label>
                     <textarea id="txtCreatePrompt" placeholder="Escribe aquí el prompt completo que los usuarios podrán copiar..." maxlength="10000" rows="4" style="width:100%; background:#0a0a0a; border:1px solid #333; color:#a855f7; padding:12px 16px; border-radius:8px; font-family:monospace; font-size:0.9rem; outline:none; resize:vertical; line-height:1.6; box-sizing: border-box;"></textarea>
                 </div>
+                
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding: 8px 0;">
+                    <input id="txtCreatePrivate" type="checkbox" style="width:18px; height:18px; accent-color:#a855f7; cursor:pointer;">
+                    <span style="color:#94a3b8; font-size:0.9rem;">🔒 Hacer este prompt <strong style="color:#fff;">privado</strong> (solo yo puedo verlo)</span>
+                </label>
                 
                 <button id="txtPublishBtn" class="btn" onclick="window.doPublishTextPrompt()" style="width:100%; background: linear-gradient(135deg, #a855f7, #6366f1); border:none; padding:15px; font-size:1.1rem; font-weight:bold; margin-top:10px; cursor:pointer;">🚀 PUBLICAR PROMPT DE TEXTO</button>
             </div>
@@ -109,6 +126,8 @@ window.doPublishTextPrompt = async () => {
     const description = document.getElementById('txtCreateDesc').value.trim();
     const category = document.getElementById('txtCreateCategory').value;
     const prompt_text = document.getElementById('txtCreatePrompt').value.trim();
+    const tool = document.getElementById('txtCreateTool').value;
+    const is_private = document.getElementById('txtCreatePrivate').checked;
 
     if (!title || !description || !category || !prompt_text) {
         window.toast('Por favor completa todos los campos obligatorios', 'error');
@@ -120,7 +139,7 @@ window.doPublishTextPrompt = async () => {
     btn.innerText = '⏳ Publicando...';
 
     try {
-        const result = await store.addTextPrompt({ title, description, category, prompt_text });
+        const result = await store.addTextPrompt({ title, description, category, prompt_text, tool, is_private });
 
         if (result.success) {
             window.toast('🎉 ¡Prompt de texto publicado exitosamente! +' + (result.tokensEarned || 1) + ' 💎', 'success');
