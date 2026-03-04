@@ -123,7 +123,7 @@ window.openBoostSelector = async (type) => {
     const prompts = await window.store.boostSystem.getUserPrompts(window.store.currentUser.id);
 
     if (prompts.length === 0) {
-        return alert("¡Aún no tienes prompts públicos! Comparte algo primero para poder usar el Marketplace.");
+        return alert("¡Aún no tienes prompts públicos de imagen! El Marketplace por el momento solo soporta Boosts para tus creaciones de imágenes. Comparte una imagen primero para continuar.");
     }
 
     const overlay = document.createElement('div');

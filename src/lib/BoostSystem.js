@@ -40,8 +40,7 @@ export class BoostSystem {
     try {
       return await this.pb.collection('prompts').getFullList({
         filter: `author="${userId}"`,
-        sort: '-created',
-        fields: 'id,title,image,created,copy_count'
+        sort: '-created'
       });
     } catch (error) {
       console.error('Error getting user prompts:', error);
