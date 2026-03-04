@@ -336,8 +336,20 @@ const TextDetailModalTemplate = () => `
 let activeTextPromptId = null;
 
 // Attach globally
-window.openTextDetail = (id) => {
-    const promptData = textPrompts.find(p => p.id === id); // Use real data
+window.openTextDetail = async (id) => {
+    let promptData = textPrompts.find(p => p.id === id); // Use real data
+    if (!promptData) {
+        try {
+            document.body.style.cursor = 'wait';
+            promptData = await pb.collection('text_prompts').getOne(id, { expand: 'author' });
+            document.body.style.cursor = 'default';
+        } catch (err) {
+            console.error(err);
+            document.body.style.cursor = 'default';
+            if (window.toast) window.toast("Error cargar prompt o no encontrado", "error");
+            return;
+        }
+    }
     if (!promptData) return;
     activeTextPromptId = id;
 
@@ -607,9 +619,14 @@ async function initPage() {
         // Fetch real data from PocketBase
         await loadTextPrompts();
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const autoOpenId = urlParams.get('id');
+
         // If the modal was open (from re-render copy), pop it back up immediately
         if (activeTextPromptId) {
             window.openTextDetail(activeTextPromptId);
+        } else if (autoOpenId) {
+            window.openTextDetail(autoOpenId);
         }
 
     } catch (err) {

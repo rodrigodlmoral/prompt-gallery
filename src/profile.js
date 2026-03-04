@@ -757,7 +757,7 @@ const TextGallery = () => {
                 <div style="background: rgba(255,255,255,0.03); border: 1px solid #222; border-radius: 16px; padding: 25px; cursor:pointer; transition: all 0.3s ease; position:relative;"
                      onmouseover="this.style.borderColor='var(--accent)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 30px rgba(168,85,247,0.15)';"
                      onmouseout="this.style.borderColor='#222'; this.style.transform='none'; this.style.boxShadow='none';"
-                     onclick="window.location.href='/text-prompts.html'">
+                     onclick="window.location.href='/text-prompts.html?id=${p.id}'">
                     
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
                         <span style="font-size:0.65rem; color:#a855f7; font-weight:800; text-transform:uppercase; letter-spacing:1px; background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.2); padding:3px 8px; border-radius:10px;">${window.escapeHTML(p.category || 'General')}</span>
