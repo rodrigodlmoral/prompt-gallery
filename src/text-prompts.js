@@ -7,53 +7,44 @@ import { toast } from './utils/ui-helpers.js';
 window.escapeHTML = escapeHTML;
 window.toast = toast;
 
-// ---- MOCK DATA ----
-const mockTextPrompts = [
-    {
-        id: 'tp_01',
-        title: 'Python FastAPI Boilerplate',
-        author: 'rodrigodlmoral',
-        description: 'Genera un servidor FastAPI completo con JWT auth y conexión a PostgreSQL.',
-        prompt_text: 'Eres un experto en Python backend. Escribe un boilerplate de FastAPI que incluya:\n1. Autenticación con JWT.\n2. Modelos Pydantic para User.\n3. Conexión asíncrona a PostgreSQL.\nAsegúrate de incluir comentarios explicativos en cada función.',
-        category: '💻 Código',
-        reactions: { like: 120, love: 15, fire: 60, funny: 0 },
-        copy_count: 56,
-        tokens_received: 10
-    },
-    {
-        id: 'tp_02',
-        title: 'Tutor de Inglés Nativo',
-        author: 'maria_dev',
-        description: 'Configura a la IA para que actúe como tu tutor personal de inglés británico.',
-        prompt_text: 'Actúa como un profesor nativo de inglés de Londres. Tendremos una conversación y me corregirás cada error gramatical o de vocabulario que cometa, explicando la regla gramatical subyacente de forma muy sencilla.',
-        category: '🗣️ Idiomas',
-        reactions: { like: 200, love: 50, fire: 10, funny: 0 },
-        copy_count: 320,
-        tokens_received: 50
-    },
-    {
-        id: 'tp_03',
-        title: 'Revisor de Contratos Legales',
-        author: 'abogado_ia',
-        description: 'Revisa cualquier contrato en español buscando cláusulas abusivas.',
-        prompt_text: 'Eres un abogado corporativo experto en leyes latinoamericanas. Revisa el siguiente texto legal y lista en viñetas cualquier cláusula ambigua o que pueda representar un riesgo legal para el firmante. Justifica tu respuesta.',
-        category: '📄 Documentos',
-        reactions: { like: 80, love: 5, fire: 0, funny: 0 },
-        copy_count: 12,
-        tokens_received: 0
-    },
-    {
-        id: 'tp_04',
-        title: 'Copywriter Vendedor Creador',
-        author: 'marketing_pro',
-        description: 'Crea 5 copies persuasivos para Facebook Ads basados en un producto.',
-        prompt_text: 'Crea 5 variaciones de anuncios para Facebook Ads utilizando el modelo AIDA (Atención, Interés, Deseo, Acción) para este producto: [INSERTA PRODUCTO]. Provee al menos 3 ganchos (hooks) diferentes.',
-        category: '✍️ Marketing',
-        reactions: { like: 300, love: 100, fire: 150, funny: 20 },
-        copy_count: 512,
-        tokens_received: 420
+import { pb } from './pocketbase.js';
+
+// ---- STATE ----
+let textPrompts = [];
+let isLoading = true;
+
+async function loadTextPrompts() {
+    try {
+        const result = await pb.collection('text_prompts').getList(1, 50, {
+            sort: '-created',
+            expand: 'author'
+        });
+        textPrompts = result.items;
+        isLoading = false;
+        renderGalleryGrid();
+    } catch (err) {
+        console.error("Error loading text prompts:", err);
+        isLoading = false;
+        if (window.toast) window.toast("Error al cargar la galería de texto", "error");
     }
-];
+}
+
+function renderGalleryGrid() {
+    const gridContainer = document.getElementById('text-gallery-grid-container');
+    if (!gridContainer) return;
+
+    if (isLoading) {
+        gridContainer.innerHTML = '<div style="color: #666; text-align: center; padding: 40px; width: 100%;">Cargando prompts de texto...</div>';
+        return;
+    }
+
+    if (textPrompts.length === 0) {
+        gridContainer.innerHTML = '<div style="color: #666; text-align: center; padding: 40px; width: 100%;">Aún no hay prompts de texto publicados.</div>';
+        return;
+    }
+
+    gridContainer.innerHTML = textPrompts.map(p => TextPromptCard(p)).join('');
+}
 
 // ---- HEADER COMPONENT (ISOLATED) ----
 const TextDashboardHeader = ({ currentUser }) => {
@@ -201,22 +192,27 @@ let activeTextPromptId = null;
 
 // Attach globally
 window.openTextDetail = (id) => {
-    const promptData = mockTextPrompts.find(p => p.id === id);
+    const promptData = textPrompts.find(p => p.id === id); // Use real data
     if (!promptData) return;
     activeTextPromptId = id;
 
     // Fill data
-    document.getElementById('txtMetaTop').innerText = promptData.category;
-    document.getElementById('txtTitle').innerText = promptData.title;
-    document.getElementById('txtUser').innerHTML = `por <span style="color:var(--accent);">@${window.escapeHTML(promptData.author)}</span>`;
-    document.getElementById('txtDesc').innerText = promptData.description;
-    document.getElementById('txtPrompt').innerText = promptData.prompt_text;
-    document.getElementById('txtCopyCountBadge').innerText = `📋 Copiado ${promptData.copy_count} veces`;
+    document.getElementById('txtMetaTop').innerText = promptData.category || 'Categoría';
+    document.getElementById('txtTitle').innerText = promptData.title || '';
+
+    // Resolve author name from expand relation, fallback to author_name cache, fallback to ID
+    const authorUsername = promptData.expand?.author?.username || promptData.author_name || promptData.author;
+    document.getElementById('txtUser').innerHTML = `por <span style="color:var(--accent);">@${window.escapeHTML(authorUsername)}</span>`;
+
+    document.getElementById('txtDesc').innerText = promptData.description || '';
+    document.getElementById('txtPrompt').innerText = promptData.prompt_text || '';
+    document.getElementById('txtCopyCountBadge').innerText = `📋 Copiado ${promptData.copy_count || 0} veces`;
 
     // Fill stats safely
-    document.getElementById('txt-like-count').innerText = promptData.reactions.like || 0;
-    document.getElementById('txt-love-count').innerText = promptData.reactions.love || 0;
-    document.getElementById('txt-fire-count').innerText = promptData.reactions.fire || 0;
+    const reactions = promptData.reactions || { like: 0, love: 0, fire: 0, funny: 0 };
+    document.getElementById('txt-like-count').innerText = reactions.like || 0;
+    document.getElementById('txt-love-count').innerText = reactions.love || 0;
+    document.getElementById('txt-fire-count').innerText = reactions.fire || 0;
 
     // Show modal
     document.getElementById('textModalOverlay').style.display = 'flex';
@@ -231,28 +227,37 @@ window.closeTextModal = () => {
 
 window.doCopyTextPrompt = async () => {
     if (!activeTextPromptId) return;
-    const promptData = mockTextPrompts.find(p => p.id === activeTextPromptId);
+    const promptData = textPrompts.find(p => p.id === activeTextPromptId);
     if (!promptData) return;
 
     try {
         await navigator.clipboard.writeText(promptData.prompt_text);
 
-        // Mock DB Update
-        promptData.copy_count++;
-        document.getElementById('txtCopyCountBadge').innerText = `📋 Copiado ${promptData.copy_count} veces`;
+        // Actual DB Update for copy_count
+        const newCopyCount = (promptData.copy_count || 0) + 1;
 
-        // Fake Toast Alert (using native or store's)
+        // Optimistic UI update
+        promptData.copy_count = newCopyCount;
+        document.getElementById('txtCopyCountBadge').innerText = `📋 Copiado ${newCopyCount} veces`;
+
         if (window.toast) {
             window.toast("¡Prompt Copiado Exitosamente!", "success");
         } else {
             alert("✅ ¡Prompt copiado al portapapeles!");
         }
 
-        // Re-render gallery grid purely (lazy approach for prototype)
-        initPage();
+        // Send to PocketBase in background
+        try {
+            await pb.collection('text_prompts').update(activeTextPromptId, {
+                copy_count: newCopyCount
+            });
+        } catch (dbErr) {
+            console.error("Error updating copy_count in DB", dbErr);
+        }
 
     } catch (e) {
         console.error("Error copiando txt", e);
+        if (window.toast) window.toast("Error al copiar al portapapeles", "error");
     }
 };
 
@@ -283,14 +288,29 @@ async function initPage() {
         appDiv.innerHTML = `
             ${TopBar()}
             ${TextDashboardHeader({ currentUser })}
-            ${renderGallery()}
+            <div class="container" style="padding: 40px 0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px;">
+                    <div>
+                        <h2>Galería de Prompts de Texto</h2>
+                        <p style="color:#94a3b8; font-size:0.9rem;">Chatbots, escritura, código e instrucciones complejas.</p>
+                    </div>
+                </div>
+                
+                <!-- Dynamic Grid Container -->
+                <div class="gallery-grid" id="text-gallery-grid-container">
+                    <div style="color: #666; text-align: center; padding: 40px; width: 100%;">Cargando prompts...</div>
+                </div>
+            </div>
             
             <div id="text-modals-mount">
                 ${TextDetailModalTemplate()}
             </div>
         `;
 
-        console.log("Rendered HTML successfully.");
+        console.log("Rendered HTML skeleton successfully. Loading prompts...");
+
+        // Fetch real data from PocketBase
+        await loadTextPrompts();
 
         // If the modal was open (from re-render copy), pop it back up immediately
         if (activeTextPromptId) {

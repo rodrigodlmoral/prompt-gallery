@@ -41,15 +41,15 @@ export const Header = ({ currentUser, filters, searchQuery }) => `
         </nav>
     </div>
 
-    <!-- Secondary Tabs Row (Image / Text) - HIDDEN until Text Gallery is ready -->
-    <!-- ${currentUser ? `
-    <div class="container" style="display:flex; justify-content:flex-end; padding: 10px 0; padding-right: 15px;">
-        <div style="background: rgba(0,0,0,0.4); border-radius: 20px; padding: 4px; display:flex; gap: 5px; border: 1px solid rgba(255,255,255,0.1);">
-            <button style="background: rgba(255,255,255,0.1); color: white; border: none; padding: 6px 16px; border-radius: 16px; font-weight: 600; cursor: pointer; font-size: 13px;">🖼️ IMÁGENES</button>
-            <button style="background: transparent; color: #888; border: none; padding: 6px 16px; border-radius: 16px; font-weight: 600; cursor: pointer; font-size: 13px; transition: 0.2s;" onclick="window.location.href='/text-prompts.html'" onmouseover="this.style.color='white'" onmouseout="this.style.color='#888'">📝 TEXTO</button>
-        </div>
-    </div>
-    ` : ''} -->
+    <!-- SECONDARY TABS: Image / Text -->
+            ${currentUser ? `
+            <div class="container" style="display:flex; justify-content:flex-end; padding: 10px 0; padding-right: 15px;">
+                <div style="background: rgba(0,0,0,0.4); border-radius: 20px; padding: 4px; display:flex; gap: 5px; border: 1px solid rgba(255,255,255,0.1);">
+                    <button style="background: rgba(168, 85, 247, 0.2); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); padding: 5px 15px; border-radius: 16px; font-weight: 600; cursor: pointer; font-size: 13px;">🖼️ IMÁGENES</button>
+                    <button style="background: transparent; color: #888; border: none; padding: 6px 16px; border-radius: 16px; font-weight: 600; cursor: pointer; font-size: 13px; transition: 0.2s;" onclick="window.location.href='/text-prompts.html'" onmouseover="this.style.color='white'" onmouseout="this.style.color='#888'">📝 TEXTO</button>
+                </div>
+            </div>
+            ` : ''}
 
     <!-- Mobile Navigation Overlay (Unified Menu) -->
     <div class="mobile-nav-overlay" id="mobileNavOverlay">
