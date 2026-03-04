@@ -66,7 +66,7 @@ export class ReferralSystem {
      */
     async getReferralLink(userId) {
         const code = await this.getReferralCode(userId);
-        return `${window.location.origin}/register?ref=${code}`;
+        return `${window.location.origin}/?register=true&ref=${code}`;
     }
 
     /**

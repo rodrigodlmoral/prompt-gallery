@@ -42,11 +42,26 @@ const MAINTENANCE_MODE = false;
 try {
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
+    const shouldRegister = urlParams.get('register') === 'true';
+
     if (refCode && /^PG[A-Z0-9]{8}$/.test(refCode)) {
         localStorage.setItem('pg_referral_code', refCode);
+    }
+
+    if (refCode || shouldRegister) {
         const cleanUrl = new URL(window.location);
         cleanUrl.searchParams.delete('ref');
+        cleanUrl.searchParams.delete('register');
         window.history.replaceState({}, '', cleanUrl);
+
+        if (shouldRegister) {
+            // Open register modal after components initialize
+            setTimeout(() => {
+                if (typeof window.openRegister === 'function') {
+                    window.openRegister();
+                }
+            }, 800);
+        }
     }
 } catch (e) {
     console.warn('URL parsing error', e);
