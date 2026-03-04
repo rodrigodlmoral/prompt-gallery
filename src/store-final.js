@@ -1538,135 +1538,6 @@ const store = {
         }
     },
 
-    // ═══════════════════════════════════════════════════════════
-    // ADD TEXT PROMPT — Full economy integration
-    // ═══════════════════════════════════════════════════════════
-    async addTextPrompt(data) {
-        if (!this.currentUser) return { success: false, msg: "Inicia sesión para publicar" };
-
-        try {
-            const record = await pb.collection('text_prompts').create({
-                title: data.title,
-                description: data.description,
-                prompt_text: data.prompt_text,
-                category: data.category,
-                author: this.currentUser.id,
-                author_name: this.currentUser.username,
-                tags: data.tags || [],
-                tool: data.tool || '',
-                is_private: data.is_private || false,
-                created_at_custom: new Date().toISOString(),
-                reactions: { like: 0, love: 0, fire: 0, funny: 0 },
-                comments: [],
-                copy_count: 0,
-                tokens_received: 0
-            });
-
-            // --- LEVEL UP LOGIC & REWARDS (same as image prompts) ---
-            const levelSystem = new LevelSystem(pb);
-            const levelCheck = await levelSystem.checkLevelUp(this.currentUser.id);
-
-            if (!levelCheck) {
-                console.error('[ECONOMY] Failed to check level up');
-                return { success: true, leveledUp: false };
-            }
-
-            const { shouldLevelUp, oldLevel, newLevel, levelName } = levelCheck;
-
-            const LEVEL_UP_BONUSES = [0, 10, 20, 30, 40, 50];
-            const BASE_REWARD = (oldLevel >= 5) ? 2 : 1;
-            let tokensToAdd = BASE_REWARD;
-
-            if (shouldLevelUp) {
-                const bonus = LEVEL_UP_BONUSES[newLevel] || 10;
-                tokensToAdd += bonus;
-                console.log(`[ECONOMY] 🎉 Level Up! ${oldLevel} -> ${newLevel} (${levelName}). Reward: ${tokensToAdd}`);
-                if (window.showToast) {
-                    window.showToast(`🎉 ¡Subiste a Nivel ${newLevel}: ${levelName}! +${bonus} 💎 Bonus`, 'success');
-                }
-            }
-
-            // Get fresh combined stats (image + text prompts)
-            const imgPosts = await pb.collection('prompts').getList(1, 1, {
-                filter: `author = "${this.currentUser.id}"`, fields: 'id'
-            });
-            const txtPosts = await pb.collection('text_prompts').getList(1, 1, {
-                filter: `author = "${this.currentUser.id}"`, fields: 'id'
-            });
-            const totalPosts = (imgPosts.totalItems || 0) + (txtPosts.totalItems || 0);
-
-            const allImg = await pb.collection('prompts').getFullList({
-                filter: `author = "${this.currentUser.id}"`, fields: 'copy_count'
-            });
-            const allTxt = await pb.collection('text_prompts').getFullList({
-                filter: `author = "${this.currentUser.id}"`, fields: 'copy_count'
-            });
-            const totalCopies = [...allImg, ...allTxt].reduce((sum, p) => sum + (p.copy_count || 0), 0);
-            const progress = levelSystem.calculateProgress(newLevel, totalPosts, totalCopies);
-
-            // === Economic Audit ===
-            try {
-                const currentTokens = this.currentUser.tokens || 0;
-                const currentEarned = this.currentUser.total_earned || 0;
-                const currentRewards = this.currentUser.total_rewards || 0;
-
-                await pb.collection('users').update(this.currentUser.id, {
-                    level: newLevel,
-                    level_progress: progress,
-                    prompts_count: totalPosts,
-                    total_copies: totalCopies,
-                    tokens: currentTokens + tokensToAdd,
-                    total_earned: currentEarned + tokensToAdd,
-                    total_rewards: currentRewards + tokensToAdd
-                });
-
-                await LedgerService.systemReward(
-                    this.currentUser.id, BASE_REWARD, 'POST_REWARD',
-                    `Publicación Texto: ${data.title}`
-                );
-
-                if (shouldLevelUp) {
-                    const bonus = tokensToAdd - BASE_REWARD;
-                    await LedgerService.systemReward(
-                        this.currentUser.id, bonus, 'LEVEL_UP',
-                        `Bono por subir al Nivel ${newLevel}: ${levelName}`
-                    );
-                }
-            } catch (err) {
-                console.error("[ECONOMY] Error en auditoría texto:", err);
-            }
-
-            await this._loadUserProfile(this.currentUser.id);
-            this.logActivity('publish_text', { postId: data.title });
-
-            // --- REFERRAL ACTIVATION CHECK ---
-            try {
-                if (this.referralSystem) {
-                    const refCheck = await this.referralSystem.checkReferralActivation(this.currentUser.id);
-                    if (refCheck && refCheck.shouldActivate) {
-                        const actRes = await this.referralSystem.activateReferral(refCheck.referral.id);
-                        if (actRes.success && window.showToast) {
-                            window.showToast('🎉 ¡Tu referido se activó! Quien te invitó recibió 5 💎', 'success');
-                        }
-                    }
-                }
-            } catch (refErr) {
-                console.warn('[REFERRAL] Activation check error:', refErr);
-            }
-
-            return {
-                success: true,
-                leveledUp: shouldLevelUp,
-                newLevel: newLevel,
-                levelName: shouldLevelUp ? levelName : null,
-                tokensEarned: tokensToAdd
-            };
-        } catch (err) {
-            console.error("Text publish error:", err);
-            return { success: false, msg: "Error al guardar: " + err.message };
-        }
-    },
-
     async updatePrompt(id, data) {
         console.log(`[DEBUG_V8.8] updatePrompt requested for ID: ${id}`);
         console.log(`[DEBUG_V8.8] Current User ID: ${this.currentUser?.id}`);
@@ -1716,7 +1587,7 @@ const store = {
                 extra_config: data.extraConfig,
                 tags: data.tags // NUEVO
             });
-            await this.loadPrompts(true);
+            await this.loadPrompts();
             return { success: true };
         } catch (err) {
             console.error("Update error:", err);
@@ -1822,6 +1693,74 @@ const store = {
             this.logActivity('comment', { postTitle: prompt.title });
             return { success: true };
         } catch (error) { return { success: false }; }
+    },
+
+    async addTextComment(postId, text) {
+        if (!this.currentUser) return { success: false };
+        const prompt = this.textPrompts.find(p => String(p.id) === String(postId));
+        if (!prompt) return { success: false };
+
+        const newComment = {
+            user: this.currentUser.username,
+            avatar: this.currentUser.avatar || `https://robohash.org/${this.currentUser.username}`,
+            text: text.trim(),
+            date: new Date().toISOString(),
+            id: Date.now().toString() // add an ID for easy deletion
+        };
+
+        const comments = [...(prompt.comments || []), newComment];
+        try {
+            await pb.collection('text_prompts').update(postId, { comments: comments });
+            prompt.comments = comments;
+            this.logActivity('comment', { postTitle: prompt.title });
+            return { success: true };
+        } catch (error) { return { success: false }; }
+    },
+
+    async removeComment(postId, commentId) {
+        if (!this.currentUser) return { success: false };
+        const prompt = this.prompts.find(p => String(p.id) === String(postId));
+        if (!prompt) return { success: false };
+
+        const isAdmin = this.currentUser.role === 'admin';
+        const isOwner = prompt.author === this.currentUser.username;
+        const filtered = (prompt.comments || []).filter(c => {
+            if (String(c.id || c.date) === String(commentId)) {
+                if (isAdmin || isOwner || c.user === this.currentUser.username) {
+                    return false; // delete
+                }
+            }
+            return true;
+        });
+
+        try {
+            await pb.collection('prompts').update(postId, { comments: filtered });
+            prompt.comments = filtered;
+            return { success: true };
+        } catch (err) { return { success: false }; }
+    },
+
+    async removeTextComment(postId, commentId) {
+        if (!this.currentUser) return { success: false };
+        const prompt = this.textPrompts.find(p => String(p.id) === String(postId));
+        if (!prompt) return { success: false };
+
+        const isAdmin = this.currentUser.role === 'admin';
+        const isOwner = prompt.author === this.currentUser.username;
+        const filtered = (prompt.comments || []).filter(c => {
+            if (String(c.id || c.date) === String(commentId)) {
+                if (isAdmin || isOwner || c.user === this.currentUser.username) {
+                    return false; // delete
+                }
+            }
+            return true;
+        });
+
+        try {
+            await pb.collection('text_prompts').update(postId, { comments: filtered });
+            prompt.comments = filtered;
+            return { success: true };
+        } catch (err) { return { success: false }; }
     },
 
     async toggleSave(id) {

@@ -304,9 +304,28 @@ const TextDetailModalTemplate = () => `
                 </div>
                 
                 <!-- RIGHT: Comments sidebar (desktop) -->
-                <div class="txt-detail-right premium-scroll" style="min-width: 350px; width: 350px; border-left: 1px solid #222; padding: 30px 25px; overflow-y: auto; display: flex; flex-direction: column;">
+                <div class="txt-detail-right premium-scroll" style="min-width: 350px; width: 350px; border-left: 1px solid #222; padding: 30px 25px; display: flex; flex-direction: column;">
                     <h3 style="font-size:1.1rem; margin: 0 0 15px 0;">💬 Comentarios</h3>
-                    <div style="color:#555; padding: 30px 15px; text-align:center; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed #333; flex: 1; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">Aún no hay comentarios</div>
+                    
+                    <div id="txtComments" class="premium-scroll" style="flex: 1; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;">
+                        <!-- JS injected comments will appear here -->
+                    </div>
+                    
+                    <div class="view-footer" style="margin-top: auto; padding-top: 15px; border-top: 1px solid #222;">
+                        <div id="txtCommAntiBot" class="comment-anti-bot-container" style="display:none; margin-bottom: 10px;">
+                            <div class="crystal-slider-wrapper" id="txtCommSlider">
+                                <div class="crystal-slider-track-text">Desliza 💎 para confirmar</div>
+                                <div class="crystal-slider-handle" id="txtCommSliderHandle">💎</div>
+                            </div>
+                            <!-- Honeypot -->
+                            <input type="text" name="b_name" class="hp-field" id="txtCommHoneypot" tabindex="-1" autocomplete="off" style="display:none;">
+                        </div>
+
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" id="txtCommInput" class="form-input" style="flex:1" placeholder="Comenta..." onfocus="window.showTextSlider()">
+                            <button class="btn" id="txtCommSubmitBtn" onclick="window.postTextComm()">Enviar</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -342,6 +361,23 @@ window.openTextDetail = (id) => {
     document.getElementById('txt-funny-count').innerText = reactions.funny || 0;
     document.getElementById('txt-dislike-count').innerText = reactions.dislike || 0;
     document.getElementById('txt-sad-count').innerText = reactions.sad || 0;
+
+    // Render Comments
+    const commentsEl = document.getElementById('txtComments');
+    if (commentsEl) {
+        const currUser = store.currentUser?.username;
+        const isPostOwner = currUser === authorUsername;
+
+        commentsEl.innerHTML = (promptData.comments && promptData.comments.length > 0)
+            ? promptData.comments.map(c => `<div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:8px; margin-bottom:10px; border-left:3px solid var(--accent); position:relative">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px">
+                        <span style="font-weight:700; color:var(--accent); font-size:0.85rem">@${window.escapeHTML(c.user || c.username)}</span>
+                        ${(isPostOwner || currUser === c.user || currUser === c.username) ? `<button onclick="window.doDeleteTextComment('${c.id || c.date}')" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; padding:0">🗑️</button>` : ''}
+                    </div>
+                    <div style="font-size:0.9rem; color:#eee; word-break:break-word">${window.escapeHTML(c.text)}</div>
+                </div>`).join('')
+            : '<div style="opacity:0.5; font-size:0.9rem; text-align:center; margin-top: 20px;">No hay comentarios aún.</div>';
+    }
 
     // Show modal
     document.getElementById('textModalOverlay').style.display = 'flex';
@@ -387,6 +423,135 @@ window.doCopyTextPrompt = async () => {
     } catch (e) {
         console.error("Error copiando txt", e);
         if (window.toast) window.toast("Error al copiar al portapapeles", "error");
+    }
+};
+
+window.showTextSlider = () => {
+    document.getElementById('txtCommAntiBot').style.display = 'block';
+    window.initTextCrystalSlider();
+};
+
+let textSliderUnlocked = false;
+window.initTextCrystalSlider = () => {
+    textSliderUnlocked = false;
+    const track = document.getElementById('txtCommSlider');
+    const handle = document.getElementById('txtCommSliderHandle');
+    if (!track || !handle) return;
+    track.classList.remove('unlocked');
+    handle.style.left = '4px';
+    handle.style.transition = 'left 0.3s ease';
+
+    let isDragging = false;
+    let startX = 0;
+
+    const onStart = (e) => {
+        if (textSliderUnlocked) return;
+        isDragging = true;
+        startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        handle.style.transition = 'none';
+    };
+
+    const onMove = (e) => {
+        if (!isDragging || textSliderUnlocked) return;
+        const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const diff = currentX - startX;
+        const max = track.offsetWidth - handle.offsetWidth - 8;
+        const pos = Math.max(0, Math.min(diff, max));
+        handle.style.left = (pos + 4) + 'px';
+
+        if (pos >= max - 5) {
+            textSliderUnlocked = true;
+            isDragging = false;
+            track.classList.add('unlocked');
+            handle.style.left = 'calc(100% - 44px)';
+        }
+    };
+
+    const onEnd = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        if (!textSliderUnlocked) {
+            handle.style.transition = 'left 0.3s ease';
+            handle.style.left = '4px';
+        }
+    };
+
+    handle.onmousedown = onStart;
+    handle.ontouchstart = onStart;
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('touchmove', onMove);
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchend', onEnd);
+};
+
+window.postTextComm = async () => {
+    if (!store.currentUser) {
+        if (window.toast) window.toast("Debes iniciar sesión para comentar", "error");
+        return;
+    }
+
+    const levelCheck = store.checkLevelFeature('comment');
+    if (!levelCheck.hasAccess) {
+        if (window.toast) window.toast(levelCheck.message, 'warning');
+        return;
+    }
+
+    const input = document.getElementById('txtCommInput');
+    const val = input ? input.value.trim() : '';
+
+    if (!val) return;
+    if (val.length < 5) {
+        if (window.toast) window.toast("Comentario demasiado corto", "info");
+        return;
+    }
+
+    const honeypot = document.getElementById('txtCommHoneypot');
+    if (honeypot && honeypot.value) {
+        console.warn('Bot detectado al comentar (text_prompts)');
+        return; // Silent fail block for bots
+    }
+
+    if (!textSliderUnlocked) {
+        if (window.toast) window.toast("Desliza el diamante 💎 para verificar que eres humano", "info");
+        return;
+    }
+
+    const result = await store.addTextComment(activeTextPromptId, val);
+
+    if (result.success) {
+        if (window.toast) window.toast("¡Comentario enviado con éxito!", "success");
+        if (input) input.value = '';
+
+        textSliderUnlocked = false;
+        const track = document.getElementById('txtCommSlider');
+        const handle = document.getElementById('txtCommSliderHandle');
+        const bot = document.getElementById('txtCommAntiBot');
+        if (track) track.classList.remove('unlocked');
+        if (handle) { handle.style.left = '4px'; handle.style.transition = 'none'; }
+        if (bot) bot.style.display = 'none';
+
+        // Update local array synchronously so rendering picks it up
+        const promptIndex = textPrompts.findIndex(p => p.id === activeTextPromptId);
+        if (promptIndex !== -1) {
+            // Re-fetch to get accurate comments array, or just re-render to trigger reactivity
+            // The store already updated the passed prompt reference!
+            window.openTextDetail(activeTextPromptId);
+        }
+    } else {
+        if (window.toast) window.toast(result.msg || "Error al comentar", "error");
+    }
+};
+
+window.doDeleteTextComment = async (commentId) => {
+    if (!store.currentUser) return;
+    if (confirm("¿Seguro que quieres eliminar este comentario?")) {
+        const res = await store.removeTextComment(activeTextPromptId, commentId);
+        if (res.success) {
+            const promptIndex = textPrompts.findIndex(p => p.id === activeTextPromptId);
+            if (promptIndex !== -1) {
+                window.openTextDetail(activeTextPromptId);
+            }
+        }
     }
 };
 
