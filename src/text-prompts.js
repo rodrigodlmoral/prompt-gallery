@@ -271,27 +271,29 @@ const TextDetailModalTemplate = () => `
             <button class="modal-close-x" onclick="window.closeTextModal()">✕</button>
             
             <div class="txt-detail-columns" style="display: flex; flex: 1; overflow: hidden;">
-                <!-- LEFT: Main prompt content -->
-                <div class="premium-scroll" style="flex: 1; padding: 30px 40px; display: flex; flex-direction: column; overflow-y: auto;">
-                    <div id="txtMetaTop" style="font-size:0.65rem; color:#a855f7; font-weight:800; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); display:inline-block; padding: 4px 10px; border-radius: 12px; align-self: flex-start;">CATEGORÍA</div>
+                <!-- LEFT: Main prompt content (Statically sized, internal scroll only) -->
+                <div style="flex: 1; padding: 25px 35px; display: flex; flex-direction: column; overflow: hidden;">
+                    <div style="flex: 0 0 auto;">
+                        <div id="txtMetaTop" style="font-size:0.65rem; color:#a855f7; font-weight:800; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); display:inline-block; padding: 4px 10px; border-radius: 12px;">CATEGORÍA</div>
+                        
+                        <h2 id="txtTitle" style="margin:0 0 10px 0; font-size: 1.8rem;">Título del Prompt</h2>
+                        <div id="txtUser" style="font-weight:700; margin-bottom:15px; color:#cbd5e1; cursor:pointer">por @autor</div>
+                        <p id="txtDesc" style="color: #94a3b8; line-height: 1.6; margin-bottom: 20px; font-size: 1rem;"></p>
+                    </div>
                     
-                    <h2 id="txtTitle" style="margin:0 0 10px 0; font-size: 1.8rem;">Título del Prompt</h2>
-                    <div id="txtUser" style="font-weight:700; margin-bottom:15px; color:#cbd5e1; cursor:pointer">por @autor</div>
-                    <p id="txtDesc" style="color: #94a3b8; line-height: 1.6; margin-bottom: 20px; font-size: 1rem;"></p>
-                    
-                    <div style="position:relative">
-                        <div style="display:flex; justify-content:space-between; align-items:center; background: #000; padding: 10px 15px; border-top-left-radius: 8px; border-top-right-radius: 8px; border: 1px solid #333; border-bottom: none;">
+                    <div style="position:relative; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                        <div style="flex: 0 0 auto; display:flex; justify-content:space-between; align-items:center; background: #000; padding: 10px 15px; border-top-left-radius: 8px; border-top-right-radius: 8px; border: 1px solid #333; border-bottom: none;">
                             <span style="color:#666; font-family:monospace; font-size:0.8rem;">Prompt Estructurado</span>
                             <span id="txtCopyCountBadge" style="color:var(--accent); font-weight:700; font-size: 0.8rem;">📋 Copiado 0 veces</span>
                         </div>
-                        <div id="txtPrompt" class="prompt-area premium-scroll" style="background:#0a0a0a; font-family: monospace; white-space: pre-wrap; font-size:0.9rem; line-height: 1.6; color: #a855f7; border-top-left-radius: 0; border-top-right-radius: 0; max-height: 50vh; min-height: 200px; overflow-y: auto; border-color: #333; user-select: none; -webkit-user-select: none;"></div>
+                        <div id="txtPrompt" class="prompt-area premium-scroll" style="flex: 1; background:#0a0a0a; font-family: monospace; white-space: pre-wrap; font-size:0.9rem; line-height: 1.6; color: #a855f7; border-radius: 0; overflow-y: auto; border: 1px solid #333; user-select: none; -webkit-user-select: none; margin: 0; min-height: 100px;"></div>
                         
-                        <div style="margin-top:15px">
+                        <div style="flex: 0 0 auto; margin-top:15px">
                             <button class="btn" onclick="window.doCopyTextPrompt()" style="width:100%; background: linear-gradient(135deg, #a855f7, #6366f1); border:none; padding:14px; font-size:1.05rem; font-weight:bold;">📋 COPIAR PROMPT AL PORTAPAPELES</button>
                         </div>
                     </div>
                     
-                    <div class="reactions-flex" style="margin-top: 20px;">
+                    <div class="reactions-flex" style="flex: 0 0 auto; margin-top: 15px;">
                         <button class="react-btn">👍 <small id="txt-like-count">0</small></button>
                         <button class="react-btn">❤️ <small id="txt-love-count">0</small></button>
                         <button class="react-btn">🔥 <small id="txt-fire-count">0</small></button>
