@@ -51,9 +51,10 @@ const CreateTextPromptModal = () => `
 <div id="createTextOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target === this) window.closeCreateTextModal()">
     <div class="view-modal-wrapper" style="max-width: 850px; margin: 20px auto; width: 100%;">
         <div class="view-modal" style="flex-direction: column; padding: 40px; height: auto !important;">
-            <button class="modal-close-x" onclick="window.closeCreateTextModal()">✕</button>
-            
-            <h2 style="margin:0 0 20px 0; background: linear-gradient(135deg, #a855f7, #6366f1); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">📝 Compartir Prompt de Texto</h2>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="margin:0; background: linear-gradient(135deg, #a855f7, #6366f1); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">📝 Compartir Prompt de Texto</h2>
+                <button onclick="window.closeCreateTextModal()" style="background: rgba(255,255,255,0.05); border: 1px solid #333; color: #999; padding: 8px 20px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,60,60,0.15)'; this.style.color='#ff6b6b'; this.style.borderColor='#ff6b6b'" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#999'; this.style.borderColor='#333'">✕ CERRAR</button>
+            </div>
             
             <div style="display:flex; flex-direction:column; gap:12px;">
                 <div>
