@@ -50,7 +50,7 @@ function renderGalleryGrid() {
 const CreateTextPromptModal = () => `
 <div id="createTextOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target === this) window.closeCreateTextModal()">
     <div class="view-modal-wrapper" style="max-width: 850px; margin: 20px auto; width: 100%;">
-        <div class="view-modal" style="flex-direction: column; padding: 40px;">
+        <div class="view-modal" style="flex-direction: column; padding: 40px; height: auto !important;">
             <button class="modal-close-x" onclick="window.closeCreateTextModal()">✕</button>
             
             <h2 style="margin:0 0 20px 0; background: linear-gradient(135deg, #a855f7, #6366f1); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">📝 Compartir Prompt de Texto</h2>
