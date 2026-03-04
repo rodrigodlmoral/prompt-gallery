@@ -255,45 +255,49 @@ const renderGallery = () => {
 
 // ---- ISOLATED DETAIL MODAL FOR TEXT PROMPTS ----
 const TextDetailModalTemplate = () => `
+<style>
+    @media (max-width: 768px) {
+        .txt-detail-columns { flex-direction: column !important; }
+        .txt-detail-right { border-left: none !important; border-top: 1px solid #222 !important; min-width: unset !important; }
+    }
+</style>
 <div id="textModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target === this) window.closeTextModal()">
-    <div class="view-modal-wrapper" style="max-width: 1000px; margin: 20px auto; width: 100%;">
-        <div class="view-modal" style="flex-direction: column; height: auto !important; padding-bottom: 20px;">
+    <div class="view-modal-wrapper" style="max-width: 1100px; margin: 20px auto; width: 100%;">
+        <div class="view-modal" style="flex-direction: column; height: auto !important; max-height: 90vh; overflow: hidden;">
             <button class="modal-close-x" onclick="window.closeTextModal()">✕</button>
             
-            <div class="view-info-side" style="width: 100%; border-left: none; padding: 40px;">
-                <div class="view-scroll-content">
+            <div class="txt-detail-columns" style="display: flex; flex: 1; overflow: hidden;">
+                <!-- LEFT: Main prompt content -->
+                <div style="flex: 1; padding: 35px 40px; overflow-y: auto;">
                     <div id="txtMetaTop" style="font-size:0.65rem; color:#a855f7; font-weight:800; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); display:inline-block; padding: 4px 10px; border-radius: 12px;">CATEGORÍA</div>
                     
-                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:15px">
-                        <h2 id="txtTitle" style="margin:0; flex:1; font-size: 2rem;">Título del Prompt</h2>
-                    </div>
-                    
-                    <div id="txtUser" style="font-weight:700; margin-bottom:20px; color:#cbd5e1; cursor:pointer">por @autor</div>
-                    
-                    <p id="txtDesc" style="color: #94a3b8; line-height: 1.6; margin-bottom: 25px; font-size: 1.05rem;"></p>
+                    <h2 id="txtTitle" style="margin:0 0 10px 0; font-size: 1.8rem;">Título del Prompt</h2>
+                    <div id="txtUser" style="font-weight:700; margin-bottom:15px; color:#cbd5e1; cursor:pointer">por @autor</div>
+                    <p id="txtDesc" style="color: #94a3b8; line-height: 1.6; margin-bottom: 20px; font-size: 1rem;"></p>
                     
                     <div style="position:relative">
                         <div style="display:flex; justify-content:space-between; align-items:center; background: #000; padding: 10px 15px; border-top-left-radius: 8px; border-top-right-radius: 8px; border: 1px solid #333; border-bottom: none;">
                             <span style="color:#666; font-family:monospace; font-size:0.8rem;">Prompt Estructurado</span>
                             <span id="txtCopyCountBadge" style="color:var(--accent); font-weight:700; font-size: 0.8rem;">📋 Copiado 0 veces</span>
                         </div>
-                        <div id="txtPrompt" class="prompt-area" style="background:#0a0a0a; font-family: monospace; white-space: pre-wrap; font-size:0.95rem; line-height: 1.6; color: #a855f7; border-top-left-radius: 0; border-top-right-radius: 0; min-height: 200px; border-color: #333; user-select: none; -webkit-user-select: none; pointer-events: none;"></div>
+                        <div id="txtPrompt" class="prompt-area" style="background:#0a0a0a; font-family: monospace; white-space: pre-wrap; font-size:0.9rem; line-height: 1.6; color: #a855f7; border-top-left-radius: 0; border-top-right-radius: 0; max-height: 250px; overflow-y: auto; border-color: #333; user-select: none; -webkit-user-select: none;"></div>
                         
-                        <div style="margin-top:20px">
-                            <button class="btn" onclick="window.doCopyTextPrompt()" style="width:100%; background: linear-gradient(135deg, #a855f7, #6366f1); border:none; padding:15px; font-size:1.1rem; font-weight:bold;">📋 COPIAR PROMPT AL PORTAPAPELES</button>
+                        <div style="margin-top:15px">
+                            <button class="btn" onclick="window.doCopyTextPrompt()" style="width:100%; background: linear-gradient(135deg, #a855f7, #6366f1); border:none; padding:14px; font-size:1.05rem; font-weight:bold;">📋 COPIAR PROMPT AL PORTAPAPELES</button>
                         </div>
                     </div>
                     
-                    <div class="reactions-flex" style="margin-top: 30px;">
+                    <div class="reactions-flex" style="margin-top: 20px;">
                         <button class="react-btn">👍 <small id="txt-like-count">0</small></button>
                         <button class="react-btn">❤️ <small id="txt-love-count">0</small></button>
                         <button class="react-btn">🔥 <small id="txt-fire-count">0</small></button>
                     </div>
-                    
-                    <div style="margin-top:30px; border-top:1px solid #222; padding-top:20px">
-                         <h3 style="font-size:1.1rem; margin-bottom:15px">Comentarios</h3>
-                         <div style="color:#666; padding: 20px; text-align:center; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed #333;">Aún no hay comentarios (Mockup en prototipo)</div>
-                    </div>
+                </div>
+                
+                <!-- RIGHT: Comments sidebar (desktop) -->
+                <div class="txt-detail-right" style="min-width: 300px; width: 300px; border-left: 1px solid #222; padding: 35px 25px; overflow-y: auto; display: flex; flex-direction: column;">
+                    <h3 style="font-size:1.1rem; margin: 0 0 15px 0;">💬 Comentarios</h3>
+                    <div style="color:#555; padding: 30px 15px; text-align:center; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed #333; flex: 1; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">Aún no hay comentarios</div>
                 </div>
             </div>
         </div>
