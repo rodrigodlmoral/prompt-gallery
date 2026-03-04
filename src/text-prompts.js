@@ -258,17 +258,21 @@ const TextDetailModalTemplate = () => `
 <style>
     @media (max-width: 768px) {
         .txt-detail-columns { flex-direction: column !important; }
-        .txt-detail-right { border-left: none !important; border-top: 1px solid #222 !important; min-width: unset !important; }
+        .txt-detail-right { border-left: none !important; border-top: 1px solid #222 !important; min-width: unset !important; width: 100% !important; }
     }
+    .premium-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .premium-scroll::-webkit-scrollbar-track { background: transparent; }
+    .premium-scroll::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.4); border-radius: 10px; }
+    .premium-scroll::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.8); }
 </style>
 <div id="textModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target === this) window.closeTextModal()">
-    <div class="view-modal-wrapper" style="max-width: 1100px; margin: 20px auto; width: 100%;">
-        <div class="view-modal" style="flex-direction: column; height: auto !important; max-height: 90vh; overflow: hidden;">
+    <div class="view-modal-wrapper" style="max-width: 1400px; margin: 2vh auto; width: 96%;">
+        <div class="view-modal" style="flex-direction: column; height: auto !important; max-height: 96vh; overflow: hidden; border-radius: 16px;">
             <button class="modal-close-x" onclick="window.closeTextModal()">✕</button>
             
             <div class="txt-detail-columns" style="display: flex; flex: 1; overflow: hidden;">
                 <!-- LEFT: Main prompt content -->
-                <div style="flex: 1; padding: 35px 40px; overflow-y: auto;">
+                <div class="premium-scroll" style="flex: 1; padding: 30px 35px; overflow-y: auto;">
                     <div id="txtMetaTop" style="font-size:0.65rem; color:#a855f7; font-weight:800; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); display:inline-block; padding: 4px 10px; border-radius: 12px;">CATEGORÍA</div>
                     
                     <h2 id="txtTitle" style="margin:0 0 10px 0; font-size: 1.8rem;">Título del Prompt</h2>
@@ -280,7 +284,7 @@ const TextDetailModalTemplate = () => `
                             <span style="color:#666; font-family:monospace; font-size:0.8rem;">Prompt Estructurado</span>
                             <span id="txtCopyCountBadge" style="color:var(--accent); font-weight:700; font-size: 0.8rem;">📋 Copiado 0 veces</span>
                         </div>
-                        <div id="txtPrompt" class="prompt-area" style="background:#0a0a0a; font-family: monospace; white-space: pre-wrap; font-size:0.9rem; line-height: 1.6; color: #a855f7; border-top-left-radius: 0; border-top-right-radius: 0; max-height: 250px; overflow-y: auto; border-color: #333; user-select: none; -webkit-user-select: none;"></div>
+                        <div id="txtPrompt" class="prompt-area premium-scroll" style="background:#0a0a0a; font-family: monospace; white-space: pre-wrap; font-size:0.9rem; line-height: 1.6; color: #a855f7; border-top-left-radius: 0; border-top-right-radius: 0; max-height: 50vh; min-height: 200px; overflow-y: auto; border-color: #333; user-select: none; -webkit-user-select: none;"></div>
                         
                         <div style="margin-top:15px">
                             <button class="btn" onclick="window.doCopyTextPrompt()" style="width:100%; background: linear-gradient(135deg, #a855f7, #6366f1); border:none; padding:14px; font-size:1.05rem; font-weight:bold;">📋 COPIAR PROMPT AL PORTAPAPELES</button>
@@ -295,7 +299,7 @@ const TextDetailModalTemplate = () => `
                 </div>
                 
                 <!-- RIGHT: Comments sidebar (desktop) -->
-                <div class="txt-detail-right" style="min-width: 300px; width: 300px; border-left: 1px solid #222; padding: 35px 25px; overflow-y: auto; display: flex; flex-direction: column;">
+                <div class="txt-detail-right premium-scroll" style="min-width: 350px; width: 350px; border-left: 1px solid #222; padding: 30px 25px; overflow-y: auto; display: flex; flex-direction: column;">
                     <h3 style="font-size:1.1rem; margin: 0 0 15px 0;">💬 Comentarios</h3>
                     <div style="color:#555; padding: 30px 15px; text-align:center; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed #333; flex: 1; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">Aún no hay comentarios</div>
                 </div>
