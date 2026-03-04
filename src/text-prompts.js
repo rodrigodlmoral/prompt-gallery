@@ -272,8 +272,8 @@ const TextDetailModalTemplate = () => `
             
             <div class="txt-detail-columns" style="display: flex; flex: 1; overflow: hidden;">
                 <!-- LEFT: Main prompt content -->
-                <div class="premium-scroll" style="flex: 1; padding: 30px 35px; overflow-y: auto;">
-                    <div id="txtMetaTop" style="font-size:0.65rem; color:#a855f7; font-weight:800; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); display:inline-block; padding: 4px 10px; border-radius: 12px;">CATEGORÍA</div>
+                <div style="flex: 1; padding: 30px 40px; display: flex; flex-direction: column;">
+                    <div id="txtMetaTop" style="font-size:0.65rem; color:#a855f7; font-weight:800; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); display:inline-block; padding: 4px 10px; border-radius: 12px; align-self: flex-start;">CATEGORÍA</div>
                     
                     <h2 id="txtTitle" style="margin:0 0 10px 0; font-size: 1.8rem;">Título del Prompt</h2>
                     <div id="txtUser" style="font-weight:700; margin-bottom:15px; color:#cbd5e1; cursor:pointer">por @autor</div>
