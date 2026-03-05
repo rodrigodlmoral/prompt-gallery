@@ -1514,6 +1514,7 @@ const store = {
                 tool: data.tool,
                 rating: data.rating,
                 content: processedContent,
+                extra_config: data.extraConfig || [],
                 tags: data.tags || [],
                 created_at_custom: new Date().toISOString(),
                 reactions: { like: 0, love: 0, fire: 0, funny: 0 },
@@ -2954,6 +2955,23 @@ const store = {
             tagsEl.innerHTML = (p.tags && p.tags.length > 0)
                 ? p.tags.map(t => `<span class="server-tag-pill">${t}</span>`).join('')
                 : '';
+        }
+
+        const extraEl = document.getElementById('detExtra');
+        if (extraEl) {
+            if (p.extra_config && p.extra_config.length > 0) {
+                const validConfig = p.extra_config.filter(c => c.val && c.val.trim());
+                if (validConfig.length > 0) {
+                    extraEl.innerHTML = validConfig.map(c =>
+                        `<span style="margin-right:10px"><span style="color:var(--accent); font-weight:700">${c.type}:</span> ${window.escapeHTML ? window.escapeHTML(c.val) : c.val}</span>`
+                    ).join('');
+                    extraEl.style.display = 'block';
+                } else {
+                    extraEl.style.display = 'none';
+                }
+            } else {
+                extraEl.style.display = 'none';
+            }
         }
 
         const badgesEl = document.getElementById('detBadges');
