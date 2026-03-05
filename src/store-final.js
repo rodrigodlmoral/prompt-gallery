@@ -1382,13 +1382,13 @@ const store = {
                     total_rewards: currentRewards + tokensToAdd
                 });
 
-                if (window.LedgerService) {
-                    await window.LedgerService.systemReward(
+                if (LedgerService) {
+                    await LedgerService.systemReward(
                         this.currentUser.id, BASE_REWARD, 'POST_REWARD',
                         `Publicación de Texto: ${data.title}`
                     );
                 } else {
-                    console.warn('[STORE] LedgerService global no detectado para reward en Texto.');
+                    console.warn('[STORE] LedgerService no detectado para reward en Texto.');
                 }
             } catch (err) {
                 console.error("[ECONOMY] Error en auditoría de texto:", err);

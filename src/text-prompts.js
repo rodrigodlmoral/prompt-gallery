@@ -133,16 +133,16 @@ const CreateTextPromptModal = () => `
                     <label style="color:#94a3b8; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; display:block;">Categoría *</label>
                     <select id="txtCreateCategory" style="width:100%; background:#111; border:1px solid #333; color:#fff; padding:12px 16px; border-radius:8px; font-size:0.95rem; outline:none; box-sizing: border-box;">
                         <option value="">Selecciona una categoría</option>
-                        <option value="💻 Código">💻 Código</option>
-                        <option value="✍️ Marketing">✍️ Marketing</option>
-                        <option value="🗣️ Idiomas">🗣️ Idiomas</option>
-                        <option value="📄 Documentos">📄 Documentos</option>
-                        <option value="🎨 Creatividad">🎨 Creatividad</option>
-                        <option value="📊 Negocios">📊 Negocios</option>
-                        <option value="🧠 Educación">🧠 Educación</option>
-                        <option value="🤖 Chatbot">🤖 Chatbot</option>
-                        <option value="🔧 Productividad">🔧 Productividad</option>
-                        <option value="📱 Redes Sociales">📱 Redes Sociales</option>
+                        <option value="Código">💻 Código</option>
+                        <option value="Marketing">✍️ Marketing</option>
+                        <option value="Idiomas">🗣️ Idiomas</option>
+                        <option value="Documentos">📄 Documentos</option>
+                        <option value="Creatividad">🎨 Creatividad</option>
+                        <option value="Negocios">📊 Negocios</option>
+                        <option value="Educación">🧠 Educación</option>
+                        <option value="Chatbot">🤖 Chatbot</option>
+                        <option value="Productividad">🔧 Productividad</option>
+                        <option value="Redes Sociales">📱 Redes Sociales</option>
                     </select>
                 </div>
 
