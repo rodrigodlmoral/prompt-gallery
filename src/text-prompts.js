@@ -44,11 +44,11 @@ function renderGalleryGrid() {
         return;
     }
 
-    gridContainer.innerHTML = textPrompts.map((p, idx) => {
+    gridContainer.innerHTML = '<div class="gallery-grid">' + textPrompts.map((p, idx) => {
         const card = TextPromptCard(p);
         const adBanner = (idx > 11 && (idx + 1) % 12 === 0) ? `</div><div class="ad-banner"></div><div class="gallery-grid">` : '';
         return card + adBanner;
-    }).join('');
+    }).join('') + '</div>';
 }
 
 // ---- CREATE TEXT PROMPT MODAL ----
@@ -297,7 +297,7 @@ async function initPage() {
                 </div>
                 
                 <!-- Dynamic Grid Container -->
-                <div class="gallery-grid" id="text-gallery-grid-container">
+                <div id="text-gallery-grid-container">
                     <div style="color: #666; text-align: center; padding: 40px; width: 100%;">Cargando prompts...</div>
                 </div>
             </div>
