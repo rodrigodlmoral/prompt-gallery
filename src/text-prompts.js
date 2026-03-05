@@ -44,7 +44,11 @@ function renderGalleryGrid() {
         return;
     }
 
-    gridContainer.innerHTML = textPrompts.map(p => TextPromptCard(p)).join('');
+    gridContainer.innerHTML = textPrompts.map((p, idx) => {
+        const card = TextPromptCard(p);
+        const adBanner = (idx > 11 && (idx + 1) % 12 === 0) ? `</div><div class="ad-banner"></div><div class="gallery-grid">` : '';
+        return card + adBanner;
+    }).join('');
 }
 
 // ---- CREATE TEXT PROMPT MODAL ----
