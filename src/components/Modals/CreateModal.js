@@ -113,7 +113,7 @@ window.togglePostType = (type) => {
 
 window.checkToolConfig = () => {
     const tool = document.getElementById('upTool').value;
-    const sdTools = ['S.D 1.5', 'S.D 2.0', 'SDXL', 'Fooocus', 'ComfyUI'];
+    const sdTools = ['S.D 1.5', 'S.D 2.0', 'SDXL', 'Fooocus', 'ComfyUI', 'DIGEN AI'];
     const panel = document.getElementById('upExtraConfig');
     if (sdTools.includes(tool)) {
         panel.style.display = 'block';
@@ -126,21 +126,47 @@ window.checkToolConfig = () => {
     }
 };
 
+// Predefined checkpoint options for tools that use them
+const CHECKPOINT_OPTIONS = ['Image Motion', 'FLUX.2 [Klein]'];
+
 window.addExtraRow = () => {
     const container = document.getElementById('extraRowsContainer');
     const div = document.createElement('div');
     div.className = 'extra-config-row';
     div.style.cssText = 'display:flex; gap:10px; margin-bottom:10px; align-items:center';
     div.innerHTML = `
-    <select class="form-input extra-type" style = "margin:0; flex:1">
+    <select class="form-input extra-type" style="margin:0; flex:1" onchange="window._toggleExtraValField(this)">
             <option value="CHECKPOINT">CHECKPOINT</option>
             <option value="LORA">LORA</option>
             <option value="EMBEDDING">EMBEDDING</option>
         </select>
-    <input type="text" class="form-input extra-val" placeholder="Nombre/Valor..." style="margin:0; flex:2">
+    <select class="form-input extra-val" style="margin:0; flex:2">
+            <option value="" disabled selected>Seleccionar checkpoint...</option>
+            ${CHECKPOINT_OPTIONS.map(c => `<option value="${c}">${c}</option>`).join('')}
+        </select>
         <button class="btn-icon" onclick="this.parentElement.remove()" style="background:#444; width:24px; height:24px; flex-shrink:0">×</button>
         `;
     container.appendChild(div);
+};
+
+// Swap between dropdown (CHECKPOINT) and text input (LORA/EMBEDDING)
+window._toggleExtraValField = (selectEl) => {
+    const row = selectEl.closest('.extra-config-row');
+    const oldVal = row.querySelector('.extra-val');
+    let newEl;
+    if (selectEl.value === 'CHECKPOINT') {
+        newEl = document.createElement('select');
+        newEl.className = 'form-input extra-val';
+        newEl.style.cssText = 'margin:0; flex:2';
+        newEl.innerHTML = `<option value="" disabled selected>Seleccionar checkpoint...</option>${CHECKPOINT_OPTIONS.map(c => `<option value="${c}">${c}</option>`).join('')}`;
+    } else {
+        newEl = document.createElement('input');
+        newEl.type = 'text';
+        newEl.className = 'form-input extra-val';
+        newEl.style.cssText = 'margin:0; flex:2';
+        newEl.placeholder = 'Nombre/Valor...';
+    }
+    oldVal.replaceWith(newEl);
 };
 
 window.toggleNeg = (id) => {
