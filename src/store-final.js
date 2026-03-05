@@ -309,9 +309,9 @@ const store = {
         try {
             const types = ['daily', 'weekly', 'super'];
             const boosts = await Promise.all(types.map(t => this.boostSystem.getActiveBoostsByType(t)));
-            this.activeBoosts.daily = boosts[0].map(b => b.prompt);
-            this.activeBoosts.weekly = boosts[1].map(b => b.prompt);
-            this.activeBoosts.super = boosts[2].map(b => b.prompt);
+            this.activeBoosts.daily = boosts[0].filter(b => b.expand && b.expand.prompt).map(b => b.expand.prompt);
+            this.activeBoosts.weekly = boosts[1].filter(b => b.expand && b.expand.prompt).map(b => b.expand.prompt);
+            this.activeBoosts.super = boosts[2].filter(b => b.expand && b.expand.prompt).map(b => b.expand.prompt);
             console.log(`[STORE] 🚀 Boosts activos sincronizados: D:${this.activeBoosts.daily.length} W:${this.activeBoosts.weekly.length} S:${this.activeBoosts.super.length}`);
         } catch (err) {
             console.error('[STORE] Error al refrescar boosts:', err);

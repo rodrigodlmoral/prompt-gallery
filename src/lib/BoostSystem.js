@@ -149,7 +149,8 @@ export class BoostSystem {
       return await this.pb.collection('boosts').getFullList({
         filter: `user="${userId}" && is_active=true`,
         sort: '-purchased_at',
-        expand: 'prompt'
+        expand: 'prompt',
+        $autoCancel: false
       });
     } catch (error) {
       console.error('Error getting active boosts:', error);
@@ -163,7 +164,8 @@ export class BoostSystem {
         filter: `type="${type}" && is_active=true`,
         sort: '-purchased_at',
         expand: 'prompt,user',
-        limit: 50
+        limit: 50,
+        $autoCancel: false
       });
     } catch (error) {
       console.error(`Error getting ${type} boosts:`, error);
@@ -176,7 +178,8 @@ export class BoostSystem {
       const now = new Date();
       const expiredBoosts = await this.pb.collection('boosts').getFullList({
         filter: `is_active=true && expires_at<="${now.toISOString()}"`,
-        expand: 'user,prompt'
+        expand: 'user,prompt',
+        $autoCancel: false
       });
 
       for (const boost of expiredBoosts) {
