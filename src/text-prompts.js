@@ -14,12 +14,64 @@ import { pb } from './pocketbase.js';
 let textPrompts = [];
 let isLoading = true;
 
+let textFilters = {
+    source: 'community',
+    time: 'all',
+    sort: 'newest'
+};
+
 async function loadTextPrompts() {
+    isLoading = true;
+    renderGalleryGrid(); // Show loading state
+
     try {
-        const result = await pb.collection('text_prompts').getList(1, 50, {
-            sort: '-id',
+        let filterStr = '';
+        const filterParts = [];
+        const currentUser = store.currentUser;
+
+        // 1. Source Filter
+        if (textFilters.source === 'user' && currentUser) {
+            filterParts.push(`author = "${currentUser.id}"`);
+        } else if (textFilters.source === 'following' && currentUser && currentUser.following?.length > 0) {
+            const authorIds = currentUser.following.map(id => `"${id}"`).join(',');
+            filterParts.push(`author ?= [${authorIds}]`);
+        }
+
+        // 2. Time Filter
+        if (textFilters.time !== 'all') {
+            const now = new Date();
+            let pastDate = new Date();
+            if (textFilters.time === 'today') {
+                pastDate.setHours(0, 0, 0, 0); // Start of today
+            } else if (textFilters.time === 'week') {
+                pastDate.setDate(now.getDate() - 7);
+            } else if (textFilters.time === 'month') {
+                pastDate.setMonth(now.getMonth() - 1);
+            }
+            // PocketBase expects UTC format "YYYY-MM-DD HH:mm:ss.SSSZ"
+            filterParts.push(`created >= "${pastDate.toISOString().replace('T', ' ')}"`);
+        }
+
+        if (filterParts.length > 0) {
+            filterStr = filterParts.join(' && ');
+        }
+
+        // 3. Sorting
+        let sortStr = '-created';
+        if (textFilters.sort === 'popular') {
+            sortStr = '-tokens_received,-created'; // Best approximation without complex relations
+        } else if (textFilters.sort === 'commented') {
+            sortStr = '-copy_count,-created';
+        } else if (textFilters.sort === 'oldest') {
+            sortStr = '+created';
+        }
+
+        const result = await pb.collection('text_prompts').getList(1, 100, {
+            sort: sortStr,
+            filter: filterStr,
             expand: 'author'
         });
+
         textPrompts = result.items;
         isLoading = false;
         renderGalleryGrid();
@@ -288,12 +340,33 @@ async function initPage() {
         appDiv.innerHTML = `
             ${TopBar()}
             ${TextDashboardHeader({ currentUser })}
-            <div class="container" style="padding: 40px 0;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px;">
+            <div class="container" style="padding: 40px 0 0 0;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div>
                         <h2>Galería de Prompts de Texto</h2>
                         <p style="color:#94a3b8; font-size:0.9rem;">Chatbots, escritura, código e instrucciones complejas.</p>
                     </div>
+                </div>
+
+                <!-- Basic Filters Bar -->
+                <div class="filters-bar" style="padding:10px 0; display:flex; gap:8px; overflow-x:auto; align-items:center; margin-top:20px; margin-bottom: 20px;">
+                    <select id="txtSourceFilter" onchange="window.setTextFilter('source', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
+                        <option value="community" ${textFilters.source === 'community' ? 'selected' : ''}>👥 Comunidad</option>
+                        <option value="following" ${textFilters.source === 'following' ? 'selected' : ''} ${!currentUser ? 'disabled' : ''}>⭐ Siguiendo</option>
+                        <option value="user" ${textFilters.source === 'user' ? 'selected' : ''} ${!currentUser ? 'disabled' : ''}>👤 Tus Textos</option>
+                    </select>
+                    <select onchange="window.setTextFilter('time', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
+                        <option value="all" ${textFilters.time === 'all' ? 'selected' : ''}>📅 Todo el tiempo</option>
+                        <option value="today" ${textFilters.time === 'today' ? 'selected' : ''}>Hoy</option>
+                        <option value="week" ${textFilters.time === 'week' ? 'selected' : ''}>Esta Semana</option>
+                        <option value="month" ${textFilters.time === 'month' ? 'selected' : ''}>Este Mes</option>
+                    </select>
+                    <select onchange="window.setTextFilter('sort', this.value)" class="form-input" style="width:auto; padding:6px; font-size:0.85rem">
+                        <option value="newest" ${textFilters.sort === 'newest' ? 'selected' : ''}>🔥 Más Recientes</option>
+                        <option value="popular" ${textFilters.sort === 'popular' ? 'selected' : ''}>❤️ Más Recompensados</option>
+                        <option value="commented" ${textFilters.sort === 'commented' ? 'selected' : ''}>📋 Más Copiados</option>
+                        <option value="oldest" ${textFilters.sort === 'oldest' ? 'selected' : ''}>👴 Más Antiguos</option>
+                    </select>
                 </div>
                 
                 <!-- Dynamic Grid Container -->
@@ -327,6 +400,19 @@ async function initPage() {
         console.error("❌ CRITICAL ERROR en init page text prompts:", err);
     }
 }
+
+// Global hook for the filter dropdowns
+window.setTextFilter = (key, value) => {
+    // Requires login for community/following
+    if (key === 'source' && value !== 'community' && !store.currentUser) {
+        window.toast("Debes iniciar sesión para usar este filtro", "error");
+        // Revert select visually
+        document.getElementById('txtSourceFilter').value = 'community';
+        return;
+    }
+    textFilters[key] = value;
+    loadTextPrompts(); // Reload data with new filters
+};
 
 // Start immediately, no DOMContentLoaded wait needed for deferred modules
 initPage();
