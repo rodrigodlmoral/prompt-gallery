@@ -250,14 +250,14 @@ window.confirmBoostPurchase = async (type, promptId, title) => {
 
             if (res.success) {
                 window.toast(`¡Boost activado! Vence el ${new Date(res.expiresAt).toLocaleString()}`, 'success');
-                // Re-render
-                if (window.render) window.render();
-                // Update active section locally
-                window.loadActiveBoosts();
-                // Update global store feed state
+                // Update global store feed state FIRST so getTopDailyPrompts finds the new ID
                 if (window.store.refreshActiveBoosts) {
                     await window.store.refreshActiveBoosts();
                 }
+                // Then Re-render the main carousels
+                if (window.render) window.render();
+                // Finally Update the active section locally
+                window.loadActiveBoosts();
             }
         } catch (error) {
             window.toast(error.message || 'Error en la compra', 'error');
