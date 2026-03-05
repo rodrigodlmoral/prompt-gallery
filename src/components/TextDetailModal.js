@@ -2,7 +2,7 @@ import { pb } from '../pocketbase.js';
 import { store } from '../store-final.js';
 import { escapeHTML } from '../utils/security.js';
 
-let activeTextPromptId = null;
+export let activeTextPromptId = null;
 
 export const TextDetailModalTemplate = () => `
 <style>

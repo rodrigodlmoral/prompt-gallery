@@ -1,7 +1,7 @@
 import './style.css';
 import { store } from './store-final.js';
 import { TopBar, Header } from './components/Layout.js';
-import { TextDetailModalTemplate, initTextModalLogic } from './components/TextDetailModal.js';
+import { TextDetailModalTemplate, initTextModalLogic, activeTextPromptId } from './components/TextDetailModal.js';
 import { escapeHTML } from './utils/security.js';
 import { toast } from './utils/ui-helpers.js';
 
@@ -66,11 +66,16 @@ async function loadTextPrompts() {
             sortStr = '+created';
         }
 
-        const result = await pb.collection('text_prompts').getList(1, 100, {
+        const queryParams = {
             sort: sortStr,
-            filter: filterStr,
             expand: 'author'
-        });
+        };
+
+        if (filterStr) {
+            queryParams.filter = filterStr;
+        }
+
+        const result = await pb.collection('text_prompts').getList(1, 100, queryParams);
 
         textPrompts = result.items;
         isLoading = false;
