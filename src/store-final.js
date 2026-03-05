@@ -2959,24 +2959,21 @@ const store = {
 
         const extraEl = document.getElementById('detExtra');
         if (extraEl) {
-            if (p.extra_config && p.extra_config.length > 0) {
-                const validConfig = p.extra_config.filter(c => c.val && c.val.trim());
-                if (validConfig.length > 0) {
-                    extraEl.innerHTML = validConfig.map(c =>
-                        `<span style="margin-right:10px"><span style="color:var(--accent); font-weight:700">${c.type}:</span> ${window.escapeHTML ? window.escapeHTML(c.val) : c.val}</span>`
-                    ).join('');
-                    extraEl.style.display = 'block';
-                } else {
-                    extraEl.style.display = 'none';
-                }
-            } else {
-                extraEl.style.display = 'none';
-            }
+            extraEl.style.display = 'none';
         }
 
         const badgesEl = document.getElementById('detBadges');
         if (badgesEl) {
             let bhtml = `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">🛠️ ${p.tool || 'Desconocido'}</span>`;
+
+            if (p.extra_config && p.extra_config.length > 0) {
+                const validConfig = p.extra_config.filter(c => c.val && c.val.trim());
+                validConfig.forEach(c => {
+                    const valHtml = window.escapeHTML ? window.escapeHTML(c.val) : c.val;
+                    bhtml += `<span style="background:#222; border:1px solid var(--accent); color:var(--accent); padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700" title="${c.type}">📌 ${valHtml}</span>`;
+                });
+            }
+
             const r = p.rating || 'SFW / Apto';
             const icon = r.startsWith('SFW') ? '🟢' : '🔞';
             bhtml += `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">${icon} ${r}</span>`;
