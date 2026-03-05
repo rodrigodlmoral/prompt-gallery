@@ -175,6 +175,7 @@ const store = {
     stats: { users: 0, prompts: 0, visits: 0 },
     boostSystem: null,
     referralSystem: null,
+    ledgerService: LedgerService,
     BOOST_PRICES,
     activeBoosts: { daily: [], weekly: [], super: [] },
 

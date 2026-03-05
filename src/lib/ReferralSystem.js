@@ -34,7 +34,7 @@ export class ReferralSystem {
   async getReferralCode(userId) {
     try {
       const user = await this.pb.collection('users').getOne(userId);
-      
+
       if (user.referral_code) {
         return user.referral_code;
       }
@@ -141,7 +141,7 @@ export class ReferralSystem {
           'REFERRAL_BONUS',
           `Bonus por referido activo: ${referral.expand.referred.name}`
         );
-        
+
         // VERSIÓN B: Si tu método acepta objeto { user, amount, type, description }
         // Descomenta esta y comenta la de arriba si tu método usa objetos:
         /*
@@ -152,7 +152,6 @@ export class ReferralSystem {
           description: `Bonus por referido activo: ${referral.expand.referred.name}`
         });
         */
-      } else {
         // Fallback
         await this.pb.collection('users').update(referral.referrer, {
           'tokens+': REFERRAL_BONUS,
@@ -160,12 +159,13 @@ export class ReferralSystem {
         });
 
         await this.pb.collection('ledger').create({
-          from_user: 'SYSTEM',
+          from_user: 'z44ierjl0thcczd', // BANK_USER_ID
           to_user: referral.referrer,
           amount: REFERRAL_BONUS,
           type: 'REFERRAL_BONUS',
           entry_type: 'CREDIT',
-          description: 'Bonus por referido activo'
+          description: 'Bonus por referido activo',
+          tx_hash: `REFE-${Date.now().toString(36).toUpperCase()}`
         });
       }
 

@@ -38,8 +38,6 @@ export class BoostSystem {
 
   async getUserPrompts(userId) {
     try {
-      console.log(`[BoostSystem] 🔍 Fetching prompts for user: ${userId}`);
-
       // Fetch from both collections in parallel
       const [imagePrompts, textPrompts] = await Promise.all([
         this.pb.collection('prompts').getFullList({
@@ -49,8 +47,6 @@ export class BoostSystem {
           filter: `author = "${userId}"`
         })
       ]);
-
-      console.log(`[BoostSystem] ✅ Found: ${imagePrompts.length} images, ${textPrompts.length} texts`);
 
       // Normalize results
       const normalizedImages = imagePrompts.map(p => ({
@@ -102,40 +98,29 @@ export class BoostSystem {
       });
 
       // ===== CAMBIO PRINCIPAL: Usar systemPayment de tu LedgerService =====
-      if (this.store.ledgerService) {
-        // VERSIÓN A: Si tu método acepta (userId, amount, type, description)
+      if (this.store.ledgerService && typeof this.store.ledgerService.systemPayment === 'function') {
         await this.store.ledgerService.systemPayment(
           userId,
           price,
           'PURCHASE',
           `Boost ${this.getBoostTypeName(type)} para prompt ${promptId}`
         );
-
-        // VERSIÓN B: Si tu método acepta objeto { user, amount, type, description }
-        // Descomenta esta y comenta la de arriba si tu método usa objetos:
-        /*
-        await this.store.ledgerService.systemPayment({
-          user: userId,
-          amount: price,
-          type: 'PURCHASE',
-          description: `Boost ${this.getBoostTypeName(type)} para prompt ${promptId}`
-        });
-        */
       } else {
-        // Fallback: actualización directa
+        // Fallback: actualización directa (si ledgerService falla)
         await this.pb.collection('users').update(userId, {
           'tokens-': price,
           'total_spent+': price
         });
 
-        // Registrar en ledger manualmente
+        // Registrar en ledger manualmente con ID de Banco Central
         await this.pb.collection('ledger').create({
           from_user: userId,
-          to_user: 'SYSTEM',
+          to_user: 'z44ierjl0thcczd', // BANK_USER_ID
           amount: price,
           type: 'PURCHASE',
           entry_type: 'DEBIT',
-          description: `Boost ${this.getBoostTypeName(type)}`
+          description: `Boost ${this.getBoostTypeName(type)}`,
+          tx_hash: `BOOS-${Date.now().toString(36).toUpperCase()}`
         });
       }
 
@@ -149,7 +134,7 @@ export class BoostSystem {
       });
 
       if (this.store.currentUser && this.store.currentUser.id === userId) {
-        this.store.currentUser.tokens = user.tokens - price;
+        this.store.currentUser.tokens = (user.tokens || 0) - price;
       }
 
       return { success: true, boost, price, expiresAt };
