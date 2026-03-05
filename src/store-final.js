@@ -1312,6 +1312,97 @@ const store = {
 
     // --- CONTENT ACTIONS ---
 
+    async addTextPrompt(data) {
+        if (!this.currentUser) return { success: false, msg: "Inicia sesión para publicar" };
+
+        // --- CHECK DAILY POST LIMIT ---
+        const isBatchUser = this.currentUser.batch_access === true;
+        let userLevel = this.currentUser.level || 0;
+
+        if (!isBatchUser) {
+            try {
+                const levelSystem = new LevelSystem(pb);
+                userLevel = this.getEffectiveLevel(this.currentUser);
+                const levelInfo = levelSystem.getLevelInfo(userLevel);
+
+                const today = new Date().toISOString().split('T')[0];
+                const todayStart = `${today} 00:00:00`;
+                const todayEnd = `${today} 23:59:59`;
+
+                const todayPosts = await pb.collection('text_prompts').getList(1, 1, {
+                    filter: `author = "${this.currentUser.id}" && created >= "${todayStart}" && created <= "${todayEnd}"`,
+                    fields: 'id'
+                });
+
+                const postsToday = todayPosts.totalItems || 0;
+                const maxPerDay = levelInfo.benefits.find(b => b.includes('diarios'))?.match(/\d+/)?.[0] || 3;
+
+                if (postsToday >= parseInt(maxPerDay)) {
+                    return {
+                        success: false,
+                        msg: `Has alcanzado tu límite diario de ${maxPerDay} prompts (Nivel ${userLevel}: ${levelInfo.name}). ¡Sube de nivel para publicar más!`
+                    };
+                }
+            } catch (err) {
+                console.error('[DAILY LIMIT CHECK] Error:', err);
+            }
+        }
+
+        try {
+            const record = await pb.collection('text_prompts').create({
+                title: data.title,
+                description: data.description,
+                prompt_text: data.prompt_text,
+                category: data.category,
+                tool: data.tool,
+                author: this.currentUser.id,
+                author_name: this.currentUser.username,
+                is_private: data.is_private || false,
+                created_at_custom: new Date().toISOString(),
+                reactions: { like: 0, love: 0, fire: 0, funny: 0 },
+                comments: [],
+                saved_by: []
+            });
+
+            // --- REWARDS & LEDGER ---
+            const LEVEL_UP_BONUSES = [0, 10, 20, 30, 40, 50];
+            const BASE_REWARD = (userLevel >= 5) ? 2 : 1;
+            let tokensToAdd = BASE_REWARD;
+
+            try {
+                const currentTokens = this.currentUser.tokens || 0;
+                const currentEarned = this.currentUser.total_earned || 0;
+                const currentRewards = this.currentUser.total_rewards || 0;
+                const oldPostsCount = this.currentUser.prompts_count || 0;
+
+                await pb.collection('users').update(this.currentUser.id, {
+                    prompts_count: oldPostsCount + 1,
+                    tokens: currentTokens + tokensToAdd,
+                    total_earned: currentEarned + tokensToAdd,
+                    total_rewards: currentRewards + tokensToAdd
+                });
+
+                if (window.LedgerService) {
+                    await window.LedgerService.systemReward(
+                        this.currentUser.id, BASE_REWARD, 'POST_REWARD',
+                        `Publicación de Texto: ${data.title}`
+                    );
+                } else {
+                    console.warn('[STORE] LedgerService global no detectado para reward en Texto.');
+                }
+            } catch (err) {
+                console.error("[ECONOMY] Error en auditoría de texto:", err);
+            }
+
+            await this._loadUserProfile(this.currentUser.id);
+            return { success: true, tokensEarned: tokensToAdd };
+
+        } catch (err) {
+            console.error("Publish text error:", err);
+            return { success: false, msg: "Error al guardar en base de datos: " + err.message };
+        }
+    },
+
     async addPrompt(data) {
         if (!this.currentUser) return { success: false, msg: "Inicia sesión para publicar" };
 
