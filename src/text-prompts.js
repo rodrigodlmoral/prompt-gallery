@@ -57,13 +57,13 @@ async function loadTextPrompts() {
         }
 
         // 3. Sorting
-        let sortStr = '-id';
+        let sortStr = '-created_at_custom';
         if (textFilters.sort === 'popular') {
-            sortStr = '-tokens_received,-id'; // Best approximation without complex relations
+            sortStr = '-tokens_received,-created_at_custom'; // Best approximation without complex relations
         } else if (textFilters.sort === 'commented') {
-            sortStr = '-copy_count,-id';
+            sortStr = '-copy_count,-created_at_custom';
         } else if (textFilters.sort === 'oldest') {
-            sortStr = '+id';
+            sortStr = '+created_at_custom';
         }
 
         const queryParams = {

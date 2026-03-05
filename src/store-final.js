@@ -1390,6 +1390,19 @@ const store = {
                 } else {
                     console.warn('[STORE] LedgerService no detectado para reward en Texto.');
                 }
+
+                // Append event to activity logs
+                try {
+                    await pb.collection('activity_logs').create({
+                        user: this.currentUser.id,
+                        action: 'TEXT_PROMPT_CREATED',
+                        ref_id: record.id,
+                        details: `Compartió un nuevo prompt de texto: ${data.title}`
+                    });
+                } catch (actErr) {
+                    console.error("[STORE] Error creating activity log for text prompt:", actErr);
+                }
+
             } catch (err) {
                 console.error("[ECONOMY] Error en auditoría de texto:", err);
             }
