@@ -807,6 +807,40 @@ window.doEditPrompt = (id) => {
     document.getElementById('upPrivate').checked = p.isPrivate;
     document.getElementById('upReference').checked = p.needsReference || p.needs_reference;
 
+    // Load Extra Configs
+    if (window.checkToolConfig) window.checkToolConfig();
+    const configContainer = document.getElementById('extraConfigsList');
+    if (configContainer) {
+        configContainer.innerHTML = '';
+        if (p.extra_config && p.extra_config.length > 0) {
+            p.extra_config.forEach(cfg => {
+                const row = document.createElement('div');
+                row.className = 'extra-config-row';
+                row.style.display = 'flex';
+                row.style.gap = '10px';
+                row.style.marginBottom = '10px';
+
+                let valField = cfg.type === 'CHECKPOINT'
+                    ? `<select class="form-input extra-val" style="flex:2">
+                          <option value="Image Motion" ${cfg.val === 'Image Motion' ? 'selected' : ''}>Image Motion</option>
+                          <option value="FLUX.2 [Klein]" ${cfg.val === 'FLUX.2 [Klein]' ? 'selected' : ''}>FLUX.2 [Klein]</option>
+                       </select>`
+                    : `<input type="text" class="form-input extra-val" style="flex:2" value="${window.escapeHTML(cfg.val)}">`;
+
+                row.innerHTML = `
+                    <select class="form-input extra-type" style="flex:1" onchange="window.swapExtraInput(this)">
+                        <option value="LORA" ${cfg.type === 'LORA' ? 'selected' : ''}>LORA</option>
+                        <option value="EMBEDDING" ${cfg.type === 'EMBEDDING' ? 'selected' : ''}>EMBEDDING</option>
+                        <option value="CHECKPOINT" ${cfg.type === 'CHECKPOINT' ? 'selected' : ''}>CHECKPOINT</option>
+                    </select>
+                    ${valField}
+                    <button class="btn-icon" style="color:#ff6b6b" onclick="this.parentElement.remove()">✕</button>
+                `;
+                configContainer.appendChild(row);
+            });
+        }
+    }
+
     // Load Tags
     window.selectedTags = new Set(p.tags || []);
     window.renderTagSelector();
@@ -858,6 +892,15 @@ window.doUpdate = async () => {
         const p = store.prompts.find(x => String(x.id) === String(editingId));
         if (!p) return;
 
+        const extraConfig = [];
+        document.querySelectorAll('#createModal .extra-config-row').forEach(row => {
+            const type = row.querySelector('.extra-type').value;
+            const val = row.querySelector('.extra-val').value;
+            if (val.trim()) {
+                extraConfig.push({ type, val: val.trim() });
+            }
+        });
+
         const data = {
             title, tool, rating: document.getElementById('upRating').value,
             prompt: document.getElementById('upPrompt').value,
@@ -866,6 +909,7 @@ window.doUpdate = async () => {
             needsReference: document.getElementById('upReference').checked,
             type: p.type,
             tags: Array.from(window.selectedTags), // NUEVO
+            extraConfig,
             content: p.content || []
         };
 
