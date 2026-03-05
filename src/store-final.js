@@ -2966,8 +2966,8 @@ const store = {
         if (badgesEl) {
             let bhtml = `<span style="background:#222; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700">🛠️ ${p.tool || 'Desconocido'}</span>`;
 
-            if (p.extra_config && p.extra_config.length > 0) {
-                const validConfig = p.extra_config.filter(c => c.val && c.val.trim());
+            if (p.extraConfig && p.extraConfig.length > 0) {
+                const validConfig = p.extraConfig.filter(c => c.val && c.val.trim());
                 validConfig.forEach(c => {
                     const valHtml = window.escapeHTML ? window.escapeHTML(c.val) : c.val;
                     bhtml += `<span style="background:#222; border:1px solid var(--accent); color:var(--accent); padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700" title="${c.type}">📌 ${valHtml}</span>`;
