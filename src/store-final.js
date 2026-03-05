@@ -309,6 +309,8 @@ const store = {
         try {
             const types = ['daily', 'weekly', 'super'];
             const boosts = await Promise.all(types.map(t => this.boostSystem.getActiveBoostsByType(t)));
+            console.log('[STORE] RAW BOOSTS FETCHED:', boosts);
+            // Map handling properly checking if expanded prompt is available
             this.activeBoosts.daily = boosts[0].filter(b => b.expand && b.expand.prompt).map(b => b.expand.prompt);
             this.activeBoosts.weekly = boosts[1].filter(b => b.expand && b.expand.prompt).map(b => b.expand.prompt);
             this.activeBoosts.super = boosts[2].filter(b => b.expand && b.expand.prompt).map(b => b.expand.prompt);
