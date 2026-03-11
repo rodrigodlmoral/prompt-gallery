@@ -2599,6 +2599,18 @@ const store = {
                 if (fields.username) {
                     return { success: false, msg: "Ese nombre de usuario ya está en uso. ¡Elige uno más original! ✨" };
                 }
+                if (fields.password) {
+                    return { success: false, msg: "La contraseña es muy corta. Debe tener al menos 8 caracteres." };
+                }
+                if (fields.passwordConfirm) {
+                    return { success: false, msg: "Las contraseñas no coinciden." };
+                }
+
+                // Fallback dinámico si hay otro error de validación
+                const firstErrorKey = Object.keys(fields)[0];
+                if (firstErrorKey && fields[firstErrorKey].message) {
+                    return { success: false, msg: `Error en ${firstErrorKey}: ${fields[firstErrorKey].message}` };
+                }
             }
 
             return { success: false, msg: "Error al crear cuenta. " + (error.message || "Inténtalo de nuevo.") };
