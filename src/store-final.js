@@ -2347,15 +2347,7 @@ const store = {
         pb.collection('facebook_queue').unsubscribe('*');
     },
 
-    async giftTokens(userId, amount) {
-        if (!this.currentUser || (this.currentUser.role !== 'admin' && this.currentUser.username !== 'rodrigodlmoral' && this.currentUser.username !== 'rodridomrock')) return { success: false };
-        try {
-            const user = await pb.collection('users').getOne(userId);
-            await pb.collection('users').update(userId, { tokens: (user.tokens || 0) + parseInt(amount) });
-            await this.adminLoadAllUsers();
-            return { success: true };
-        } catch (err) { return { success: false, msg: err.message }; }
-    },
+    // giftTokens LEGACY REMOVIDO — La versión correcta (con LedgerService) está más abajo.
 
     // --- HACK SOCIAL (V30) ---
     async adminMassFollow() {
