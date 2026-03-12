@@ -1461,7 +1461,6 @@ window.openDetail = (id) => {
 window.doReact = (type) => store.doReact(type);
 window.prevSeqStep = () => store.prevSeqStep();
 window.nextSeqStep = () => store.nextSeqStep();
-window.revealImage = (btn) => store.revealImage(btn);
 window.getModeration = (p, f) => store.getModeration(p, f);
 
 window.openDetail = (id) => {

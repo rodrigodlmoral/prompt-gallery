@@ -298,7 +298,18 @@ window.showSlider = () => store.showSlider();
 window.initCrystalSlider = () => store.initCrystalSlider();
 window.postComm = () => store.postComm();
 
-window.revealImage = () => {
+window.revealImage = (btn) => {
+    // 1. Try to unblur the specific grid card if clicked from the grid
+    if (btn && btn instanceof HTMLElement) {
+        const gridWrap = btn.closest('.prompt-card-img') || btn.closest('.img-wrap');
+        if (gridWrap) {
+            gridWrap.classList.remove('card-blurred');
+            const overlay = gridWrap.querySelector('.blur-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+    }
+
+    // 2. Try to unblur the Modal if it's open (or if btn wasn't passed)
     const wrap = document.getElementById('detImgWrap');
     if (wrap) {
         wrap.classList.remove('card-blurred');
