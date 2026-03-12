@@ -1729,6 +1729,7 @@ const store = {
             // ---------------------------------
 
             this.prompts = this.prompts.filter(p => p.id !== id);
+            this.logActivity('delete_prompt', { postId: id });
             if (window.render) window.render();
             return { success: true };
         } catch (err) {
@@ -1884,6 +1885,7 @@ const store = {
             await pb.collection('prompts').update(id, { saved_by: savedBy });
             prompt.savedBy = savedBy;
             prompt.saved_by = savedBy;
+            this.logActivity(idx > -1 ? 'unbookmark' : 'bookmark', { postId: id, title: prompt.title || 'Post' });
             if (window.render) window.render();
         } catch (err) { console.warn("Save failed"); }
     },
@@ -1899,6 +1901,7 @@ const store = {
             batch.collection('prompts').update(postId, { is_featured: true, featured_until: featuredUntil.toISOString() });
             await batch.send();
             this.currentUser.tokens -= 50;
+            this.logActivity('boost', { postId: postId, cost: 50 });
             return { success: true, msg: '¡Prompt destacado!' };
         } catch (err) { return { success: false }; }
     },
@@ -1952,6 +1955,8 @@ const store = {
                 // Background refresh to be sure
                 this._loadUserProfile(this.currentUser.id);
             }
+
+            this.logActivity('tip', { recipientId: actualRecipientId, amount: amount, postId: postId || null });
 
             return {
                 success: true,
@@ -2084,6 +2089,8 @@ const store = {
 
             // Reload full profile to get normalized avatar URL
             await this._loadUserProfile(this.currentUser.id);
+
+            this.logActivity('update_profile', { fields: Object.keys(updateData).join(',') });
 
             return { success: true };
         } catch (err) {
@@ -2509,6 +2516,7 @@ const store = {
                     };
                 }
                 await this._loadUserProfile(authData.record.id);
+                try { await this.logActivity('login', { method: 'email' }); } catch (e) { }
                 location.reload();
                 return { success: true };
             }
@@ -2585,6 +2593,15 @@ const store = {
             } catch (e) {
                 console.warn('[REFERRAL] Code gen failed:', e);
             }
+
+            // Log Registration
+            try {
+                await pb.collection('activity_logs').create({
+                    user: newUser.id,
+                    action: 'register',
+                    details: JSON.stringify({ method: 'email' })
+                });
+            } catch (e) { console.warn('[LOG] Register log failed', e); }
 
             return { success: true };
         } catch (error) {
