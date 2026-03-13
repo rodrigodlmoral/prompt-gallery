@@ -155,6 +155,7 @@ const CreateTextPromptModal = () => `
                         <option value="Grok">⚡ Grok</option>
                         <option value="Claude">🟠 Claude</option>
                         <option value="Perplexity">🟣 Perplexity</option>
+                        <option value="Cursor IDE">💻 Cursor IDE</option>
                     </select>
                 </div>
                 
